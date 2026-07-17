@@ -1,5 +1,74 @@
-// Placeholder. Public API surface for @git-for-ai/core, e.g.:
-//   resolveChangeId(sha), writeLedgerEntry(...), readLedgerEntry(changeId),
-//   captureSession(hookPayload), query(question), reindex(), sync({ push | fetch }).
+// Public API surface for @git-for-ai/core.
+//
+// Currently exposes the Milestone 2 git access layer (architecture/ARCHITECTURE.md §4.1),
+// the Milestone 3 identity assignment/resolution module (§7), and the Milestone 4 ledger
+// read/write module (§6.1, §12.2), which the CLI package builds on. Later milestones add:
+// captureSession(hookPayload), query(question), reindex(), sync({ push | fetch }).
 // See ../../../architecture/CLI_PLAN.md for the milestone-by-milestone build order.
-export {};
+//
+// NOTE: the test-only `createFixtureRepo` helper is deliberately NOT exported here — it is
+// published under the `@git-for-ai/core/testing` subpath (see package.json `exports`) so
+// consuming packages' test suites can use it without it leaking into the production API.
+
+export { runGit, GitError } from "./git/index.js";
+export type { RunGitOptions, GitResult } from "./git/index.js";
+
+export { readHead, readCommitMessage, catFile, listRefs, revParse, lsTree } from "./git/index.js";
+export type { RefInfo, TreeEntry } from "./git/index.js";
+
+export { notesShow, notesAppend, notesMerge } from "./git/index.js";
+export type { NotesMergeStrategy, NotesMergeOptions } from "./git/index.js";
+
+export { hashObject, mktree, commitTree, updateRef } from "./git/index.js";
+export type {
+  GitObjectType,
+  HashObjectOptions,
+  MktreeEntry,
+  CommitTreeOptions,
+  UpdateRefOptions,
+} from "./git/index.js";
+
+// Milestone 3 — identity assignment + resolution (ARCHITECTURE.md §7).
+export {
+  mintChangeId,
+  normalizeChangeId,
+  parseChangeIdTrailer,
+  formatChangeIdTrailer,
+  CHANGE_MAP_REF,
+  shardPathFor,
+  readChangeMapCommit,
+  readChangeMapEntry,
+  readAllChangeMapEntries,
+  findEntryByCommitSha,
+  upsertChangeMapEntries,
+  assignChangeId,
+  resolveChangeId,
+  DEFAULT_INFER_SIMILARITY_THRESHOLD,
+  onPostRewrite,
+  parsePostRewriteInput,
+  INTENT_NOTES_REF,
+} from "./identity/index.js";
+export type {
+  GitContext,
+  UpsertChangeMapOptions,
+  AssignChangeIdResult,
+  ResolutionBranch,
+  ResolveChangeIdOptions,
+  ResolveChangeIdResult,
+  RewritePair,
+  PostRewriteResult,
+} from "./identity/index.js";
+
+// Milestone 4 — ledger intent read/write (ARCHITECTURE.md §6.1, §12.2).
+// (ledger/index.js also exports an INTENT_NOTES_REF constant identical in value to the
+// identity one re-exported above; it is deliberately not re-exported again here to avoid
+// a name collision at the package root.)
+export {
+  LedgerNoteFormatError,
+  appendLedgerEntry,
+  readLedgerNote,
+  readLedgerEntries,
+  resolveEffectiveEntry,
+  canonicalJsonStringify,
+} from "./ledger/index.js";
+export type { LedgerNoteOptions } from "./ledger/index.js";

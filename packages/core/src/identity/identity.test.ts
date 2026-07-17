@@ -259,8 +259,16 @@ describe("cherry-pick with no hooks fired — lazy healing (§7.3 R2/R3, §7.5)"
 
     const cid = mintChangeId();
     await repo.run(["checkout", "-b", "feature"]);
+    // Pin the original commit's dates to a fixed past instant. Cherry-pick preserves the
+    // author date but stamps the committer date as "now" — without this pin, a same-second
+    // committer timestamp makes the copy byte-identical to the original (same parent, tree,
+    // message), i.e. the SAME SHA, and the test flakes.
     const originalSha = await repo.commit(messageWithTrailer("feat: session tokens", cid), {
       files: { "feature.txt": "signed cookies\n" },
+      env: {
+        GIT_AUTHOR_DATE: "2020-01-01T00:00:00Z",
+        GIT_COMMITTER_DATE: "2020-01-01T00:00:00Z",
+      },
     });
     await assignChangeId(originalSha, { cwd: repo.dir });
 
@@ -295,8 +303,13 @@ describe("cherry-pick with no hooks fired — lazy healing (§7.3 R2/R3, §7.5)"
       // Source repo: one assigned commit carrying its trailer.
       await repo.commit("base", { files: { "README.md": "base\n" } });
       const cid = mintChangeId();
+      // Dates pinned for the same SHA-collision reason as the R2 test above.
       const originalSha = await repo.commit(messageWithTrailer("feat: portable change", cid), {
         files: { "portable.txt": "rides the message\n" },
+        env: {
+          GIT_AUTHOR_DATE: "2020-01-01T00:00:00Z",
+          GIT_COMMITTER_DATE: "2020-01-01T00:00:00Z",
+        },
       });
       await assignChangeId(originalSha, { cwd: repo.dir });
 
