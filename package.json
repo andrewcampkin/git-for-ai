@@ -1,0 +1,23 @@
+{
+  "name": "git-for-ai-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "AI-augmented source control: intent alongside diffs, layered on Git. Monorepo root (not published).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev --parallel"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+.DS_Store
+
+# git-for-ai's own derived cache, if this repo ever dogfoods itself
+.git-for-ai/
+
+# local env files
+.env
+.env.local
