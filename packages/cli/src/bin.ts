@@ -11,6 +11,7 @@ import { Command } from "commander";
 
 import { runInit, formatInitResult, type InitOptions } from "./commands/init.js";
 import { runLog, type LogIntentOptions } from "./commands/log.js";
+import { runShow, type ShowOptions } from "./commands/show.js";
 
 const program = new Command();
 
@@ -70,6 +71,23 @@ program
     } else if (result.output.length > 0) {
       process.stdout.write(`${result.output}\n`);
     }
+  });
+
+program
+  .command("show")
+  .description("Dump the ledger entry (and session, if any) for a commit or c/<change-id>")
+  .argument("<target>", "commit-ish (SHA, HEAD, branch) or c/<change-id>")
+  .option("--repo <path>", "repository to read (default: current directory)")
+  .option("--session", "include the full session span trace in the output")
+  .option("--json", "machine-readable output")
+  .action(async (target: string, opts) => {
+    const showOptions: ShowOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.session === true ? { session: true } : {}),
+      ...(opts.json === true ? { json: true } : {}),
+    };
+    const result = await runShow(target, showOptions);
+    process.stdout.write(`${result.output}\n`);
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {
