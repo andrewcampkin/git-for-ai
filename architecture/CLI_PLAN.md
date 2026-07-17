@@ -294,6 +294,18 @@ and the "no API key, showing raw sources" case from M11).
 Wire `commands/sync.ts`: explicit `--push`/`--fetch` of the three refs (never automatic, per
 `ARCHITECTURE.md` §12.1), configuring `notes.mergeStrategy=cat_sort_uniq` for the ledger ref.
 
+**Open issue found during M4, resolve before implementing this milestone**: `cat_sort_uniq`
+merges notes line-by-line, which is conflict-free for line-oriented content but the ledger note
+body (per `DATA_MODEL.md` §2.1) is a single multi-line JSON envelope — a line-wise cat/sort/uniq
+of two divergently-appended envelopes will not produce valid JSON. Before wiring `sync`, either
+(a) design and implement a custom notes merge driver that parses both sides as `ledgerNoteSchema`,
+unions their `entries` arrays, and re-serializes one valid envelope (probably the right answer,
+and consistent with `ARCHITECTURE.md` §12.2's stated intent even though the literal
+`cat_sort_uniq` mechanism doesn't achieve it), or (b) change the on-disk note format to be
+genuinely line-oriented (e.g. one JSON object per line, JSONL-style, instead of one pretty-printed
+envelope) so `cat_sort_uniq` works as originally assumed. Decide and document which before M13
+starts.
+
 **Tests:** push from one fixture repo to a scratch bare repo, fetch into a second clone, confirm
 ledger/session/change-map data round-trips intact; simulate a concurrent-append conflict scenario
 and confirm the `cat_sort_uniq` merge produces the union, not a conflict.
