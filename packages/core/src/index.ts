@@ -72,3 +72,48 @@ export {
   canonicalJsonStringify,
 } from "./ledger/index.js";
 export type { LedgerNoteOptions } from "./ledger/index.js";
+
+// Milestone 7 — agent session capture (ARCHITECTURE.md §10, §13; DATA_MODEL.md §3).
+export {
+  BUILTIN_RULESET_VERSION,
+  BUILTIN_REDACTION_RULES,
+  DEFAULT_MAX_SPAN_BYTES,
+  TRUNCATED_MARKER,
+  redactionMarker,
+  patternRule,
+  matchesNeverCapture,
+  redactSpans,
+  CLAUDE_CODE_TRANSCRIPT_FINGERPRINT,
+  PLAN_ONLY_FINGERPRINT,
+  parseTranscriptSlice,
+  SESSIONS_REF,
+  sessionShardPath,
+  contentAddressSessionRecord,
+  readSessionsCommit,
+  writeSessionRecord,
+  readSessionRecord,
+  STATE_FILE_RELPATH,
+  readSessionCaptureState,
+  updateSessionCaptureState,
+  DEFAULT_CAPTURE_SETTINGS,
+  readCaptureSettings,
+  captureSession,
+  toHookPayload,
+  isGitCommitCommand,
+  toolResponseIndicatesFailure,
+} from "./sessions/index.js";
+export type {
+  RedactionRule,
+  RedactSpansOptions,
+  RedactSpansResult,
+  ParseTranscriptOptions,
+  ParseTranscriptResult,
+  TranscriptMeta,
+  WriteSessionRecordResult,
+  SessionCaptureState,
+  CaptureSettings,
+  CaptureEventKind,
+  CaptureSessionOptions,
+  CaptureSessionResult,
+  HookPayload,
+} from "./sessions/index.js";

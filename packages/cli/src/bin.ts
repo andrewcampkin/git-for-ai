@@ -12,6 +12,7 @@ import { Command } from "commander";
 import { runInit, formatInitResult, type InitOptions } from "./commands/init.js";
 import { runLog, type LogIntentOptions } from "./commands/log.js";
 import { runShow, type ShowOptions } from "./commands/show.js";
+import { runCaptureSession } from "./commands/capture-session.js";
 
 const program = new Command();
 
@@ -71,6 +72,26 @@ program
     } else if (result.output.length > 0) {
       process.stdout.write(`${result.output}\n`);
     }
+  });
+
+program
+  .command("capture-session")
+  .description("Internal, hook-invoked: capture agent session context at commit time")
+  .requiredOption("--event <kind>", "hook event kind: plan | maybe-commit")
+  .option("--quiet", "suppress the log line on stdout")
+  .action(async (opts) => {
+    // THE ONE HARD RULE (ARCHITECTURE.md §10.2): this command always exits 0 — a hook
+    // must never break the user's commit. runCaptureSession never rejects by contract,
+    // but guard anyway.
+    try {
+      const { logLine } = await runCaptureSession({ event: opts.event });
+      if (opts.quiet !== true) {
+        process.stdout.write(`${logLine}\n`);
+      }
+    } catch {
+      // swallow — failures are already logged to .git-for-ai/capture.log where possible
+    }
+    process.exitCode = 0;
   });
 
 program
