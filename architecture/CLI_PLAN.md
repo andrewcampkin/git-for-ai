@@ -10,6 +10,12 @@ Scope: this plan covers exactly the three packages that make up a working CLI �
 scaffolded under `packages/`. `server`, `desktop`, and `website` are out of scope here; see
 [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md) for when they come up.
 
+> **Status (2026-07-17): M1–M8 are done, tested, and committed.** See
+> [`../HANDOFF.md`](../HANDOFF.md) for full session-resume context, known issues to resolve
+> first (an unimplemented `internal-hook` dispatcher found during dogfooding, and the
+> `better-sqlite3` native-build blocker on M9), and the commit log. Milestone sections below
+> are unchanged as specs; only the checkmarks are new.
+
 ---
 
 ## 1. What "done" means
@@ -54,7 +60,7 @@ Each milestone lists: what gets built, where, how it's tested, and its definitio
 numbered for reference, not necessarily meant as separate PRs — group them however makes sense, but
 don't skip ahead of a milestone's dependencies.
 
-### M0 — Verify the scaffold actually builds
+### M0 — Verify the scaffold actually builds ✅ DONE
 
 Run `pnpm install` at the repo root, then `pnpm build` and `pnpm typecheck` through Turborepo. At
 this point every package only has placeholder files (`export {}`), so this should succeed trivially
@@ -71,7 +77,7 @@ signal to pin a Node version with prebuilt binary support rather than debug a na
 
 ---
 
-### M1 — `@git-for-ai/schemas`: the record types
+### M1 — `@git-for-ai/schemas`: the record types ✅ DONE (commit `35e9a98`)
 
 Implement Zod schemas for `LedgerEntry` (+ its `ScopeItem` and `reasoning` sub-shapes),
 `SessionRecord` (+ `spans`), `ChangeMapEntry`, and `RepoConfig` — field-for-field matching
@@ -88,7 +94,7 @@ mismatches are rejected per the "reject unknown major version" rule in `DATA_MOD
 
 ---
 
-### M2 — `@git-for-ai/core/git`: the git access layer
+### M2 — `@git-for-ai/core/git`: the git access layer ✅ DONE (commit `8bf04e4`)
 
 Implement the `execa`-wrapped git access functions per `ARCHITECTURE.md` §4.1: `runGit(args)`,
 `readHead()`, `readCommitMessage(sha)`, `catFile(blobSha)`, `listRefs(pattern)`,
@@ -106,7 +112,7 @@ temp-repo fixture; a shared `createFixtureRepo()` test helper exists for reuse b
 
 ---
 
-### M3 — `@git-for-ai/core/identity`: the resolver (the hard part)
+### M3 — `@git-for-ai/core/identity`: the resolver (the hard part) ✅ DONE (commit `8b27d08`)
 
 Implement, in order:
 
@@ -131,7 +137,7 @@ test against a real git fixture, including the cherry-pick lazy-healing path.
 
 ---
 
-### M4 — `@git-for-ai/core/ledger`: intent read/write
+### M4 — `@git-for-ai/core/ledger`: intent read/write ✅ DONE (commit `73bda1f`)
 
 Implement `appendLedgerEntry(changeId, entry)` and `readLedgerEntries(changeId)` /
 `resolveEffectiveEntry(entries)` per `ARCHITECTURE.md` §6.1 and §12.2 — notes as an append-only
@@ -146,7 +152,7 @@ by hand, shows a human-readable JSON array matching the spec.
 
 ---
 
-### M5 — `cli init` — first real end-to-end milestone
+### M5 — `cli init` — first real end-to-end milestone ✅ DONE (commit `5ce284f`)
 
 Wire `packages/cli/src/commands/init.ts`: install `commit-msg`/`post-commit`/`post-rewrite` git
 hooks (respecting an existing `core.hooksPath`, appending rather than clobbering), write/merge
@@ -166,7 +172,7 @@ exactly.
 
 ---
 
-### M6 — `cli log --intent` — validates M2–M4 together, no embeddings needed
+### M6 — `cli log --intent` — validates M2–M4 together, no embeddings needed ✅ DONE (commit `5ce284f`)
 
 Wire `commands/log.ts`: for each commit in range, resolve its change-id (M3), look up its ledger
 entry (M4), print the annotated line format from `ARCHITECTURE.md` §9.1's example. Must degrade
@@ -177,7 +183,7 @@ produces sensible output, including the "no intent" case for pre-scaffolding com
 
 ---
 
-### M7 — Session capture: closes the loop on the actual differentiator
+### M7 — Session capture: closes the loop on the actual differentiator ✅ DONE (commit `8e25afb`) — self-captured its own implementation session, see HANDOFF.md
 
 Implement `@git-for-ai/core/sessions` (redaction pass — start with the pattern list in
 `ARCHITECTURE.md` §13: AWS keys, tokens, private key blocks, JWTs, connection strings, plus
@@ -202,7 +208,7 @@ a non-null `session_ref` pointing at a readable, redacted session object.
 
 ---
 
-### M8 — `cli show <commit>` — debugging tool, exercises the full read path
+### M8 — `cli show <commit>` — debugging tool, exercises the full read path ✅ DONE (commit `b2c9038`)
 
 Wire `commands/show.ts`: dump the ledger entry and (if present) the session record for a commit, in
 both human-readable and `--json` form. Cheap to build (it's M3+M4+M7's read paths with formatting),

@@ -1,5 +1,8 @@
 # git-for-ai
 
+> **Resuming a session?** Read [`HANDOFF.md`](HANDOFF.md) first — it has current status,
+> known issues, and next steps, more current than the rest of this README.
+
 An exploration of AI-augmented source control: a system that holds the *intent* behind a change —
 especially an AI coding agent's reasoning — alongside the diff-based commits Git already produces.
 
