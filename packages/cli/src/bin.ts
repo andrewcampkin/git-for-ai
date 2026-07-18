@@ -15,6 +15,8 @@ import { runShow, type ShowOptions } from "./commands/show.js";
 import { runCaptureSession } from "./commands/capture-session.js";
 import { runInternalHook, logHookFailure } from "./commands/internal-hook.js";
 import { runAnnotate, type AnnotateOptions } from "./commands/annotate.js";
+import { runRelink } from "./commands/relink.js";
+import { runReconcile } from "./commands/reconcile.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -109,6 +111,45 @@ program
   });
 
 const collect = (value: string, previous: string[] = []): string[] => [...previous, value];
+
+program
+  .command("relink")
+  .description("Manually re-point a change to a commit, or --detach a misattributed commit")
+  .argument("<args...>", "<change-id> <commit>, or --detach <commit>")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option("--detach", "remove <commit> from its claimed change and give it fresh identity")
+  .option("--json", "machine-readable output")
+  .action(async (args: string[], opts) => {
+    const result = await runRelink(args, {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.detach === true ? { detach: true } : {}),
+    });
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result, null, 2)}\n` : `${result.output}\n`,
+    );
+  });
+
+program
+  .command("reconcile")
+  .description("Eagerly heal the change-map from Change-Id trailers (§7.5 recovery)")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option("--rebuild-map", "reconstruct the entire map from trailers (recovery path)")
+  .option("--by-content", "NOT IMPLEMENTED YET: best-effort re-link via patch similarity")
+  .option("--limit <N>", "commits to scan in the default mode", (v) => Number.parseInt(v, 10))
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    if (opts.byContent === true) {
+      throw new Error("--by-content is not implemented yet (planned alongside doctor — see PLAN_2026-07-18.md W3)");
+    }
+    const result = await runReconcile({
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.rebuildMap === true ? { rebuildMap: true } : {}),
+      ...(opts.limit !== undefined ? { limit: opts.limit } : {}),
+    });
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result, null, 2)}\n` : `${result.output}\n`,
+    );
+  });
 
 program
   .command("annotate")
