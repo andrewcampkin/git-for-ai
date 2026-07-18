@@ -13,6 +13,19 @@ import { runInit, formatInitResult, type InitOptions } from "./commands/init.js"
 import { runLog, type LogIntentOptions } from "./commands/log.js";
 import { runShow, type ShowOptions } from "./commands/show.js";
 import { runCaptureSession } from "./commands/capture-session.js";
+import { runInternalHook, logHookFailure } from "./commands/internal-hook.js";
+
+/** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY === true) {
+    return "";
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
 
 const program = new Command();
 
@@ -90,6 +103,24 @@ program
       }
     } catch {
       // swallow — failures are already logged to .git-for-ai/capture.log where possible
+    }
+    process.exitCode = 0;
+  });
+
+program
+  .command("internal-hook", { hidden: true })
+  .description("Internal, git-hook-invoked: identity upkeep (commit-msg, post-commit, post-rewrite)")
+  .argument("<name>", "hook name: commit-msg | post-commit | post-rewrite")
+  .argument("[args...]", "hook arguments forwarded by the hook script")
+  .action(async (name: string, args: string[]) => {
+    // Same hard rule as capture-session (ARCHITECTURE.md §10.2): a hook must never break
+    // the user's git operation — always exit 0, log failures instead of surfacing them.
+    try {
+      const stdin = name === "post-rewrite" ? await readStdin() : "";
+      await runInternalHook(name, { args, stdin });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await logHookFailure(`${name}: ${message}`);
     }
     process.exitCode = 0;
   });
