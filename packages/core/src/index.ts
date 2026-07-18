@@ -1,9 +1,10 @@
 // Public API surface for @git-for-ai/core.
 //
 // Currently exposes the Milestone 2 git access layer (architecture/ARCHITECTURE.md §4.1),
-// the Milestone 3 identity assignment/resolution module (§7), and the Milestone 4 ledger
-// read/write module (§6.1, §12.2), which the CLI package builds on. Later milestones add:
-// captureSession(hookPayload), query(question), reindex(), sync({ push | fetch }).
+// the Milestone 3 identity assignment/resolution module (§7), the Milestone 4 ledger
+// read/write module (§6.1, §12.2), the Milestone 7 session-capture module (§10, §13),
+// and the Milestone 9 embedding pipeline + vector store (§11), which the CLI package
+// builds on. Later milestones add: query(question), reindex(), sync({ push | fetch }).
 // See ../../../architecture/CLI_PLAN.md for the milestone-by-milestone build order.
 //
 // NOTE: the test-only `createFixtureRepo` helper is deliberately NOT exported here — it is
@@ -117,3 +118,51 @@ export type {
   CaptureSessionResult,
   HookPayload,
 } from "./sessions/index.js";
+
+// Milestone 9 — embedding pipeline + vector store (ARCHITECTURE.md §11; DATA_MODEL.md §5).
+export {
+  modelFingerprint,
+  chunkSourceFile,
+  languageForPath,
+  TransformersEmbedder,
+  TRANSFORMERS_MODELS,
+  VoyageEmbedder,
+  VoyageConsentError,
+  VoyageApiError,
+  createEmbedderFromConfig,
+  SqliteVectorStore,
+  IndexFingerprintError,
+  VEC_SCHEMA_VERSION,
+  toFtsQuery,
+  EmbeddingCache,
+  embedChunksWithCache,
+  INDEX_STATE_SCHEMA,
+  IndexStateFormatError,
+  indexStatePath,
+  readIndexState,
+  updateIndexState,
+} from "./embeddings/index.js";
+export type {
+  Chunk,
+  Embedder,
+  ChunkLanguage,
+  ChunkKind,
+  CodeChunk,
+  ChunkSourceFileOptions,
+  TransformersEmbedderOptions,
+  TransformersModelSpec,
+  VoyageEmbedderOptions,
+  CreateEmbedderOptions,
+  VectorStore,
+  VectorStoreItem,
+  StoredChunk,
+  VectorMatch,
+  KeywordMatch,
+  IndexedKind,
+  OpenVectorStoreOptions,
+  EmbeddingCacheOptions,
+  CacheableChunk,
+  EmbedWithCacheResult,
+  IndexState,
+  IndexStateFields,
+} from "./embeddings/index.js";
