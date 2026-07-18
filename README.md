@@ -1,7 +1,9 @@
 # git-for-ai
 
-> **Resuming a session?** Read [`HANDOFF.md`](HANDOFF.md) first — it has current status,
-> known issues, and next steps, more current than the rest of this README.
+> **Resuming a session?** Read [`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md)
+> first — the current plan — then use `git for-ai log --intent` / `git for-ai show <sha>` on this
+> repo for ground truth. (The 2026-07-17 handoff is archived at
+> [`architecture/HANDOFF_2026-07-17.md`](architecture/HANDOFF_2026-07-17.md).)
 
 An exploration of AI-augmented source control: a system that holds the *intent* behind a change —
 especially an AI coding agent's reasoning — alongside the diff-based commits Git already produces.

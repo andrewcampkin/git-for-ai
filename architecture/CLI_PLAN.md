@@ -11,7 +11,7 @@ scaffolded under `packages/`. `server`, `desktop`, and `website` are out of scop
 [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md) for when they come up.
 
 > **Status (2026-07-17): M1–M8 are done, tested, and committed.** See
-> [`../HANDOFF.md`](../HANDOFF.md) for full session-resume context, known issues to resolve
+> [`./HANDOFF_2026-07-17.md`](./HANDOFF_2026-07-17.md) for full session-resume context, known issues to resolve
 > first (an unimplemented `internal-hook` dispatcher found during dogfooding, and the
 > `better-sqlite3` native-build blocker on M9), and the commit log. Milestone sections below
 > are unchanged as specs; only the checkmarks are new.

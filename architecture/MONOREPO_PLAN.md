@@ -140,6 +140,13 @@ Concretely: **`git for-ai sync --push` may already work against a repo's existin
 remote today, with zero custom server software**, since it's just `git push origin
 refs/notes/git-for-ai/intent:refs/notes/git-for-ai/intent` (and the two other refs) under the hood.
 
+> **VALIDATED 2026-07-18.** Pushed `main` + all three ref namespaces to this repo's real GitHub
+> remote; GitHub accepted them, and a fresh clone + one fetch reconstructed the full intent layer
+> (`git for-ai show` / `log --intent` worked immediately, zero server-side support). The
+> conclusion below is now fact, not hypothesis: **the ref-relay tier is eliminated from the
+> server package's scope.** The "hosting" story for sync is documentation only. §5.3's tier 1 is
+> retained below solely as a record of what was considered and why it is not being built.
+
 This should be validated early and cheaply — literally push a test note to a scratch GitHub repo
 and confirm it round-trips — before assuming a dedicated server is needed at all for basic
 multi-machine sync. If it works (likely), the "hosting" component's minimum viable version is
@@ -173,7 +180,8 @@ data that's already source-of-truth in git.
 Two logically separate responsibilities, worth keeping architecturally distinct even if they ship
 in one deployable for simplicity at first:
 
-1. **Ref relay** (optional, thin): accept/serve pushes and fetches of the three `git-for-ai` refs,
+1. **Ref relay** (~~optional, thin~~ **NOT BEING BUILT** — eliminated by the §5.1 validation,
+   2026-07-18): accept/serve pushes and fetches of the three `git-for-ai` refs,
    for teams who'd rather not rely on an existing host allowing custom refspecs, or who want one
    place that's explicitly "the git-for-ai server" rather than overloading an existing git remote.
    Likely implementable by literally running a bare git repo behind git's own smart-HTTP protocol
