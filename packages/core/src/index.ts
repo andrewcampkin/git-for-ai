@@ -166,3 +166,51 @@ export type {
   IndexState,
   IndexStateFields,
 } from "./embeddings/index.js";
+
+// Milestone 11 — query engine: hybrid retrieval + synthesis (ARCHITECTURE.md §9.1,
+// §11.4; CLI_PLAN.md M11). `askQuestion`/`explainLine` are the two entry points M12's
+// `ask` and `blame --why` commands wrap; retrieval is fully local, synthesis calls the
+// Anthropic API only when ANTHROPIC_API_KEY is configured (ranked-raw-sources fallback
+// otherwise, never an error).
+export {
+  DEFAULT_RRF_K,
+  DEFAULT_TOP_K,
+  retrieveSources,
+  fuseMatches,
+  toRetrievalPosition,
+  createQueryEmbedderFromConfig,
+  enrichSources,
+  readChangeLedger,
+  resolveChangeIdReadOnly,
+  followFoldedInto,
+  blameLineCommit,
+  findLaterTouches,
+  DEFAULT_SYNTHESIS_MODEL,
+  SYNTHESIS_MODEL_ENV,
+  buildSynthesisPrompt,
+  extractCitations,
+  synthesizeAnswer,
+  askQuestion,
+  explainLine,
+} from "./query/index.js";
+export type {
+  RetrievalPosition,
+  RetrieveOptions,
+  ChangeLedger,
+  SynthesisOptions,
+  SynthesisPrompt,
+  AskDeps,
+  AskOptions,
+  BlameWhyDeps,
+  BlameWhyOptions,
+  MatchSide,
+  PositionBoost,
+  RankedSource,
+  EnrichedSource,
+  SynthesisSkipReason,
+  SynthesisResult,
+  AskResult,
+  BlamePosition,
+  RelatedChangeRef,
+  BlameWhyResult,
+} from "./query/index.js";
