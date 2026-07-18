@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Deliberately NOT extending config/tsconfig.base.json: that profile is NodeNext +
+  // composite for the node packages; this is a browser SPA compiled by Vite/esbuild, so it
+  // needs DOM libs, JSX, and bundler-style resolution. Strictness flags match the base.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    // Enforces REVIEW_UI.md §3's rule mechanically: everything imported from the CLI
+    // package must be a type-only import (erased at build), or compilation fails.
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src", "test", "vite.config.ts", "vitest.config.ts"]
+}

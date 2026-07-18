@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typecheck": {
+      // review-ui's types are type-only imports of the CLI package's built declaration
+      // files (REVIEW_UI.md §3). The CLI can't be a package dependency here — the CLI
+      // already depends on review-ui for its assets, and a package cycle would break the
+      // graph — so the build-order edge for typechecking is declared explicitly instead.
+      // `build` (vite/esbuild) erases the type imports and needs no such edge.
+      "dependsOn": ["^build", "git-for-ai#build"]
+    }
+  }
+}

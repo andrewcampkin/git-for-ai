@@ -19,6 +19,7 @@ import { runRelink } from "./commands/relink.js";
 import { runReconcile } from "./commands/reconcile.js";
 import { runReindex, type ReindexOptions } from "./commands/reindex.js";
 import { runReport, type ReportOptions } from "./commands/report.js";
+import { runReview, type ReviewOptions } from "./commands/review.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -246,6 +247,28 @@ program
     } else {
       process.stdout.write(`${result.output}\n`);
     }
+  });
+
+program
+  .command("review")
+  .description("Open the local review web app (read-only, serves on 127.0.0.1 only)")
+  .option("--repo <path>", "repository to review (default: current directory)")
+  .option("--port <n>", "pin the port (default: a random free port)", (v) => Number.parseInt(v, 10))
+  .option("--no-open", "do not open the browser automatically")
+  .action(async (opts) => {
+    const reviewOptions: ReviewOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.port !== undefined ? { port: opts.port } : {}),
+      open: opts.open,
+    };
+    const result = await runReview(reviewOptions);
+    process.stdout.write(
+      `review UI serving at ${result.url} (127.0.0.1 only — Ctrl+C to stop)\n`,
+    );
+    if (opts.open !== false && !result.opened) {
+      process.stdout.write("could not launch a browser — open the URL above manually\n");
+    }
+    // The listening server keeps the process alive until Ctrl+C.
   });
 
 program
