@@ -168,7 +168,8 @@ describe("synthesizeAnswer", () => {
       const fetchImpl = anthropicFetch(okBody("answer [1]"));
       const result = await synthesizeAnswer("q", SOURCES, { fetchImpl });
       expect(result.synthesized).toBe(true);
-      const headers = (fetchImpl.mock.calls[0]![1] as RequestInit).headers as Record<string, string>;
+      const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
       expect(headers["x-api-key"]).toBe("scoped-key");
     } finally {
       vi.unstubAllEnvs();
