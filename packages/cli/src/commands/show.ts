@@ -1,10 +1,11 @@
 // `git for-ai show <commit|c/change-id>` — Milestone 8 (architecture/CLI_PLAN.md).
 //
 // The debugging tool that exercises the full read path: dump the commit, its resolved
-// change-id, the change-map entry's key facts, every ledger entry for the change (with
-// the effective one marked, per DATA_MODEL.md §2.4 — superseded entries are retained and
-// viewable), and the linked session record when one exists. `--json` renders the same
-// structured result as JSON; `--session` includes the full span trace in the human dump.
+// change-id, the change-map entry's key facts, the ledger for the change (effective entry
+// by default; `--history` includes superseded entries, per DATA_MODEL.md §2.4 — they are
+// retained, never deleted), and the linked session record when one exists. `--json`
+// renders the same structured result as JSON (always carrying every ledger entry);
+// `--session` includes the full span trace in the human dump.
 //
 // Honest degradation is a hard requirement (ARCHITECTURE.md's stated goals), so every
 // absent piece of data gets an explicit label instead of silence or fabrication:
@@ -54,6 +55,13 @@ export interface ShowOptions {
   cwd?: string;
   /** `--session` — include the full span trace in the rendered output. */
   session?: boolean;
+  /**
+   * `--history` — include superseded (appended-over) ledger entries in the human dump
+   * (CLI_REFERENCE `show`; DATA_MODEL.md §2.4). Default renders the effective entry only,
+   * with a hint line counting what was hidden. `--json` always carries every entry in
+   * `data.ledger` regardless of this flag — machine consumers get the complete record.
+   */
+  history?: boolean;
   /** `--json` — render the structured result as JSON instead of the human dump. */
   json?: boolean;
 }
@@ -458,7 +466,7 @@ function renderSession(session: ShowSessionInfo, includeSpans: boolean, lines: s
 }
 
 /** Render the human-readable dump from the structured data. */
-function render(data: ShowData, includeSpans: boolean): string {
+function render(data: ShowData, includeSpans: boolean, includeHistory: boolean): string {
   const lines: string[] = [];
 
   if (data.commit !== null) {
@@ -482,11 +490,24 @@ function render(data: ShowData, includeSpans: boolean): string {
   }
 
   if (data.ledger.length > 0) {
+    const visible = includeHistory ? data.ledger : data.ledger.filter((row) => row.effective);
+    const hidden = data.ledger.length - visible.length;
     lines.push(
       `ledger       ${data.ledger.length} ` +
         `entr${data.ledger.length === 1 ? "y" : "ies"} (* = effective)`,
     );
-    data.ledger.forEach((row, index) => renderLedgerRow(row, index, lines));
+    // Preserve each row's position number so an entry keeps its index with or without
+    // --history (entry numbering is append order, not display order).
+    data.ledger.forEach((row, index) => {
+      if (includeHistory || row.effective) {
+        renderLedgerRow(row, index, lines);
+      }
+    });
+    if (hidden > 0) {
+      lines.push(
+        `    (${hidden} superseded entr${hidden === 1 ? "y" : "ies"} hidden — run with --history to include)`,
+      );
+    }
   } else {
     lines.push(`ledger       no captured intent`);
   }
@@ -588,6 +609,8 @@ export async function runShow(target: string, options: ShowOptions = {}): Promis
   };
 
   const output =
-    options.json === true ? JSON.stringify(data, null, 2) : render(data, options.session === true);
+    options.json === true
+      ? JSON.stringify(data, null, 2)
+      : render(data, options.session === true, options.history === true);
   return { data, output };
 }

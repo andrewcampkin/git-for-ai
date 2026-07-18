@@ -163,7 +163,7 @@ describe("runShow (real git fixture with identity, ledger, and a planted session
   });
 
   it("renders commit, change-id, change-map facts, and all ledger entries with the effective one marked", async () => {
-    const { data, output } = await runShow(shaAuth, { cwd: repo.dir });
+    const { data, output } = await runShow(shaAuth, { cwd: repo.dir, history: true });
 
     expect(data.commit).toMatchObject({
       sha: shaAuth,
@@ -199,6 +199,19 @@ describe("runShow (real git fixture with identity, ledger, and a planted session
     expect(output).toContain("rejected   Redis session store — adds an infra dependency");
     expect(output).toContain("scope      src/auth/session.ts:40-118");
     expect(output).toContain("conf 0.82");
+  });
+
+  it("hides superseded entries by default with a --history hint (CLI_REFERENCE `show`)", async () => {
+    const { data, output } = await runShow(shaAuth, { cwd: repo.dir });
+
+    // The structured data always carries every entry (--json completeness)...
+    expect(data.ledger).toHaveLength(2);
+    // ...but the human render shows only the effective one, plus the hint line.
+    expect(output).toContain("Switch session store to signed-cookie tokens");
+    expect(output).not.toContain("Original (superseded) summary");
+    expect(output).toContain("(1 superseded entry hidden — run with --history to include)");
+    // Entry numbering is append order: the effective entry keeps its position (2).
+    expect(output).toContain("* entry 2");
   });
 
   it("accepts HEAD and short-SHA commit-ish targets", async () => {

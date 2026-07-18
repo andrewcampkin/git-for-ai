@@ -14,6 +14,7 @@ import { runLog, type LogIntentOptions } from "./commands/log.js";
 import { runShow, type ShowOptions } from "./commands/show.js";
 import { runCaptureSession } from "./commands/capture-session.js";
 import { runInternalHook, logHookFailure } from "./commands/internal-hook.js";
+import { runAnnotate, type AnnotateOptions } from "./commands/annotate.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -107,6 +108,56 @@ program
     process.exitCode = 0;
   });
 
+const collect = (value: string, previous: string[] = []): string[] => [...previous, value];
+
+program
+  .command("annotate")
+  .description("Deliberately record intent: append a full ledger entry to a commit or change")
+  .argument("[target]", "commit-ish or c/<change-id> to annotate", "HEAD")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option("--stdin", "read a JSON partial entry (summary/reasoning/scope/author/session_ref) from stdin")
+  .option("--summary <text>", "one-line 'what changed' (required unless provided via --stdin)")
+  .option("--intent <text>", "the goal — what outcome the change is trying to achieve")
+  .option("--constraint <text>", "hard requirement the change had to respect (repeatable)", collect)
+  .option("--rejected <option::why>", "alternative considered and why it was rejected (repeatable)", collect)
+  .option("--confidence <n>", "confidence in the approach, 0..1", (v) => Number.parseFloat(v))
+  .option("--scope-risk <level>", "blast radius: low | medium | high")
+  .option("--reversibility <level>", "how hard to undo: easy | moderate | hard")
+  .option("--directive <text>", "the originating instruction/prompt")
+  .option("--tested <text>", "how it was verified (repeatable)", collect)
+  .option("--related <ref>", "related commit SHA or c/<change-id> (repeatable)", collect)
+  .option("--as <type>", "author type: agent | human | mixed")
+  .option("--tool <name>", "authoring tool (e.g. claude-code); implies --as agent")
+  .option("--model <name>", "authoring model (e.g. claude-fable-5); implies --as agent")
+  .option("--session-ref <ref>", "link an existing session record (sha256:<64hex>)")
+  .option("--json", "machine-readable output")
+  .action(async (target: string, opts) => {
+    const annotateOptions: AnnotateOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.stdin === true ? { stdinJson: await readStdin() } : {}),
+      ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
+      ...(opts.intent !== undefined ? { intent: opts.intent } : {}),
+      ...(opts.constraint !== undefined ? { constraints: opts.constraint } : {}),
+      ...(opts.rejected !== undefined ? { rejected: opts.rejected } : {}),
+      ...(opts.confidence !== undefined ? { confidence: opts.confidence } : {}),
+      ...(opts.scopeRisk !== undefined ? { scopeRisk: opts.scopeRisk } : {}),
+      ...(opts.reversibility !== undefined ? { reversibility: opts.reversibility } : {}),
+      ...(opts.directive !== undefined ? { directive: opts.directive } : {}),
+      ...(opts.tested !== undefined ? { tested: opts.tested } : {}),
+      ...(opts.related !== undefined ? { related: opts.related } : {}),
+      ...(opts.as !== undefined ? { as: opts.as } : {}),
+      ...(opts.tool !== undefined ? { tool: opts.tool } : {}),
+      ...(opts.model !== undefined ? { model: opts.model } : {}),
+      ...(opts.sessionRef !== undefined ? { sessionRef: opts.sessionRef } : {}),
+    };
+    const result = await runAnnotate(target, annotateOptions);
+    process.stdout.write(
+      opts.json === true
+        ? `${JSON.stringify({ sha: result.sha, changeId: result.changeId, entry: result.entry, entryCount: result.entryCount }, null, 2)}\n`
+        : `${result.output}\n`,
+    );
+  });
+
 program
   .command("internal-hook", { hidden: true })
   .description("Internal, git-hook-invoked: identity upkeep (commit-msg, post-commit, post-rewrite)")
@@ -131,11 +182,13 @@ program
   .argument("<target>", "commit-ish (SHA, HEAD, branch) or c/<change-id>")
   .option("--repo <path>", "repository to read (default: current directory)")
   .option("--session", "include the full session span trace in the output")
+  .option("--history", "include superseded (appended-over) ledger entries")
   .option("--json", "machine-readable output")
   .action(async (target: string, opts) => {
     const showOptions: ShowOptions = {
       ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
       ...(opts.session === true ? { session: true } : {}),
+      ...(opts.history === true ? { history: true } : {}),
       ...(opts.json === true ? { json: true } : {}),
     };
     const result = await runShow(target, showOptions);
