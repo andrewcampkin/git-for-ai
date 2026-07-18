@@ -10,11 +10,13 @@ Scope: this plan covers exactly the three packages that make up a working CLI �
 scaffolded under `packages/`. `server`, `desktop`, and `website` are out of scope here; see
 [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md) for when they come up.
 
-> **Status (2026-07-17): M1–M8 are done, tested, and committed.** See
-> [`./HANDOFF_2026-07-17.md`](./HANDOFF_2026-07-17.md) for full session-resume context, known issues to resolve
-> first (an unimplemented `internal-hook` dispatcher found during dogfooding, and the
-> `better-sqlite3` native-build blocker on M9), and the commit log. Milestone sections below
-> are unchanged as specs; only the checkmarks are new.
+> **Status (2026-07-19): M0–M10 are done, tested, committed, and dogfooded on this repo.**
+> M11 (query engine) is in progress; then M12 `ask`/`blame --why`, M13 `sync`, M14 `doctor`.
+> Additions beyond this plan (internal-hook dispatcher, `annotate`, `report`,
+> `relink`/`reconcile`, the R4 redesign) are sequenced in
+> [`./PLAN_2026-07-18.md`](./PLAN_2026-07-18.md), which supersedes this file's ordering.
+> Historical session notes live in [`./history/`](./history/HANDOFF_2026-07-17.md).
+> Milestone sections below are unchanged as specs; only the checkmarks are new.
 
 ---
 
@@ -219,7 +221,7 @@ before building retrieval on top of it.
 
 ---
 
-### M9 — Embeddings: chunking, provider, vector store
+### M9 — Embeddings: chunking, provider, vector store ✅ DONE (commit `6632bf8`) — node:sqlite + sqlite-vec, superseding the better-sqlite3 wording below
 
 The other genuinely hard milestone. Three pieces in `@git-for-ai/core/embeddings`:
 
@@ -248,7 +250,7 @@ entry, `reindex` (M10) produces a queryable index; re-running it with no changes
 
 ---
 
-### M10 — `cli reindex`
+### M10 — `cli reindex` ✅ DONE (commit `37f6315`) — dogfooded on this repo with the real model
 
 Wire `commands/reindex.ts` over M9. Good first dogfood target: once `schemas`/`core` have real
 source files, run `git for-ai reindex` on the `git-for-ai` repo itself.

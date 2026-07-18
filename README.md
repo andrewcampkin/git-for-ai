@@ -1,118 +1,85 @@
 # git-for-ai
 
-> **Resuming a session?** Read [`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md)
-> first — the current plan — then use `git for-ai log --intent` / `git for-ai show <sha>` on this
-> repo for ground truth. (The 2026-07-17 handoff is archived at
-> [`architecture/HANDOFF_2026-07-17.md`](architecture/HANDOFF_2026-07-17.md).)
+**Source control that remembers *why*.** git-for-ai layers an intent ledger, AI-agent session
+capture, and a local semantic index on top of the Git you already use — so six months from now,
+you (or your AI agent) can ask *why* a line of code is the way it is and get the actual
+reasoning back, not just a commit SHA and a name.
 
-An exploration of AI-augmented source control: a system that holds the *intent* behind a change —
-especially an AI coding agent's reasoning — alongside the diff-based commits Git already produces.
+Everything is stored as ordinary git notes, refs, and objects: nothing forked, no sidecar
+database of record, no server required. Any git host (GitHub included — validated) stores and
+syncs it. Delete the tool and your repo is still a perfectly normal git repo.
 
-This repo started as **design-only** and now has a scaffolded monorepo folder structure — real
-package manifests and placeholder files for `schemas`/`core`/`cli`, README-only placeholders for
-`server`/`desktop`/`website` — but no actual implementation logic yet. Everything here was produced
-across two sessions (research + design, then a stack pivot + scaffolding); decisions were made
-without stopping to ask where reasonable, per instruction, and are flagged where they're worth a
-second look.
+## Why
 
-## Repository layout
+AI coding agents now write a large share of many codebases, and they work *fast* — plans,
+rejected alternatives, constraints discovered, tests run — then all of that context evaporates
+the moment the session ends, leaving behind a one-line commit message. git-for-ai is built on
+two convictions:
 
+1. **Agents should record more than a diff.** The reasoning is cheap to capture at the moment
+   it exists and impossible to reconstruct later.
+2. **A human must be able to review what their agents did.** Claims belong next to evidence:
+   what was the intent, what was rejected and why, what was actually tested, and the captured
+   session to back it up.
+
+## What works today
+
+| Command | What it does |
+|---|---|
+| `git for-ai init` | Opt a repo in: installs git + Claude Code hooks, refs, local config |
+| `git for-ai log --intent` | History annotated with each change's intent, author (agent/human), confidence |
+| `git for-ai show <sha\|c/id>` | Everything about one change: identity, ledger, reasoning, captured session (`--session`, `--history`) |
+| `git for-ai annotate` | Deliberately record intent — the agent write path (JSON stdin) with rejected-alternatives, constraints, tested evidence |
+| `git for-ai report` | Self-contained HTML/Markdown digest of agent activity — the human review surface |
+| `git for-ai reindex` | Build the local semantic index (tree-sitter chunking + local embeddings; incremental, cached) |
+| `git for-ai relink` / `reconcile` | Identity repair tools (misattribution, lost change-map recovery) |
+| `git for-ai capture-session` | Hook-invoked: captures agent sessions at commit time (redacted, content-addressed) |
+
+Under the hood: stable change identity that survives amend/rebase/squash (change-map ref +
+Gerrit-style trailer fallback with lazy healing), append-only intent ledger in git notes, and
+session traces in a content-addressed ref. This repo dogfoods all of it — run the commands
+here and you'll see its own real history, including the sessions that built each feature.
+
+**In progress:** `ask` and `blame --why` (hybrid semantic retrieval + synthesized answers),
+`sync` (one command for the push/fetch refspecs), `doctor`. **Planned next:** an MCP server so
+agents get all of this as native tools, and a local review web UI. See
+[`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md).
+
+## Quick start
+
+```sh
+# from packages/cli, once: npm link   (published package comes later)
+cd your-repo
+git for-ai init                 # opt in — nothing is captured anywhere else, ever
+# ...work normally (Claude Code sessions get captured at commit time)...
+git for-ai log --intent         # see history with the "why" attached
+git for-ai report               # browsable HTML digest of what your agents did
 ```
-git-for-ai/
-├── research/        prior-art research (read first)
-├── ideas/            six scoped idea docs, MVP vs. roadmap
-├── architecture/     the full spec + monorepo/CLI build plans
-└── packages/
-    ├── schemas/      Zod schemas — scaffolded
-    ├── core/         the engine — scaffolded
-    ├── cli/          the CLI — scaffolded, build starts here
-    ├── server/       placeholder only (no package.json yet)
-    ├── desktop/      placeholder only (no package.json yet)
-    └── website/      placeholder only (no package.json yet)
-```
 
-`schemas`, `core`, and `cli` have real `package.json`s, `tsconfig.json`s, and placeholder source
-files (each with a comment pointing at the relevant architecture section) — but declared
-dependencies haven't been installed (no `pnpm install` has been run) and no actual logic has been
-written. See [`architecture/CLI_PLAN.md`](architecture/CLI_PLAN.md) for the milestone-by-milestone
-plan to actually build them.
+Privacy defaults: everything stays local until you explicitly push the refs; session capture
+is per-repo opt-in with built-in redaction; the API-based embedder is disabled without an
+explicit consent flag.
 
-## Start here
+## Documentation map
 
-1. **[research/landscape.md](research/landscape.md)** — prior art. Read this first. It names
-   direct competitors already working on close-to-this-exact idea (an active multi-vendor RFC
-   called **Agent Trace**, plus `git-ai`, `sem`, `drift`, an academic "Lore" paper, and others) —
-   this project is not being built in a vacuum, and the architecture spec positions against these
-   explicitly rather than ignoring them.
-2. **[ideas/00-overview.md](ideas/00-overview.md)** — six standalone idea docs (`ideas/01`–`06`),
-   each scoping one facet of the problem, with an explicit MVP-vs-roadmap cut and the reasoning
-   behind it.
-3. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — the full spec for the
-   MVP direction (a synthesis of ideas 01–04). Companion files:
-   [DATA_MODEL.md](architecture/DATA_MODEL.md) (exhaustive schemas),
-   [CLI_REFERENCE.md](architecture/CLI_REFERENCE.md) (every command), and
-   [MONOREPO_PLAN.md](architecture/MONOREPO_PLAN.md) (how the CLI, a future desktop app, a
-   hosting/server component, and a future website all fit in one repo).
-4. **[architecture/CLI_PLAN.md](architecture/CLI_PLAN.md)** — the detailed, milestone-by-milestone
-   plan for actually building `schemas` + `core` + `cli`, the three packages that make up the
-   working CLI (everything else in `packages/` is a placeholder for now).
+- [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — the full spec (identity
+  model §7 is the heart of it), with [`DATA_MODEL.md`](architecture/DATA_MODEL.md) (every
+  record shape) and [`CLI_REFERENCE.md`](architecture/CLI_REFERENCE.md) (every command).
+- [`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md) — current build plan
+  and the wider-surface roadmap (MCP, review UI, server).
+- [`architecture/MONOREPO_PLAN.md`](architecture/MONOREPO_PLAN.md) — package layout; why the
+  server's scope is only a shared query index.
+- [`architecture/CLI_PLAN.md`](architecture/CLI_PLAN.md) — milestone-by-milestone build log
+  (M0–M10 ✅).
+- [`ideas/`](ideas/00-overview.md) and [`research/`](research/landscape.md) — the original
+  six idea docs and prior-art survey (Agent Trace, git-ai, Lore, and others).
+- [`architecture/history/`](architecture/history/PROJECT_GENESIS.md) — how this project came
+  to be, plus archived session handoffs. The richer version is live in the repo itself:
+  `git for-ai log --intent`.
 
-## The one-sentence pitch
+## Status
 
-Layer a stable-identity change ledger, full AI-agent session capture, and a local semantic/vector
-index on top of Git — all as ordinary git notes/refs/objects, nothing forked, fully offline by
-default — so you can ask `git for-ai blame --why <file>:<line>` and get an actual answer instead of
-a commit SHA and a name.
-
-## Stack: TypeScript / Node.js (revised)
-
-The architecture was originally drafted with Rust. After a design review, the owner flagged having
-no Rust experience against deep, current .NET/SQL Server/Postgres expertise plus a React/Node
-background — so the implementation language was changed to **TypeScript/Node.js throughout**: CLI,
-future desktop app (Electron + React), and future hosting/server component (Fastify, with
-Postgres+pgvector for the one piece — a shared team query index — that genuinely benefits from a
-real database). The core design (data model, git-native storage, the identity/rewrite-survival
-algorithm) didn't change; only the two implementation-specific sections of `ARCHITECTURE.md` did
-(git access strategy, embedding provider), and `MONOREPO_PLAN.md` now covers how the CLI sits
-alongside the other three surfaces in one repo, in what order to build them (CLI first, always),
-and a specific design nuance worth reading: the hosting component's real job turns out to be
-narrower than "a git server" — see `MONOREPO_PLAN.md` §5.
-
-## How this session's decisions were made
-
-You answered three questions before stepping away, which fixed the shape of everything else:
-
-- **Goal**: personal tool first, clean enough to open-source later.
-- **Architecture**: layer on top of Git, not a clean-slate VCS.
-- **Intent source**: primarily AI agent sessions (Claude Code), plus general commit intent, plus
-  encoding code as vectors for semantic search.
-
-Everything downstream — storage engine, identity model, embedding provider, privacy defaults — was
-decided autonomously to keep the session moving, and is logged explicitly:
-
-- Idea-level trade-offs and why 01–04 were chosen as MVP over 05/06: [ideas/00-overview.md](ideas/00-overview.md).
-- Every architecture-level technical decision, with rationale: [architecture/ARCHITECTURE.md §16 "Assumptions and judgment calls"](architecture/ARCHITECTURE.md#16-assumptions-and-judgment-calls)
-  (item 15 is the language pivot itself).
-- Decisions worth a personal sanity-check when you have time:
-  - **Offline-first embeddings by default** (self-hosted, in-process via transformers.js, Voyage AI
-    as opt-in) — genuinely lower retrieval quality than an API model, chosen to preserve the "works
-    fully offline" goal rather than for being strictly better. Worth revisiting if query quality
-    disappoints in practice.
-  - **Always shelling out to the real `git` binary** for every git operation, reads included, rather
-    than using an in-process library ([architecture §4.1](architecture/ARCHITECTURE.md#41-git-access-strategy-always-shell-out-never-reimplement)) —
-    simpler to reason about and guarantees behavioral parity with your actual git, at the cost of
-    subprocess overhead on read-heavy commands. Should be fine for an interactive CLI; revisit only
-    if a specific command is ever noticeably slow.
-  - **The hosting/server component's real job is narrower than "a git server"** — see
-    [MONOREPO_PLAN.md §5](architecture/MONOREPO_PLAN.md#5-the-server-what-hosting-this-like-a-git-server-actually-means)
-    for the reasoning: plain ref sync may need no custom server at all, and the part that *does*
-    need one is a shared team query index (proposed: Postgres + pgvector). Worth confirming this
-    framing matches what you had in mind before any server code gets written.
-
-## Process notes
-
-Research was fanned out across four parallel background agents (prior art, code embeddings, AI
-agent intent-capture conventions, and git plumbing for sidecar metadata); the architecture spec
-was then drafted by a separate Opus-level agent briefed with all eight fixed technical decisions
-plus the research and idea docs, so the hardest reasoning (the identity/rewrite-survival algorithm
-in particular) got the most capable model. Nothing was built or edited outside this directory.
+Personal tool under active development, built AI-first (nearly every commit here is
+agent-authored and self-captured — inspect that claim with `git for-ai show <any sha>`).
+Clean enough to open-source when it's ready. TypeScript/Node, Windows-first dev environment,
+tested against real git repos only — no mocks of git anywhere.
