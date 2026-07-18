@@ -1,5 +1,12 @@
 # Session Handoff — Resume Here
 
+> **SUPERSEDED 2026-07-18** — everything below was true at end of 2026-07-17 but is now
+> historical. Current state: M9 landed, W1 of
+> [`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md) is essentially
+> complete (internal-hook, annotate, show --history, R4 fix, relink/reconcile, D2
+> repaired). Read PLAN_2026-07-18.md first; use `git for-ai log --intent` and
+> `git for-ai show <sha>` on this repo for the ground truth of what happened when.
+
 Written 2026-07-17, end of session (hit the usage limit for the 4-hour window). Read this
 file first before doing anything else — it's the fastest path back to full context.
 
