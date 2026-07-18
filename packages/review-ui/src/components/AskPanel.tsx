@@ -1,26 +1,189 @@
-// Ask panel (REVIEW_UI.md §4.5): visibly present but DISABLED, with an honest note.
-// Pretending to answer would violate the product's core honesty rule; showing nothing
-// would hide where the surface is going. So: present, inert, labeled.
+// Ask panel (REVIEW_UI.md §4.5) — LIVE as of M12: a question box over GET /api/ask,
+// which serves the same engine as `git for-ai ask`. The honesty rules carry over
+// unchanged: an index that is not ready renders the server's actionable reason; with
+// no API key the panel shows the ranked raw sources and says why there is no prose;
+// synthesized answers keep their [n] citations, linked to the numbered source list
+// (ledger sources link to the change detail route, sessions to the trace viewer).
+
+import { useState, type FormEvent } from "react";
+
+import type { ReviewAskData, ReviewAskSource, ReviewAskSynthesis } from "../types";
+import { splitCitations } from "../lib/citations";
+import { fmtWhen } from "../lib/format";
+
+type AskState =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "error"; error: string }
+  | { state: "ok"; data: ReviewAskData };
+
+/** Why there is no prose, in one honest line (mirrors the CLI's wording). */
+function skipNote(synthesis: ReviewAskSynthesis): string {
+  switch (synthesis.skippedReason) {
+    case "no-api-key":
+      return (
+        "No API key configured, so there is no synthesized answer — the ranked sources " +
+        "below are the local retrieval result. Set GIT_FOR_AI_ANTHROPIC_KEY before " +
+        "running `git for-ai review` to enable prose answers."
+      );
+    case "no-sources":
+      return "Nothing indexed matches this question.";
+    case "api-error":
+      return `Synthesis failed (${synthesis.error ?? "unknown error"}) — showing the ranked sources.`;
+    case "refusal":
+      return "The model declined to answer — showing the ranked sources.";
+    case "empty-response":
+      return "The API returned no text — showing the ranked sources.";
+    default:
+      return "No synthesized answer — showing the ranked sources.";
+  }
+}
+
+function SourceRef({ source }: { source: ReviewAskSource }) {
+  if (source.kind === "ledger" && source.changeId !== null) {
+    return (
+      <>
+        <a href={`#/change/c/${source.changeId}`} className="sha">
+          c/{source.changeId.slice(0, 8)}
+        </a>
+        {source.scope !== null && <code className="ask-src-path">{source.scope}</code>}
+        {source.provenance !== null && <span className="pill pill-prov prov-agent-captured">{source.provenance}</span>}
+      </>
+    );
+  }
+  if (source.kind === "session" && source.sessionRef !== null) {
+    return (
+      <>
+        <a href={`#/session/${source.sessionRef}`} className="sha">
+          {source.sessionRef.slice(0, 13)}
+        </a>
+        {source.agentTool !== null && <span>{source.agentTool}</span>}
+      </>
+    );
+  }
+  const lines =
+    source.startLine !== null && source.endLine !== null
+      ? `:${source.startLine}-${source.endLine}`
+      : "";
+  return <code className="ask-src-path">{`${source.path ?? "(unknown path)"}${lines}`}</code>;
+}
+
+function SourceRow({ source }: { source: ReviewAskSource }) {
+  return (
+    <li id={`ask-src-${source.rank}`} className="ask-source">
+      <span className="ask-src-rank">[{source.rank}]</span>
+      <span className="ask-src-kind">{source.kind}</span>
+      <SourceRef source={source} />
+      {source.when !== null && <span className="when">{fmtWhen(source.when)}</span>}
+      {source.summary.length > 0 && <div className="ask-src-summary">{source.summary}</div>}
+    </li>
+  );
+}
+
+function Answer({ data }: { data: ReviewAskData }) {
+  if (data.status === "unavailable") {
+    return (
+      <p className="ask-note">
+        Ask is not ready for this repository: {data.reason ?? "unknown reason"}
+      </p>
+    );
+  }
+  const sources = data.sources ?? [];
+  const synthesis = data.synthesis;
+  return (
+    <div className="ask-result">
+      {synthesis !== undefined && synthesis.synthesized && synthesis.answer !== null ? (
+        <p className="ask-answer">
+          {splitCitations(synthesis.answer, sources.length).map((segment, index) =>
+            segment.kind === "text" ? (
+              <span key={index}>{segment.text}</span>
+            ) : (
+              <a key={index} className="cite" href={`#ask-src-${segment.n}`}>
+                [{segment.n}]
+              </a>
+            ),
+          )}
+        </p>
+      ) : (
+        synthesis !== undefined && <p className="ask-note">{skipNote(synthesis)}</p>
+      )}
+      {sources.length > 0 && (
+        <>
+          <div className="ask-sources-title">Sources</div>
+          <ul className="ask-sources">
+            {sources.map((source) => (
+              <SourceRow key={source.rank} source={source} />
+            ))}
+          </ul>
+        </>
+      )}
+      {(data.warnings ?? []).length > 0 && (
+        <ul className="ask-warnings">
+          {(data.warnings ?? []).map((warning, index) => (
+            <li key={index}>{warning}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function AskPanel() {
+  const [question, setQuestion] = useState("");
+  const [result, setResult] = useState<AskState>({ state: "idle" });
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = question.trim();
+    if (trimmed.length === 0 || result.state === "loading") {
+      return;
+    }
+    setResult({ state: "loading" });
+    try {
+      const response = await fetch(`/api/ask?q=${encodeURIComponent(trimmed)}`);
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof body === "object" && body !== null && "error" in body
+            ? String((body as { error: unknown }).error)
+            : `${response.status} ${response.statusText}`;
+        throw new Error(message);
+      }
+      setResult({ state: "ok", data: body as ReviewAskData });
+    } catch (error) {
+      setResult({
+        state: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return (
-    <section className="ask" aria-disabled="true">
+    <section className="ask">
       <h2 id="ask">Ask</h2>
-      <div className="ask-controls">
+      <form className="ask-controls" onSubmit={submit}>
         <input
           type="text"
-          disabled
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
           placeholder="Ask about this repository's changes — e.g. why was the session store replaced?"
+          aria-label="Question about this repository's changes"
         />
-        <button type="button" disabled>
-          Ask
+        <button type="submit" disabled={result.state === "loading"}>
+          {result.state === "loading" ? "Asking…" : "Ask"}
         </button>
-      </div>
-      <p className="ask-note">
-        Arrives with M12. The local index (<code>git for-ai reindex</code>) exists, but the
-        ask/query surface is not wired to this UI yet — this panel is disabled rather than
-        pretending to answer.
-      </p>
+      </form>
+      {result.state === "idle" && (
+        <p className="ask-note">
+          Answers come from this repository's captured intent (local hybrid retrieval; prose
+          synthesis only when an API key is configured). Every answer lists its sources.
+        </p>
+      )}
+      {result.state === "loading" && <p className="ask-note">Searching the local index…</p>}
+      {result.state === "error" && (
+        <div className="error-box">Ask failed: {result.error}</div>
+      )}
+      {result.state === "ok" && <Answer data={result.data} />}
     </section>
   );
 }

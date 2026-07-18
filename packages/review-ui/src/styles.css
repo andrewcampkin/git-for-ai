@@ -205,23 +205,48 @@ details.superseded summary:hover { color: var(--text); }
   overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
-/* ── ask panel (disabled, honest) ────────────────────────────────────────── */
+/* ── ask panel (live as of M12) ──────────────────────────────────────────── */
 .ask {
-  background: var(--surface); border: 1px dashed var(--line); border-radius: 0.75rem;
-  padding: 1rem 1.25rem; margin-top: 2.2rem; opacity: 0.85;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem;
+  padding: 1rem 1.25rem; margin-top: 2.2rem;
 }
 .ask h2 { margin-top: 0; border-bottom: none; padding-bottom: 0; }
 .ask-controls { display: flex; gap: 0.5rem; }
 .ask-controls input {
-  flex: 1; font: inherit; font-size: 0.92rem; color: var(--muted);
+  flex: 1; font: inherit; font-size: 0.92rem; color: var(--text);
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 0.5rem;
   padding: 0.5rem 0.8rem;
 }
 .ask-controls button {
-  background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);
-  border-radius: 0.5rem; padding: 0.5rem 1rem; cursor: not-allowed;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; font: inherit;
 }
+.ask-controls button:disabled { color: var(--muted); cursor: wait; }
 .ask-note { color: var(--muted); font-size: 0.84rem; margin: 0.6rem 0 0; }
+.ask-result { margin-top: 0.8rem; }
+.ask-answer { font-size: 0.95rem; line-height: 1.55; margin: 0 0 0.8rem; }
+.ask-answer .cite {
+  font-size: 0.78rem; vertical-align: super; text-decoration: none; margin: 0 0.1rem;
+}
+.ask-sources-title {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin-bottom: 0.4rem;
+}
+.ask-sources { list-style: none; margin: 0; padding: 0; }
+.ask-source {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 0.5rem;
+  padding: 0.45rem 0.8rem; margin-bottom: 0.4rem; font-size: 0.88rem;
+}
+.ask-source > * { margin-right: 0.5rem; }
+.ask-src-rank { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.ask-src-kind {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.ask-src-path { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+.ask-source .when { color: var(--muted); font-size: 0.78rem; }
+.ask-src-summary { margin-top: 0.25rem; color: var(--text); font-size: 0.86rem; }
+.ask-warnings { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; padding-left: 1.2rem; }
 
 /* ── shared page states ──────────────────────────────────────────────────── */
 .empty { color: var(--muted); font-style: italic; }

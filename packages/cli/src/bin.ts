@@ -20,6 +20,8 @@ import { runReconcile } from "./commands/reconcile.js";
 import { runReindex, type ReindexOptions } from "./commands/reindex.js";
 import { runReport, type ReportOptions } from "./commands/report.js";
 import { runReview, type ReviewOptions } from "./commands/review.js";
+import { runAsk, type AskCliOptions } from "./commands/ask.js";
+import { runBlame, type BlameCliOptions } from "./commands/blame.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -296,6 +298,57 @@ program
     if (result.data.verify !== undefined && !result.data.verify.current) {
       process.exitCode = 3; // environment problem, doctor-detectable (CLI_REFERENCE exit codes)
     }
+  });
+
+program
+  .command("ask")
+  .description("Ask a question over the repo's captured intent (local hybrid retrieval + optional synthesis)")
+  .argument("<question>", "free-form question about this repository's changes")
+  .option("--repo <path>", "repository to query (default: current directory)")
+  .option("--k <N>", "retrieval breadth (default 8)", (v) => Number.parseInt(v, 10))
+  .option("--sources-only", "skip synthesis, just show the ranked retrieval hits")
+  .option("--since <date>", "only sources recorded after this date")
+  .option("--until <date>", "only sources recorded before this date")
+  .option("--json", "machine-readable output")
+  .action(async (question: string, opts) => {
+    const askOptions: AskCliOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.k !== undefined ? { k: opts.k } : {}),
+      ...(opts.sourcesOnly === true ? { sourcesOnly: true } : {}),
+      ...(opts.since !== undefined ? { since: opts.since } : {}),
+      ...(opts.until !== undefined ? { until: opts.until } : {}),
+    };
+    const result = await runAsk(question, askOptions);
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
+    );
+    process.exitCode = result.exitCode;
+  });
+
+program
+  .command("blame")
+  .description("Explain why a line looks the way it does: blame → change → recorded intent")
+  .argument("<file:line>", "position to explain, e.g. src/auth/session.ts:73")
+  .option("--why", "synthesize the why-answer (implied; accepted for CLI_REFERENCE parity)")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option("--depth <N>", "cap the LATER TOUCHED BY chain at N changes", (v) => Number.parseInt(v, 10))
+  .option("--session", "include a session trace excerpt")
+  .option("--explain", "opt into a synthesized prose explanation (Anthropic API; set GIT_FOR_AI_ANTHROPIC_KEY)")
+  .option("--k <N>", "supplementary retrieval breadth (default 8; needs an index)", (v) => Number.parseInt(v, 10))
+  .option("--json", "machine-readable output")
+  .action(async (target: string, opts) => {
+    const blameOptions: BlameCliOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.depth !== undefined ? { depth: opts.depth } : {}),
+      ...(opts.session === true ? { session: true } : {}),
+      ...(opts.explain === true ? { explain: true } : {}),
+      ...(opts.k !== undefined ? { k: opts.k } : {}),
+    };
+    const result = await runBlame(target, blameOptions);
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
+    );
+    process.exitCode = result.exitCode;
   });
 
 program

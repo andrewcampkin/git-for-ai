@@ -252,8 +252,10 @@ function parseTomlScalar(raw: string): string | number | boolean | null {
  * Read `.git-for-ai/config.toml` (init's known flat shape), fill defaults for anything
  * missing, and validate the result against repoConfigSchema. A missing file yields pure
  * defaults; a value the schema rejects (e.g. an unknown embedder provider) throws loudly.
+ * Exported for the query-side commands (M12 `ask`/`blame --why` via ./queryDeps.ts),
+ * which must read the SAME config the index was built from.
  */
-async function readRepoConfig(gitForAiDir: string): Promise<RepoConfig> {
+export async function readRepoConfig(gitForAiDir: string): Promise<RepoConfig> {
   const assembled = structuredClone(CONFIG_DEFAULTS) as unknown as Record<
     string,
     Record<string, unknown>

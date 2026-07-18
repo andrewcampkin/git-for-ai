@@ -8,7 +8,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./testing": "./dist/git/testFixtures.js"
+    "./testing": "./dist/testing.js"
   },
   "scripts": {
     "build": "tsc -b",

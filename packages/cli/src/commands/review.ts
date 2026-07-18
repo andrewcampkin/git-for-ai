@@ -10,7 +10,11 @@
 //      non-minting pattern — serving the UI leaves every ref byte-identical (the test
 //      asserts this against `git for-each-ref` output).
 //   3. Fully self-contained: the SPA build makes zero external requests (asserted in
-//      review-ui's own tests); this server adds no external calls either.
+//      review-ui's own tests). The server itself makes exactly one kind of outbound call,
+//      and only on explicit opt-in: /api/ask's synthesis step calls the Anthropic API
+//      when the user configured GIT_FOR_AI_ANTHROPIC_KEY / ANTHROPIC_API_KEY — the same
+//      key-gated behavior as `git for-ai ask` (CLI_PLAN.md M11 honest-scope note). With
+//      no key, /api/ask stays fully local and returns ranked raw sources.
 //   4. No auth — localhost, single user.
 //
 // The API is a thin wrapper over ALREADY-TESTED command logic (REVIEW_UI.md §3): it
@@ -45,12 +49,18 @@ import { basename, dirname, extname, join, resolve, sep } from "node:path";
 
 import type { SessionRecord } from "@git-for-ai/schemas";
 import {
+  askQuestion,
   runGit,
   readIndexState,
   readSessionRecord,
+  type Embedder,
+  type EnrichedSource,
   type GitContext,
+  type SynthesisOptions,
+  type SynthesisResult,
 } from "@git-for-ai/core";
 
+import { openQueryDeps, type QueryDeps } from "./queryDeps.js";
 import { runReport } from "./report.js";
 import { runShow } from "./show.js";
 
@@ -66,6 +76,13 @@ export interface ReviewOptions {
   port?: number;
   /** `--no-open` sets this false. Default true: open the browser after listening. */
   open?: boolean;
+  /** Injectable query embedder for /api/ask (tests — the real model is never loaded). */
+  embedder?: Embedder;
+  /**
+   * Synthesis overrides for /api/ask (tests inject apiKey + fetchImpl; the CLI leaves
+   * this unset so the key comes from the environment, exactly like `git for-ai ask`).
+   */
+  synthesis?: SynthesisOptions;
 }
 
 /** Index (`.git-for-ai/state.json`) status for `/api/meta`. Absence is labeled, never faked. */
@@ -103,6 +120,62 @@ export interface ReviewSessionData {
   reason?: string;
   /** The validated session record (present iff status is `available`). */
   record?: SessionRecord;
+}
+
+/**
+ * `GET /api/ask?q=` — one ranked source, flattened to a SELF-CONTAINED wire shape.
+ * The SPA's type bridge (review-ui/src/types.ts) only reaches the CLI's declaration
+ * files and the schemas package, so the ask payload deliberately references no core
+ * types — everything the panel renders is projected here by the server.
+ */
+export interface ReviewAskSource {
+  /** 1-based rank (citation number — the panel's [n] markers index this list). */
+  rank: number;
+  kind: "code" | "ledger" | "session";
+  /** Which retrieval halves surfaced this source ("vector" and/or "keyword"). */
+  matchedBy: string[];
+  /** Full change-id (link target `#/change/c/<id>`), when the source has one. */
+  changeId: string | null;
+  /** Full session ref (link target `#/session/<ref>`), when the source has one. */
+  sessionRef: string | null;
+  /** Code chunks: repo-relative path and line range. */
+  path: string | null;
+  startLine: number | null;
+  endLine: number | null;
+  /** Ledger provenance ("agent-captured", ...), when the ledger record resolved. */
+  provenance: string | null;
+  /** Ledger scope, pre-rendered (`src/auth/session.ts:40-118`), when present. */
+  scope: string | null;
+  /** Agent tool for session sources ("claude-code"), when the record resolved. */
+  agentTool: string | null;
+  /** Record timestamp (ledger created_at / session captured_at), when present. */
+  when: string | null;
+  /** One-line story: ledger/session summary, else the chunk's first text line. */
+  summary: string;
+}
+
+/** Synthesis outcome on the wire — mirrors core's SynthesisResult field-for-field. */
+export interface ReviewAskSynthesis {
+  synthesized: boolean;
+  answer: string | null;
+  /** 1-based ranks the answer cites, in order of first appearance. */
+  citedSources: number[];
+  model?: string;
+  skippedReason?: string;
+  error?: string;
+}
+
+/** `GET /api/ask?q=` — honest degradation first-class: `unavailable` carries a reason. */
+export interface ReviewAskData {
+  question: string;
+  /** `unavailable` = the index is not ready (uninitialized / never built / mismatched). */
+  status: "ok" | "unavailable";
+  /** Present iff status is `unavailable` — the same actionable message the CLI prints. */
+  reason?: string;
+  /** Present iff status is `ok`. */
+  sources?: ReviewAskSource[];
+  synthesis?: ReviewAskSynthesis;
+  warnings?: string[];
 }
 
 /** A running review server (returned by {@link startReviewServer}). */
@@ -278,12 +351,149 @@ async function readSessionData(ref: string, ctx: GitContext): Promise<ReviewSess
   }
 }
 
+// ── /api/ask (M12): the CLI's ask surface, served to the SPA panel ──
+//
+// Reuses the exact query deps `git for-ai ask` opens (openQueryDeps + askQuestion).
+// The embedder is cached per server process (the transformers model loads once, not
+// once per request) while the store is reopened per request (cheap, and it picks up a
+// concurrent `reindex` immediately). Ask is a pure read: the engine's enrichment is
+// read-only by contract (enrich.ts judgment #1 — never mints identity), so the
+// non-minting ref guarantee holds; the review test asserts it byte-for-byte.
+
+/** Per-server mutable ask state: injected seams + the process-cached embedder. */
+interface AskRuntime {
+  options: ReviewOptions;
+  cached?: { embedder: Embedder; fingerprint: string };
+}
+
+function firstTextLine(text: string): string {
+  const first = text.split("\n", 1)[0]?.trim() ?? "";
+  return first.length > 160 ? `${first.slice(0, 157)}…` : first;
+}
+
+function toAskSource(source: EnrichedSource): ReviewAskSource {
+  const chunk = source.chunk;
+  const scope = source.ledgerEntry?.scope[0];
+  const summary =
+    chunk.kind === "ledger" && source.ledgerEntry !== null
+      ? source.ledgerEntry.summary
+      : chunk.kind === "session" && source.sessionRecord?.summary !== undefined
+        ? source.sessionRecord.summary
+        : firstTextLine(chunk.text);
+  return {
+    rank: source.rank,
+    kind: chunk.kind,
+    matchedBy: [...source.matchedBy],
+    changeId: chunk.changeId ?? source.ledgerEntry?.change_id ?? null,
+    sessionRef: chunk.sessionRef,
+    path: chunk.path,
+    startLine: chunk.startLine,
+    endLine: chunk.endLine,
+    provenance: source.ledgerEntry?.provenance ?? null,
+    scope:
+      scope !== undefined
+        ? `${scope.path}${scope.range ? `:${scope.range[0]}-${scope.range[1]}` : ""}`
+        : null,
+    agentTool: source.sessionRecord?.agent.tool ?? null,
+    when: source.ledgerEntry?.created_at ?? source.sessionRecord?.captured_at ?? null,
+    summary,
+  };
+}
+
+function toAskSynthesis(synthesis: SynthesisResult): ReviewAskSynthesis {
+  return {
+    synthesized: synthesis.synthesized,
+    answer: synthesis.answer,
+    citedSources: [...synthesis.citedSources],
+    ...(synthesis.model !== undefined ? { model: synthesis.model } : {}),
+    ...(synthesis.skippedReason !== undefined ? { skippedReason: synthesis.skippedReason } : {}),
+    ...(synthesis.error !== undefined ? { error: synthesis.error } : {}),
+  };
+}
+
+async function handleAsk(
+  query: URLSearchParams,
+  res: ServerResponse,
+  ctx: GitContext,
+  runtime: AskRuntime,
+): Promise<void> {
+  const question = query.get("q")?.trim() ?? "";
+  if (question.length === 0) {
+    sendJson(res, 400, { error: "missing q parameter (the question)" });
+    return;
+  }
+  const kRaw = query.get("k");
+  let k: number | undefined;
+  if (kRaw !== null) {
+    k = Number.parseInt(kRaw, 10);
+    if (!Number.isInteger(k) || k < 1) {
+      sendJson(res, 400, { error: `invalid k parameter: ${kRaw} (expected a positive integer)` });
+      return;
+    }
+  }
+
+  let deps: QueryDeps;
+  try {
+    deps = await openQueryDeps({
+      ...(ctx.cwd !== undefined ? { cwd: ctx.cwd } : {}),
+      ...(runtime.options.embedder !== undefined
+        ? { embedder: runtime.options.embedder }
+        : runtime.cached !== undefined
+          ? { embedder: runtime.cached.embedder, fingerprint: runtime.cached.fingerprint }
+          : {}),
+    });
+  } catch (error) {
+    // Not-ready states (uninitialized / never indexed / model changed) are honest
+    // degradation data for the panel, not HTTP errors — same idiom as /api/session.
+    const body: ReviewAskData = {
+      question,
+      status: "unavailable",
+      reason: error instanceof Error ? error.message : String(error),
+    };
+    sendJson(res, 200, body);
+    return;
+  }
+  // Cache the (possibly model-backed) embedder for subsequent requests.
+  if (runtime.options.embedder === undefined && runtime.cached === undefined) {
+    runtime.cached = { embedder: deps.embedder, fingerprint: deps.fingerprint };
+  }
+
+  try {
+    const result = await askQuestion(
+      { store: deps.store, embedder: deps.embedder, ctx: deps.ctx },
+      question,
+      {
+        ...(k !== undefined ? { k } : {}),
+        ...(runtime.options.synthesis !== undefined
+          ? { synthesis: runtime.options.synthesis }
+          : {}),
+      },
+    );
+    const body: ReviewAskData = {
+      question,
+      status: "ok",
+      sources: result.sources.map(toAskSource),
+      synthesis: toAskSynthesis(result.synthesis),
+      warnings: [...deps.warnings, ...result.warnings],
+    };
+    sendJson(res, 200, body);
+  } finally {
+    deps.close();
+  }
+}
+
 async function handleApi(
   pathname: string,
   query: URLSearchParams,
   res: ServerResponse,
   ctx: GitContext,
+  runtime: AskRuntime,
 ): Promise<void> {
+  if (pathname === "/api/ask") {
+    await handleAsk(query, res, ctx, runtime);
+    return;
+  }
+
   if (pathname === "/api/overview") {
     const since = query.get("since");
     const until = query.get("until");
@@ -381,6 +591,7 @@ async function handleRequest(
   res: ServerResponse,
   ctx: GitContext,
   distDir: string,
+  runtime: AskRuntime,
 ): Promise<void> {
   try {
     // Rule 2 (REVIEW_UI.md §2): read-only — every endpoint is a GET.
@@ -391,7 +602,7 @@ async function handleRequest(
     }
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     if (url.pathname.startsWith("/api/")) {
-      await handleApi(url.pathname, url.searchParams, res, ctx);
+      await handleApi(url.pathname, url.searchParams, res, ctx, runtime);
     } else {
       await serveStatic(url.pathname, res, distDir);
     }
@@ -426,8 +637,9 @@ export async function startReviewServer(options: ReviewOptions = {}): Promise<Re
   await runGit(["rev-parse", "--git-dir"], ctx);
   const distDir = resolveUiDist();
 
+  const runtime: AskRuntime = { options };
   const server = createServer((req, res) => {
-    void handleRequest(req, res, ctx, distDir);
+    void handleRequest(req, res, ctx, distDir, runtime);
   });
 
   await new Promise<void>((resolvePromise, reject) => {

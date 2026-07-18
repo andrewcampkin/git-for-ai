@@ -28,6 +28,9 @@ export type {
   ReviewMeta,
   ReviewMetaIndex,
   ReviewSessionData,
+  ReviewAskData,
+  ReviewAskSource,
+  ReviewAskSynthesis,
 } from "../../cli/dist/commands/review";
 
 // Record-format types come from the schemas package (types only; erased at build).

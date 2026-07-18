@@ -24,6 +24,7 @@ export { blameLineCommit, findLaterTouches } from "./blame.js";
 export {
   DEFAULT_SYNTHESIS_MODEL,
   SYNTHESIS_MODEL_ENV,
+  SYNTHESIS_KEY_ENV,
   buildSynthesisPrompt,
   extractCitations,
   synthesizeAnswer,

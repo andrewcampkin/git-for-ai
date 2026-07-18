@@ -8,7 +8,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { LedgerEntry, SessionRecord } from "@git-for-ai/schemas";
 import {
@@ -17,13 +17,21 @@ import {
   findEntryByCommitSha,
   writeSessionRecord,
 } from "@git-for-ai/core";
-import { createFixtureRepo, type FixtureRepo } from "@git-for-ai/core/testing";
+import {
+  BagOfWordsEmbedder,
+  createFixtureRepo,
+  makeLedgerEntry,
+  type FixtureRepo,
+} from "@git-for-ai/core/testing";
 
 import type { ReportData } from "./report.js";
 import type { ShowData } from "./show.js";
+import { runInit } from "./init.js";
+import { runReindex } from "./reindex.js";
 import {
   startReviewServer,
   resolveUiDist,
+  type ReviewAskData,
   type ReviewMeta,
   type ReviewSessionData,
   type ReviewServerHandle,
@@ -263,6 +271,22 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
     expect(meta.index).toEqual({ built: false });
   });
 
+  it("GET /api/ask on an index-less repo is honest degradation, not an error", async () => {
+    const response = await get("/api/ask?q=why%20anything");
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as ReviewAskData;
+    expect(data.status).toBe("unavailable");
+    expect(data.question).toBe("why anything");
+    // The reason is the same actionable message the CLI prints (init first here).
+    expect(data.reason).toContain("git for-ai init");
+  });
+
+  it("GET /api/ask without q (or with a bad k) is a 400", async () => {
+    expect((await get("/api/ask")).status).toBe(400);
+    expect((await get("/api/ask?q=")).status).toBe(400);
+    expect((await get("/api/ask?q=hi&k=zero")).status).toBe(400);
+  });
+
   it("GET /api/<unknown> is a JSON 404", async () => {
     const response = await get("/api/nope");
     expect(response.status).toBe(404);
@@ -331,6 +355,111 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
 
     const refsAfter = (await repo.run(["for-each-ref"])).stdout;
     expect(refsAfter).toBe(refsBefore);
+  });
+});
+
+describe("GET /api/ask against an INDEXED repo (fake embedder; mocked synthesis HTTP)", () => {
+  const embedder = new BagOfWordsEmbedder();
+  let repo: FixtureRepo;
+  let changeId: string;
+  let refsBefore: string;
+
+  beforeAll(async () => {
+    repo = await createFixtureRepo();
+    const ctx = { cwd: repo.dir };
+    await runInit({ cwd: repo.dir, claudeHooks: false });
+    const sha = await repo.commit("Move session state to signed cookies", {
+      files: { "src/auth/session.ts": "export function signSessionCookie() {}\n" },
+    });
+    ({ changeId } = await assignChangeId(sha, ctx));
+    const blob = (await repo.run(["rev-parse", `${sha}:src/auth/session.ts`])).stdout;
+    await appendLedgerEntry(
+      changeId,
+      makeLedgerEntry({
+        changeId,
+        revision: sha,
+        createdAt: "2026-07-17T10:00:00Z",
+        summary: "Move session state to signed cookies",
+        scopePath: "src/auth/session.ts",
+        scopeBlob: blob,
+        intent: "run more than one replica without sticky sessions",
+        rejectedOption: "Redis session store",
+        rejectedWhy: "avoid adding an infra dependency",
+        confidence: 0.82,
+      }),
+      ctx,
+    );
+    await runReindex({ cwd: repo.dir, embedder });
+    refsBefore = (await repo.run(["for-each-ref"])).stdout;
+  });
+
+  afterAll(async () => {
+    await repo.cleanup();
+  });
+
+  it("no key: ranked sources + honest skippedReason; asking mints nothing", async () => {
+    const handle = await startReviewServer({
+      cwd: repo.dir,
+      embedder,
+      synthesis: { apiKey: "" }, // pin: a developer's real key must never leak into tests
+    });
+    try {
+      const response = await fetch(
+        new URL("/api/ask?q=why%20don%27t%20we%20use%20redis%20for%20sessions", handle.url),
+      );
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as ReviewAskData;
+
+      expect(data.status).toBe("ok");
+      expect(data.sources!.length).toBeGreaterThan(0);
+      const top = data.sources![0]!;
+      expect(top.kind).toBe("ledger");
+      expect(top.changeId).toBe(changeId);
+      expect(top.provenance).toBe("agent-captured");
+      expect(top.scope).toBe("src/auth/session.ts:1-5");
+      expect(top.summary).toBe("Move session state to signed cookies");
+      expect(data.synthesis).toMatchObject({ synthesized: false, skippedReason: "no-api-key" });
+
+      // Serving ask left every ref byte-identical (the non-minting guarantee).
+      expect((await repo.run(["for-each-ref"])).stdout).toBe(refsBefore);
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it("with a mocked key: synthesized answer with citations in the JSON", async () => {
+    const fetchImpl = vi.fn(
+      async (): Promise<Response> =>
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: "text", text: "Redis was rejected to avoid an infra dependency [1]." },
+            ],
+            model: "claude-haiku-4-5",
+            stop_reason: "end_turn",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const handle = await startReviewServer({
+      cwd: repo.dir,
+      embedder,
+      synthesis: { apiKey: "test-key", fetchImpl: fetchImpl as unknown as typeof fetch },
+    });
+    try {
+      const response = await fetch(new URL("/api/ask?q=redis%20sessions&k=3", handle.url));
+      const data = (await response.json()) as ReviewAskData;
+      expect(data.status).toBe("ok");
+      expect(data.sources!.length).toBeLessThanOrEqual(3);
+      expect(data.synthesis).toMatchObject({
+        synthesized: true,
+        answer: "Redis was rejected to avoid an infra dependency [1].",
+        citedSources: [1],
+      });
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    } finally {
+      await handle.close();
+    }
   });
 });
 
