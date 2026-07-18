@@ -17,6 +17,8 @@ import { runInternalHook, logHookFailure } from "./commands/internal-hook.js";
 import { runAnnotate, type AnnotateOptions } from "./commands/annotate.js";
 import { runRelink } from "./commands/relink.js";
 import { runReconcile } from "./commands/reconcile.js";
+import { runReindex, type ReindexOptions } from "./commands/reindex.js";
+import { runReport, type ReportOptions } from "./commands/report.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -215,6 +217,62 @@ program
       await logHookFailure(`${name}: ${message}`);
     }
     process.exitCode = 0;
+  });
+
+program
+  .command("report")
+  .description("Generate a human-readable digest of agent activity (HTML or Markdown)")
+  .option("--repo <path>", "repository to report on (default: current directory)")
+  .option("--since <date>", "only commits after this date")
+  .option("--until <date>", "only commits before this date")
+  .option("-n, --max-count <N>", "limit to the N most recent commits", (v) => Number.parseInt(v, 10))
+  .option("--md", "Markdown to stdout instead of HTML")
+  .option("--out <path>", "write to this file (default: .git-for-ai/report.html for HTML)")
+  .action(async (opts) => {
+    const format: "md" | "html" = opts.md === true ? "md" : "html";
+    // HTML defaults to a file (a browser page is the point); Markdown defaults to stdout.
+    const out = opts.out ?? (format === "html" ? ".git-for-ai/report.html" : undefined);
+    const reportOptions: ReportOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.since !== undefined ? { since: opts.since } : {}),
+      ...(opts.until !== undefined ? { until: opts.until } : {}),
+      ...(opts.maxCount !== undefined ? { maxCount: opts.maxCount } : {}),
+      format,
+      ...(out !== undefined ? { out } : {}),
+    };
+    const result = await runReport(reportOptions);
+    if (result.path !== undefined) {
+      process.stdout.write(`✓ report written to ${result.path}\n`);
+    } else {
+      process.stdout.write(`${result.output}\n`);
+    }
+  });
+
+program
+  .command("reindex")
+  .description("Rebuild the local vector index from git-native truth (code + ledger + sessions)")
+  .option("--repo <path>", "repository to index (default: current directory)")
+  .option("--full", "drop and re-embed everything (required after a model_fingerprint change)")
+  .option("--since <commit>", "incremental base override (instead of state.json's last_indexed_commit)")
+  .option("--verify", "check the index against state.json without rebuilding")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    const reindexOptions: ReindexOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.full === true ? { full: true } : {}),
+      ...(opts.since !== undefined ? { since: opts.since } : {}),
+      ...(opts.verify === true ? { verify: true } : {}),
+      // Real-model embedding takes real time; stream batch progress to stderr so the
+      // user can see the index advancing (stdout stays the clean transcript/JSON).
+      onProgress: (line: string) => process.stderr.write(`[reindex] ${line}\n`),
+    };
+    const result = await runReindex(reindexOptions);
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
+    );
+    if (result.data.verify !== undefined && !result.data.verify.current) {
+      process.exitCode = 3; // environment problem, doctor-detectable (CLI_REFERENCE exit codes)
+    }
   });
 
 program
