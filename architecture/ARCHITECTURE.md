@@ -403,8 +403,8 @@ flowchart TD
     Q2 -->|yes| Q3{Trailer's change-id<br/>known to change-map?}
     Q3 -->|yes| R2[Adopt SHA into that change-id's history<br/>heal the map, return it]
     Q3 -->|no| R3[Register new change-id from trailer<br/>origin=trailer-recovery, return it]
-    Q2 -->|no| Q4{Exactly one parent<br/>with a known change-id AND<br/>tree-similarity over threshold?}
-    Q4 -->|yes| R4[Infer continuation: adopt parent's change-id<br/>origin=inferred, mark low-confidence]
+    Q2 -->|no| Q4{Exactly one parent AND a sibling<br/>change-head - same parent - whose<br/>changed-path overlap is over threshold?}
+    Q4 -->|yes| R4[Infer missed rewrite: adopt the sibling's change-id<br/>origin=inferred, mark low-confidence]
     Q4 -->|no| R5[Mint fresh change-id<br/>origin=orphan-recovery<br/>surface in doctor as unlinked]
     R1 --> DONE([done])
     R2 --> DONE

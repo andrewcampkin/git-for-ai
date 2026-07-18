@@ -360,32 +360,50 @@ describe("resolveChangeId fallback branches (§7.3 R4/R5)", () => {
     await repo.cleanup();
   });
 
-  it("R4: infers continuation from a known single parent with high tree similarity", async () => {
-    // Parent with a known change-id, in a repo with enough files that a one-file edit
-    // stays above the similarity threshold.
-    const parentSha = await repo.commit("feat: bulk of the work", {
-      files: {
-        "a.txt": "a\n",
-        "b.txt": "b\n",
-        "c.txt": "c\n",
-        "d.txt": "d\n",
-        "e.txt": "e\n",
-      },
+  it("R4: infers a missed rewrite from a sibling change-head with overlapping diff paths", async () => {
+    // The shape R4 exists for: an amend the hooks never observed. The original commit
+    // (known change) and its amended replacement share a parent and touch the same files.
+    await repo.commit("base", { files: { "base.txt": "base\n" } });
+    const originalSha = await repo.commit("feat: the change", {
+      files: { "a.txt": "a\n", "b.txt": "b\n" },
     });
-    const assigned = await assignChangeId(parentSha, { cwd: repo.dir });
+    const assigned = await assignChangeId(originalSha, { cwd: repo.dir });
 
-    // Trailer-less child (as if filter-repo stripped the message) touching one file of five.
-    const childSha = await repo.commit("stripped message, no trailer", {
-      files: { "a.txt": "a v2\n" },
-    });
+    // Amend without hooks: a SIBLING of originalSha (same parent), same files + one more,
+    // message stripped of any trailer.
+    await repo.writeFile("a.txt", "a v2\n");
+    await repo.writeFile("extra.txt", "extra\n");
+    await repo.run(["add", "-A"]);
+    await repo.run(["commit", "--amend", "-m", "feat: the change (amended, no trailer)"]);
+    const amendedSha = await repo.revParse("HEAD");
+    expect(amendedSha).not.toBe(originalSha);
 
-    const resolved = await resolveChangeId(childSha, { cwd: repo.dir });
+    const resolved = await resolveChangeId(amendedSha, { cwd: repo.dir });
     expect(resolved.branch).toBe("R4");
     expect(resolved.changeId).toBe(assigned.changeId);
     expect(resolved.lowConfidence).toBe(true);
     expect(resolved.entry.origin).toBe("inferred");
-    expect(resolved.entry.head).toBe(childSha);
-    expect(resolved.entry.history).toContain(childSha);
+    expect(resolved.entry.head).toBe(amendedSha);
+    expect(resolved.entry.history).toContain(amendedSha);
+  });
+
+  it("R5 rather than R4 for a trailerless CHILD of a known commit (the D1 misfire, fixed)", async () => {
+    // Regression guard for the live dogfood bug (PLAN_2026-07-18.md §1.2 D1): a normal
+    // follow-up commit is NEW work, not a continuation of its parent's change — even
+    // though under whole-tree similarity it looked >70% identical to the parent.
+    const parentSha = await repo.commit("feat: bulk of the work", {
+      files: { "a.txt": "a\n", "b.txt": "b\n", "c.txt": "c\n", "d.txt": "d\n", "e.txt": "e\n" },
+    });
+    const assigned = await assignChangeId(parentSha, { cwd: repo.dir });
+
+    const childSha = await repo.commit("follow-up commit, no trailer", {
+      files: { "a.txt": "a v2\n" },
+    });
+
+    const resolved = await resolveChangeId(childSha, { cwd: repo.dir });
+    expect(resolved.branch).toBe("R5");
+    expect(resolved.changeId).not.toBe(assigned.changeId);
+    expect(resolved.entry.origin).toBe("orphan-recovery");
   });
 
   it("R5: mints a fresh orphan-recovery change-id when nothing is recoverable", async () => {
@@ -408,17 +426,23 @@ describe("resolveChangeId fallback branches (§7.3 R4/R5)", () => {
     expect(second.changeId).toBe(resolved.changeId);
   });
 
-  it("R5 rather than R4 when the child rewrote nearly everything (similarity below threshold)", async () => {
-    const parentSha = await repo.commit("original", {
+  it("R5 rather than R4 when a sibling's diff footprint barely overlaps (below threshold)", async () => {
+    await repo.commit("base", { files: { "base.txt": "base\n" } });
+    const originalSha = await repo.commit("feat: touches a and b", {
       files: { "a.txt": "a\n", "b.txt": "b\n" },
     });
-    const assigned = await assignChangeId(parentSha, { cwd: repo.dir });
+    const assigned = await assignChangeId(originalSha, { cwd: repo.dir });
 
-    const childSha = await repo.commit("total rewrite, no trailer", {
-      files: { "a.txt": "completely different\n", "b.txt": "also different\n" },
-    });
+    // A sibling (same parent via amend) whose diff touches almost entirely DIFFERENT
+    // files: 1 shared path of 4 total = 0.25 overlap, below the 0.6 default.
+    await repo.run(["rm", "-q", "b.txt"]);
+    await repo.writeFile("x.txt", "x\n");
+    await repo.writeFile("y.txt", "y\n");
+    await repo.run(["add", "-A"]);
+    await repo.run(["commit", "--amend", "-m", "unrelated sibling, no trailer"]);
+    const siblingSha = await repo.revParse("HEAD");
 
-    const resolved = await resolveChangeId(childSha, { cwd: repo.dir });
+    const resolved = await resolveChangeId(siblingSha, { cwd: repo.dir });
     expect(resolved.branch).toBe("R5");
     expect(resolved.changeId).not.toBe(assigned.changeId);
   });

@@ -6,23 +6,41 @@
 //       change's history (self-heal), return it.
 //   R3: Change-Id trailer whose id is NOT known           -> register a new row from the
 //       trailer, origin=trailer-recovery, return it.
-//   R4: no trailer, exactly one parent with a known
-//       change-id AND tree-similarity over threshold      -> infer continuation,
-//       origin=inferred, low confidence.
-//   R5: nothing                                           -> mint fresh, origin=orphan-recovery,
+//   R4: no trailer, and a SIBLING change-head (same sole
+//       parent) whose changed-path set overlaps ours       -> infer a missed rewrite,
+//       over threshold                                        origin=inferred, low confidence.
+//   R5: nothing                                            -> mint fresh, origin=orphan-recovery,
 //       surfaced by doctor as unlinked.
 //
 // R2/R3 are the lazy-healing mitigation for the operations post-rewrite never observes
 // (cherry-pick, filter-branch/filter-repo — §7.5): recovery is triggered by ANY read, and
 // the recovered mapping is written back so the next lookup hits the authoritative fast
 // path (R1).
+//
+// ── Why R4 compares SIBLINGS, not parent and child (changed 2026-07-18, D1 in
+// PLAN_2026-07-18.md) ──
+// The original implementation followed §7.3's flowchart literally: "exactly one parent
+// with a known change-id AND tree-similarity over threshold → infer continuation". That
+// signal is wrong on both axes, proven by live dogfood data (two unrelated commits glued
+// into one change):
+//   - Whole-TREE similarity is ~1 for ANY small commit in a non-tiny repo — the tree is
+//     mostly untouched files — so the threshold gated nothing.
+//   - A CHILD commit is virtually never the same logical change as its parent: rewrites
+//     (amend/reword/rebase) produce SIBLINGS — a new commit sharing the original's parent
+//     — not children. Stacked children are new work, not continuations.
+// So R4 now models the actual missed-rewrite shape: the commit has one parent P, some
+// change's head is ALSO a child of P (a sibling), and the two commits' changed-path sets
+// (each diffed against P) overlap above threshold (Jaccard). That is what an amend or a
+// same-base rebase the hooks never saw looks like — and what a genuinely new commit that
+// merely follows its parent does not.
 
 import type { ChangeId, ChangeMapEntry } from "@git-for-ai/schemas";
 
-import { runGit, readCommitMessage, lsTree } from "../git/index.js";
+import { runGit, readCommitMessage } from "../git/index.js";
 import { mintChangeId, parseChangeIdTrailer } from "./changeId.js";
 import {
   findEntryByCommitSha,
+  readAllChangeMapEntries,
   readChangeMapEntry,
   upsertChangeMapEntries,
   type GitContext,
@@ -32,15 +50,16 @@ import {
 export type ResolutionBranch = "R1" | "R2" | "R3" | "R4" | "R5";
 
 /**
- * Default tree-similarity threshold for the R4 inferred-continuation branch. §7.3 requires
- * "tree-similarity over threshold" without fixing a value; 0.7 (at least 70% of the union
- * of both trees' paths carry identical blobs) is this implementation's default, overridable
- * per call.
+ * Default changed-path overlap (Jaccard) threshold for the R4 missed-rewrite inference:
+ * |paths(S)∩paths(H)| / |paths(S)∪paths(H)|, each commit diffed against the shared
+ * parent. 0.6 admits the common "amend touched the same files plus one more" shape
+ * (2-same-of-3 = 0.67 passes) while rejecting sibling commits that share less than a
+ * majority of their footprint. Overridable per call.
  */
-export const DEFAULT_INFER_SIMILARITY_THRESHOLD = 0.7;
+export const DEFAULT_INFER_SIMILARITY_THRESHOLD = 0.6;
 
 export interface ResolveChangeIdOptions extends GitContext {
-  /** Override the R4 tree-similarity threshold (0..1). */
+  /** Override the R4 changed-path overlap threshold (0..1). */
   inferSimilarityThreshold?: number;
 }
 
@@ -83,29 +102,28 @@ async function listParents(sha: string, ctx: GitContext): Promise<string[]> {
   return result.stdout.split(/\s+/).filter((s) => s.length > 0);
 }
 
-/**
- * Fraction of the union of both commits' tree paths that carry an identical blob in both
- * (1 = identical trees, 0 = nothing shared). Used only by the R4 inference branch.
- */
-async function treeSimilarity(shaA: string, shaB: string, ctx: GitContext): Promise<number> {
-  const [entriesA, entriesB] = await Promise.all([
-    lsTree(shaA, { ...ctx, recursive: true }),
-    lsTree(shaB, { ...ctx, recursive: true }),
-  ]);
-  const blobsA = new Map(entriesA.filter((e) => e.type === "blob").map((e) => [e.path, e.sha]));
-  const blobsB = new Map(entriesB.filter((e) => e.type === "blob").map((e) => [e.path, e.sha]));
-  const allPaths = new Set([...blobsA.keys(), ...blobsB.keys()]);
-  if (allPaths.size === 0) {
-    return 1;
+/** The set of paths a commit changed relative to a given base (its parent, for R4). */
+async function changedPaths(sha: string, base: string, ctx: GitContext): Promise<Set<string>> {
+  const result = await runGit(
+    ["diff-tree", "-r", "--no-commit-id", "--name-only", "-z", base, sha],
+    ctx,
+  );
+  return new Set(result.stdout.split("\0").filter((p) => p.length > 0));
+}
+
+/** Jaccard overlap of two path sets (1 = identical footprint, 0 = disjoint). */
+function pathOverlap(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) {
+    return 1; // two empty commits on the same parent — treat as the same (empty) rewrite
   }
-  let identical = 0;
-  for (const path of allPaths) {
-    const a = blobsA.get(path);
-    if (a !== undefined && a === blobsB.get(path)) {
-      identical += 1;
+  let intersection = 0;
+  for (const path of a) {
+    if (b.has(path)) {
+      intersection += 1;
     }
   }
-  return identical / allPaths.size;
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
 }
 
 /**
@@ -185,36 +203,58 @@ export async function resolveChangeId(
     return { changeId: trailerChangeId, branch: "R3", entry: registered };
   }
 
-  // No trailer. R4 — exactly one parent with a known change-id AND high tree similarity:
-  // infer continuation, low confidence.
+  // No trailer. R4 — missed-rewrite inference (see the header note on why this compares
+  // SIBLINGS): some change's head is also a sole child of our parent, and its changed-path
+  // footprint (vs that shared parent) overlaps ours above threshold.
   const parents = await listParents(sha, ctx);
-  if (parents.length === 1) {
-    const parentSha = parents[0];
-    if (parentSha !== undefined) {
-      const parentEntry = await findEntryByCommitSha(parentSha, ctx);
-      if (parentEntry !== null) {
-        const target = await followFolds(parentEntry, ctx);
-        const similarity = await treeSimilarity(sha, parentSha, ctx);
-        if (similarity >= inferSimilarityThreshold) {
-          const inferred: ChangeMapEntry = {
-            ...target,
-            head: sha,
-            history: target.history.includes(sha) ? target.history : [...target.history, sha],
-            origin: "inferred",
-            updated_at: now,
-          };
-          await upsertChangeMapEntries([inferred], {
-            ...ctx,
-            message: `git-for-ai: infer ${target.change_id} continues at ${sha}`,
-          });
-          return {
-            changeId: target.change_id,
-            branch: "R4",
-            entry: inferred,
-            lowConfidence: true,
-          };
-        }
+  const parentSha = parents.length === 1 ? parents[0] : undefined;
+  if (parentSha !== undefined) {
+    const ourPaths = await changedPaths(sha, parentSha, ctx);
+
+    let best: { entry: ChangeMapEntry; overlap: number } | null = null;
+    for (const candidate of await readAllChangeMapEntries(ctx)) {
+      // A folded entry's head is stale — its surviving change is a separate candidate.
+      if (candidate.folded_into !== undefined || candidate.head === sha) {
+        continue;
       }
+      // Sibling test: the candidate change's head must have exactly our parent. Heads
+      // that no longer exist in this repo (synced map, pruned objects) just don't match.
+      const headParents = await runGit(["log", "-1", "--format=%P", candidate.head], {
+        ...ctx,
+        allowFailure: true,
+      });
+      if (headParents.exitCode !== 0) {
+        continue;
+      }
+      const siblingParents = headParents.stdout.split(/\s+/).filter((s) => s.length > 0);
+      if (siblingParents.length !== 1 || siblingParents[0] !== parentSha) {
+        continue;
+      }
+      const overlap = pathOverlap(ourPaths, await changedPaths(candidate.head, parentSha, ctx));
+      if (overlap >= inferSimilarityThreshold && (best === null || overlap > best.overlap)) {
+        best = { entry: candidate, overlap };
+      }
+    }
+
+    if (best !== null) {
+      const target = await followFolds(best.entry, ctx);
+      const inferred: ChangeMapEntry = {
+        ...target,
+        head: sha,
+        history: target.history.includes(sha) ? target.history : [...target.history, sha],
+        origin: "inferred",
+        updated_at: now,
+      };
+      await upsertChangeMapEntries([inferred], {
+        ...ctx,
+        message: `git-for-ai: infer ${target.change_id} rewritten as ${sha} (sibling overlap ${best.overlap.toFixed(2)})`,
+      });
+      return {
+        changeId: target.change_id,
+        branch: "R4",
+        entry: inferred,
+        lowConfidence: true,
+      };
     }
   }
 
