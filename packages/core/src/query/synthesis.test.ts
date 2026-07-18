@@ -159,6 +159,22 @@ describe("synthesizeAnswer", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("prefers the tool-scoped GIT_FOR_AI_ANTHROPIC_KEY env var over ANTHROPIC_API_KEY", async () => {
+    // The scoped var exists so users never need a global ANTHROPIC_API_KEY that other
+    // tools (Claude Code itself included) would also detect and bill against.
+    vi.stubEnv("GIT_FOR_AI_ANTHROPIC_KEY", "scoped-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "global-key");
+    try {
+      const fetchImpl = anthropicFetch(okBody("answer [1]"));
+      const result = await synthesizeAnswer("q", SOURCES, { fetchImpl });
+      expect(result.synthesized).toBe(true);
+      const headers = (fetchImpl.mock.calls[0]![1] as RequestInit).headers as Record<string, string>;
+      expect(headers["x-api-key"]).toBe("scoped-key");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("skips when there is nothing to synthesize from", async () => {
     const fetchImpl = anthropicFetch(okBody("unused"));
     const result = await synthesizeAnswer("q", [], { apiKey: "k", fetchImpl });

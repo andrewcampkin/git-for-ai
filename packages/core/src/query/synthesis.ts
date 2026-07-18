@@ -29,12 +29,25 @@ export const DEFAULT_SYNTHESIS_MODEL = "claude-haiku-4-5";
 /** Environment variable overriding the default model (per-call option wins over both). */
 export const SYNTHESIS_MODEL_ENV = "GIT_FOR_AI_SYNTHESIS_MODEL";
 
+/** Treat empty-string env values as unset. */
+function orUndefined(value: string | undefined): string | undefined {
+  return value === undefined || value === "" ? undefined : value;
+}
+
 const ANTHROPIC_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MAX_TOKENS = 1024;
 
+/**
+ * The PREFERRED key env var, checked before ANTHROPIC_API_KEY. Deliberately a name no
+ * other tool reads: a globally-exported ANTHROPIC_API_KEY is detected by Claude Code
+ * itself (which may then bill API instead of the user's subscription) and by any other
+ * Anthropic tooling. Setting GIT_FOR_AI_ANTHROPIC_KEY scopes the key to this tool only.
+ */
+export const SYNTHESIS_KEY_ENV = "GIT_FOR_AI_ANTHROPIC_KEY";
+
 export interface SynthesisOptions {
-  /** Anthropic API key. Default: process.env.ANTHROPIC_API_KEY. Absent → fallback result. */
+  /** Anthropic API key. Default: $GIT_FOR_AI_ANTHROPIC_KEY, else $ANTHROPIC_API_KEY. Absent → fallback result. */
   apiKey?: string;
   /** Model id. Default: $GIT_FOR_AI_SYNTHESIS_MODEL, else {@link DEFAULT_SYNTHESIS_MODEL}. */
   model?: string;
@@ -137,7 +150,12 @@ export async function synthesizeAnswer(
   sources: EnrichedSource[],
   options: SynthesisOptions = {},
 ): Promise<SynthesisResult> {
-  const apiKey = options.apiKey ?? process.env["ANTHROPIC_API_KEY"];
+  // Prefer the tool-scoped var (see SYNTHESIS_KEY_ENV) so users never need a global
+  // ANTHROPIC_API_KEY that other tools (Claude Code included) would also pick up.
+  const apiKey =
+    options.apiKey ??
+    orUndefined(process.env[SYNTHESIS_KEY_ENV]) ??
+    process.env["ANTHROPIC_API_KEY"];
   if (apiKey === undefined || apiKey === "") {
     return fallback("no-api-key");
   }
