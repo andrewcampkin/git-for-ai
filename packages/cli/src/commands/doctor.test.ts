@@ -182,6 +182,33 @@ describe("doctor (real git fixture)", () => {
     expect(identity.remediation.join("\n")).toContain("relink");
   });
 
+  it("flags change heads no branch/tag reaches (DESKTOP.md G1: squash-then-delete)", async () => {
+    await runInit({ cwd: repo.dir });
+    // A change whose head is a commit on a deleted branch: create it, map it, delete it.
+    await repo.run(["checkout", "-b", "doomed"]);
+    const doomedSha = await repo.commit("doomed work", { files: { "d.txt": "d" } });
+    await repo.run(["checkout", "main"]);
+    await repo.run(["branch", "-D", "doomed"]);
+    await upsertChangeMapEntries(
+      [
+        makeMapEntry({ change_id: CHANGE_ID, head: sha, origin: "post-commit" }), // reachable
+        makeMapEntry({
+          change_id: "beefbeefbeefbeefbeefbeefbeefbeef",
+          head: doomedSha,
+          origin: "post-commit",
+        }),
+      ],
+      { cwd: repo.dir },
+    );
+
+    const result = await runDoctor({ cwd: repo.dir, pathEnv: goodPath });
+    const identity = byName(result.data.checks, "identity");
+    expect(identity.status).toBe("warn");
+    expect(identity.message).toContain("no branch/tag reaches");
+    expect(identity.remediation.join("\n")).toContain("c/beefbeef");
+    expect(identity.remediation.join("\n")).toContain("relink");
+  });
+
   it("flags unreadable notes and dangling session refs; healthy refs stay quiet", async () => {
     await runInit({ cwd: repo.dir });
     const sha2 = await repo.commit("second", { files: { "b.txt": "b" } });

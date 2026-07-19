@@ -440,6 +440,24 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
     (e) => e.divergent_heads !== undefined && e.divergent_heads.length > 0,
   );
 
+  // Unreachable-heads audit (DESKTOP.md G1): a change whose head commit no ref can reach
+  // (classically: `merge --squash` then branch delete, before the hook-time fold existed)
+  // will lose that commit — and strand its notes — at the next gc. Metadata refs are
+  // excluded: reachability must come from real branches/tags/remotes.
+  const reachableRaw = await runGit(
+    ["rev-list", "--branches", "--tags", "--remotes"],
+    { ...ctx, allowFailure: true },
+  );
+  const reachable = new Set(
+    reachableRaw.exitCode === 0
+      ? reachableRaw.stdout.split(/\r?\n/).filter((s) => s.length > 0)
+      : [],
+  );
+  const unreachable =
+    reachable.size === 0
+      ? [] // rev-list failed or empty repo — don't accuse anything
+      : entries.filter((e) => e.folded_into === undefined && !reachable.has(e.head));
+
   const problems: string[] = [];
   const remediation: string[] = [];
   if (inferred.length > 0) {
@@ -465,6 +483,17 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
   if (divergent.length > 0) {
     problems.push(`${plural(divergent.length, "change")} with divergent heads`);
     remediation.push("divergent heads: re-point the survivor with `git for-ai relink <change-id> <commit>`");
+  }
+  if (unreachable.length > 0) {
+    problems.push(
+      `${plural(unreachable.length, "change")} whose head no branch/tag reaches (will be lost at gc)`,
+    );
+    remediation.push(
+      `unreachable heads: squash-merged-then-deleted branch suspected (${unreachable
+        .slice(0, 3)
+        .map((e) => `c/${e.change_id.slice(0, 8)}`)
+        .join(", ")}${unreachable.length > 3 ? ", …" : ""}) — re-point with \`git for-ai relink <change-id> <commit>\`, or tag the head to keep it`,
+    );
   }
 
   if (problems.length === 0) {

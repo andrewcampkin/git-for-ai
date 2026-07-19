@@ -5,7 +5,8 @@
 // plus the guards that keep a hook from ever corrupting a commit (empty-message, existing
 // Gerrit trailer, unknown hook name).
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -200,6 +201,109 @@ describe("post-rewrite", () => {
       folded: 0,
       unknownOldShas: 0,
     });
+  });
+});
+
+describe("squash-merge fold (DESKTOP.md G1)", () => {
+  /** Run the full real hook sequence for one commit: commit-msg on a message file, commit with it, post-commit. */
+  async function hookCommit(message: string): Promise<{ msgResult: Awaited<ReturnType<typeof runInternalHook>>; sha: string; postResult: Awaited<ReturnType<typeof runInternalHook>> }> {
+    await repo.writeFile("MSG", `${message}\n`);
+    const msgFile = join(repo.dir, "MSG");
+    const msgResult = await runInternalHook("commit-msg", { cwd: repo.dir, args: [msgFile] });
+    await repo.run(["add", "-A"]);
+    await repo.run(["commit", "-F", msgFile]);
+    const sha = await repo.revParse("HEAD");
+    const postResult = await runInternalHook("post-commit", { cwd: repo.dir });
+    return { msgResult, sha, postResult };
+  }
+
+  it("folds a merge --squash into the branch's first change, absorbing the rest", async () => {
+    await repo.writeFile("base.txt", "base\n");
+    await hookCommit("base");
+
+    // Feature branch with two hook-tracked commits (two changes).
+    await repo.run(["checkout", "-b", "feature"]);
+    await repo.writeFile("f1.txt", "1\n");
+    const first = await hookCommit("feature: first");
+    await repo.writeFile("f2.txt", "2\n");
+    const second = await hookCommit("feature: second");
+    if (first.postResult.hook !== "post-commit" || second.postResult.hook !== "post-commit") {
+      throw new Error("unreachable");
+    }
+
+    // Squash-merge onto main. git writes SQUASH_MSG; commit-msg must detect it.
+    await repo.run(["checkout", "main"]);
+    await repo.run(["merge", "--squash", "feature"]);
+    await repo.writeFile("MSG", "squashed feature\n");
+    const msgFile = join(repo.dir, "MSG");
+    const msgResult = await runInternalHook("commit-msg", { cwd: repo.dir, args: [msgFile] });
+
+    // The injected trailer is the FIRST branch change's id — it survives.
+    expect(msgResult).toMatchObject({
+      action: "injected",
+      changeId: first.postResult.changeId,
+      squash: { survivorChangeId: first.postResult.changeId, squashedCount: 2 },
+    });
+
+    await repo.run(["commit", "-F", msgFile]);
+    const squashSha = await repo.revParse("HEAD");
+    const postResult = await runInternalHook("post-commit", { cwd: repo.dir });
+    expect(postResult).toMatchObject({
+      changeId: first.postResult.changeId,
+      adoptedFromTrailer: true,
+      squashFold: { survivorChangeId: first.postResult.changeId, absorbed: 1, unknownOldShas: 0 },
+    });
+
+    // Survivor: head is the squash commit; the second change was absorbed.
+    const survivor = await readChangeMapEntry(first.postResult.changeId, { cwd: repo.dir });
+    expect(survivor?.head).toBe(squashSha);
+    expect(survivor?.history).toContain(squashSha);
+    expect(survivor?.absorbed).toEqual([second.postResult.changeId]);
+    const absorbed = await readChangeMapEntry(second.postResult.changeId, { cwd: repo.dir });
+    expect(absorbed?.folded_into).toBe(first.postResult.changeId);
+
+    // The pending file was consumed.
+    expect(existsSync(join(repo.dir, ".git", "git-for-ai-squash-pending.json"))).toBe(false);
+  });
+
+  it("falls back to a fresh mint when no squashed commit has identity", async () => {
+    await repo.commit("base", { files: { "base.txt": "b\n" } }); // no hooks ran — no identity
+    await repo.run(["checkout", "-b", "feature"]);
+    await repo.commit("untracked work", { files: { "u.txt": "u\n" } });
+    await repo.run(["checkout", "main"]);
+    await repo.run(["merge", "--squash", "feature"]);
+
+    await repo.writeFile("MSG", "squashed unknown branch\n");
+    const msgFile = join(repo.dir, "MSG");
+    const result = await runInternalHook("commit-msg", { cwd: repo.dir, args: [msgFile] });
+    if (result.hook !== "commit-msg") throw new Error("unreachable");
+    expect(result.action).toBe("injected");
+    expect(result.squash).toBeUndefined();
+    expect(existsSync(join(repo.dir, ".git", "git-for-ai-squash-pending.json"))).toBe(false);
+  });
+
+  it("a stale pending file from an aborted squash commit never folds a later commit", async () => {
+    await repo.writeFile("base.txt", "base\n");
+    const base = await hookCommit("base");
+    if (base.postResult.hook !== "post-commit") throw new Error("unreachable");
+
+    // Simulate the abort: a pending file exists whose survivor id will NOT match the
+    // next commit's trailer (that commit mints its own fresh id).
+    await writeFile(
+      join(repo.dir, ".git", "git-for-ai-squash-pending.json"),
+      JSON.stringify({ changeId: "0123456789abcdef0123456789abcdef", oldShas: [base.sha] }),
+      "utf8",
+    );
+
+    await repo.writeFile("next.txt", "n\n");
+    const next = await hookCommit("unrelated later commit");
+    if (next.postResult.hook !== "post-commit") throw new Error("unreachable");
+    expect(next.postResult.squashFold).toBeUndefined();
+    // Stale file cleaned up; the base change untouched.
+    expect(existsSync(join(repo.dir, ".git", "git-for-ai-squash-pending.json"))).toBe(false);
+    const baseEntry = await readChangeMapEntry(base.postResult.changeId, { cwd: repo.dir });
+    expect(baseEntry?.head).toBe(base.sha);
+    expect(baseEntry?.folded_into).toBeUndefined();
   });
 });
 

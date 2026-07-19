@@ -20,16 +20,16 @@ Empirical results from a scratch repo driven through the real CLI + hooks, 2026-
 - Rebase-style squashing was always handled (post-rewrite fold, M3).
 
 **Confirmed gaps (the desktop plan must respect these; fixes are scoped below):**
-- **G1 — `git merge --squash` produces an *unlinked* squash commit.** No post-rewrite fires,
-  so no fold happens: the squash commit mints a fresh change, and the source branch's
-  changes remain separate entries whose head commits become **unreachable after the branch
-  is deleted** — GC will eventually delete those commits, leaving change-map rows and notes
-  pointing at missing objects. Verified end-to-end.
-  *Fix (hook-time, clean): during a squash-merge commit, `.git/SQUASH_MSG` exists —
-  `internal-hook post-commit` can detect it and fold the source changes into the squash
-  commit's change exactly like the post-rewrite path (absorbed/folded_into, sessions
-  preserved). Plus a `doctor` audit for change heads that are no longer reachable, with a
-  suggested `relink` repair for history already affected.*
+- **G1 — `git merge --squash` produces an *unlinked* squash commit.** ✅ **FIXED
+  2026-07-19** (same day, before any desktop code). Two-phase hook fix, because SQUASH_MSG
+  exists at commit-msg time but is gone by post-commit (both verified): commit-msg detects
+  SQUASH_MSG, injects the *surviving* change's id (oldest squashed commit's change) as the
+  trailer, and writes a pending-fold file; post-commit consumes it (stale-guarded by
+  trailer match) and folds the other squashed changes via the ordinary §7.4 machinery.
+  Verified live: squash + branch delete now yields one continued change with the rest
+  absorbed, and `doctor` reports no anomalies. `doctor`'s identity audit also gained the
+  unreachable-heads check (flags pre-fix history with a `relink` remediation). See
+  internal-hook.ts judgment call #4.
 - **G2 — the semantic index is single-rev (HEAD of the checked-out branch).** Incremental
   reindex handles branch switches correctly (it diffs old base → new HEAD), but answers from
   `ask` reflect the indexed rev only. Fine solo; the desktop app must *display which rev the
@@ -104,7 +104,7 @@ New, in priority order:
 ## 5. Build order (each step lands + verifies before the next)
 
 1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
-   (Core/CLI, no UI; unblocks honest branch UX.)
+   (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
 2. **API groundwork** in the CLI server: `rev` param on overview, `/api/branches`,
    `/api/diff/:sha`, capability flags in `/api/meta`. All still read-only; browser mode
    benefits too.

@@ -447,7 +447,7 @@ stdin. We fold entries accordingly:
 
 ### 7.5 The known gap: cherry-pick and filter-branch/filter-repo
 
-`post-rewrite` is **not** fired by `cherry-pick`, `filter-branch`, `filter-repo`, or `fast-import`.
+`post-rewrite` is **not** fired by `cherry-pick`, `filter-branch`, `filter-repo`, `fast-import`, or `merge --squash` (the last is handled at hook time via SQUASH_MSG detection — see internal-hook.ts judgment call #4, added 2026-07-19).
 These are the blind spots. There is no old→new mapping emitted at all, so the change-map cannot be
 updated at rewrite time. This is a real limitation, not a bug we can hook our way out of.
 
