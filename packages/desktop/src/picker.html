@@ -1,0 +1,237 @@
+<!doctype html>
+<!--
+  The repo picker / "opt in" page — the only local page the desktop shell serves (loaded
+  via loadFile; everything else the window shows is the review SPA from the local server).
+  Self-contained by rule: no external requests, no frameworks. Talks to main ONLY through
+  the three preload verbs (window.gitForAiDesktop.pickFolder/openRepo/init).
+
+  Judgment call: the inline script requires 'unsafe-inline' in the CSP. This page is a
+  local, checked-in static file with default-src 'none' and no remote content of any kind,
+  so there is no injection surface to protect against — one file beats a stricter CSP plus
+  a second script asset to copy around.
+
+  Main passes data via query params (recents, error, uninitialized) — keeping the preload
+  surface at exactly three verbs rather than growing a getState() call.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>git-for-ai — choose a repository</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: light-dark(#f6f6f4, #191a1c);
+      color: light-dark(#26251f, #e8e6e3);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+    }
+    main { width: 100%; max-width: 40rem; }
+    h1 { font-size: 1.35rem; margin-bottom: 0.35rem; }
+    .tagline { color: light-dark(#6b6a63, #9a988f); margin-bottom: 2rem; font-size: 0.9rem; }
+    button {
+      font: inherit;
+      padding: 0.55rem 1.1rem;
+      border-radius: 6px;
+      border: 1px solid light-dark(#c9c7bf, #3a3b3e);
+      background: light-dark(#fff, #242528);
+      color: inherit;
+      cursor: pointer;
+    }
+    button:hover { border-color: light-dark(#8f8d84, #5c5d61); }
+    button.primary {
+      background: light-dark(#26251f, #e8e6e3);
+      color: light-dark(#fff, #191a1c);
+      border-color: transparent;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .error {
+      display: none;
+      margin: 1rem 0;
+      padding: 0.7rem 0.9rem;
+      border-radius: 6px;
+      border: 1px solid light-dark(#d9a0a0, #6e3a3a);
+      background: light-dark(#faf0f0, #2a1d1d);
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    section.recents { margin-top: 2.25rem; }
+    section.recents h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: light-dark(#6b6a63, #9a988f);
+      margin-bottom: 0.6rem;
+    }
+    ul { list-style: none; }
+    li button.recent {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 0.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    li .name { font-weight: 600; }
+    li .path { font-size: 0.78rem; color: light-dark(#6b6a63, #9a988f); word-break: break-all; }
+    .none { color: light-dark(#6b6a63, #9a988f); font-size: 0.85rem; }
+
+    #init-panel {
+      display: none;
+      margin-top: 1.5rem;
+      padding: 1.1rem 1.2rem;
+      border: 1px solid light-dark(#c9c7bf, #3a3b3e);
+      border-radius: 8px;
+      background: light-dark(#fff, #202124);
+    }
+    #init-panel h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+    #init-panel .path { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
+    #init-panel p { font-size: 0.87rem; line-height: 1.5; margin: 0.6rem 0; }
+    #init-panel .actions { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
+    #init-summary {
+      display: none;
+      margin-top: 0.8rem;
+      font-family: ui-monospace, monospace;
+      font-size: 0.78rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>git-for-ai</h1>
+    <p class="tagline">Choose a repository to review its intent layer.</p>
+
+    <button class="primary" id="pick">Open a repository folder…</button>
+
+    <div class="error" id="error"></div>
+
+    <div id="init-panel">
+      <h2>This repository hasn't opted in yet</h2>
+      <div class="path" id="init-path"></div>
+      <p>
+        It's a git repository, but <code>git for-ai init</code> hasn't been run in it, so
+        there is no intent layer to show. Initializing installs git hooks (Change-Id
+        trailers, change-map upkeep, session capture), writes the Claude Code capture hooks
+        to <code>.claude/settings.json</code>, and creates the local
+        <code>.git-for-ai/</code> cache.
+      </p>
+      <p>
+        Capture is opt-in per repository, and everything stays on this machine until you
+        explicitly run <code>git for-ai sync --push</code>.
+      </p>
+      <div class="actions">
+        <button class="primary" id="init-go">Initialize this repository</button>
+        <button id="init-cancel">Cancel</button>
+      </div>
+      <div id="init-summary"></div>
+    </div>
+
+    <section class="recents">
+      <h2>Recent repositories</h2>
+      <ul id="recent-list"></ul>
+      <p class="none" id="no-recents">Nothing opened yet.</p>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+    const bridge = window.gitForAiDesktop;
+    const params = new URLSearchParams(location.search);
+    const errorBox = document.getElementById("error");
+    const initPanel = document.getElementById("init-panel");
+    const initPath = document.getElementById("init-path");
+    const initGo = document.getElementById("init-go");
+    const initCancel = document.getElementById("init-cancel");
+    const initSummary = document.getElementById("init-summary");
+    let pendingRepo = null;
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = "block";
+    }
+    function clearError() {
+      errorBox.style.display = "none";
+    }
+    function showInitPanel(repoRoot) {
+      pendingRepo = repoRoot;
+      initPath.textContent = repoRoot;
+      initSummary.style.display = "none";
+      initGo.disabled = false;
+      initPanel.style.display = "block";
+    }
+    function hideInitPanel() {
+      pendingRepo = null;
+      initPanel.style.display = "none";
+    }
+
+    async function tryOpen(dir) {
+      clearError();
+      hideInitPanel();
+      const result = await bridge.openRepo(dir);
+      if (result.status === "opened") return; // main re-points the window
+      if (result.status === "uninitialized") showInitPanel(result.repoRoot);
+      else showError(result.message);
+    }
+
+    document.getElementById("pick").addEventListener("click", async () => {
+      const dir = await bridge.pickFolder();
+      if (dir !== null) await tryOpen(dir);
+    });
+
+    initGo.addEventListener("click", async () => {
+      if (pendingRepo === null) return;
+      initGo.disabled = true;
+      const result = await bridge.init(pendingRepo);
+      if (!result.ok) {
+        initGo.disabled = false;
+        showError(result.error);
+        return;
+      }
+      initSummary.textContent = result.summary;
+      initSummary.style.display = "block";
+      await tryOpen(result.repoRoot);
+    });
+    initCancel.addEventListener("click", hideInitPanel);
+
+    // Recents (passed by main as a query param — see main.ts showPicker()).
+    let recents = [];
+    try {
+      recents = JSON.parse(params.get("recents") ?? "[]");
+    } catch { /* ignore — rendered as empty */ }
+    const list = document.getElementById("recent-list");
+    const none = document.getElementById("no-recents");
+    if (Array.isArray(recents) && recents.length > 0) {
+      none.style.display = "none";
+      for (const entry of recents) {
+        if (typeof entry?.path !== "string") continue;
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.className = "recent";
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = entry.path.split(/[\\/]/).filter(Boolean).pop() ?? entry.path;
+        const path = document.createElement("span");
+        path.className = "path";
+        path.textContent = entry.path;
+        button.append(name, path);
+        button.addEventListener("click", () => void tryOpen(entry.path));
+        li.append(button);
+        list.append(li);
+      }
+    }
+
+    // Context passed in by main for this render.
+    const uninitialized = params.get("uninitialized");
+    if (uninitialized !== null && uninitialized !== "") showInitPanel(uninitialized);
+    const error = params.get("error");
+    if (error !== null && error !== "") showError(error);
+  </script>
+</body>
+</html>

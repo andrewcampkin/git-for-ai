@@ -47,9 +47,13 @@ Gerrit-style trailer fallback with lazy healing), append-only intent ledger in g
 session traces in a content-addressed ref. This repo dogfoods all of it — run the commands
 here and you'll see its own real history, including the sessions that built each feature.
 
+There is also a desktop app: `packages/desktop` wraps the same local review server + SPA in
+an Electron shell with a repo picker and one-click init
+(`pnpm --filter @git-for-ai/desktop start` — see [`architecture/DESKTOP.md`](architecture/DESKTOP.md)).
+
 **The CLI is feature-complete against its reference.** What comes next — hardening, external
-dogfooding, the desktop wrapper, the shared-index server, and the v2 ideas (semantic drift
-detection, intent knowledge graph) — is mapped in
+dogfooding, the rest of the desktop app, the shared-index server, and the v2 ideas (semantic
+drift detection, intent knowledge graph) — is mapped in
 [`architecture/ROADMAP.md`](architecture/ROADMAP.md).
 
 ### MCP

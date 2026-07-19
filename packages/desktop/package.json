@@ -1,0 +1,28 @@
+{
+  "name": "@git-for-ai/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron desktop shell (architecture/DESKTOP.md §4): plain-Node main process that starts the same local review server `git for-ai review` uses and loads the same SPA. No duplicated logic — depends on the CLI (server) and review-ui (assets).",
+  "type": "module",
+  "main": "./dist/main.js",
+  "productName": "git-for-ai",
+  "scripts": {
+    "build": "tsc -b && node ./scripts/copy-assets.mjs",
+    "start": "pnpm run build && electron .",
+    "smoke": "pnpm run build && electron . --smoke",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@git-for-ai/core": "workspace:*",
+    "@git-for-ai/review-ui": "workspace:*",
+    "git-for-ai": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}

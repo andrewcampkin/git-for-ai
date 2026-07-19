@@ -103,6 +103,9 @@ New, in priority order:
 
 ## 5. Build order (each step lands + verifies before the next)
 
+**Order amended 2026-07-19 at the owner's explicit direction: the Electron shell shipped
+first** (step 4's shell half), so the app exists now; steps 2–3 land next, inside it.
+
 1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
    (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
 2. **API groundwork** in the CLI server: `rev` param on overview, `/api/branches`,
@@ -112,7 +115,17 @@ New, in priority order:
    value ships before Electron exists).
 4. **Electron shell**: `packages/desktop` main process, window management, repo picker,
    token-gated action endpoints + actions panel.
+   ✅ **Shell half DONE 2026-07-19** (pulled ahead of steps 2–3): `packages/desktop` is a
+   real workspace package — Electron main process wrapping `startReviewServer` (the exact
+   server `git for-ai review` uses, unchanged), repo picker with recents + native folder
+   dialog, uninitialized-repo opt-in screen wired to the pure `runInit`, remembered
+   bounds/last-repo, single-instance lock, graceful in-process server shutdown, locked-down
+   renderer (contextIsolation on, sandbox on, no preload surface for the SPA). Single
+   window v1 — §6 Q2 (window-per-repo) still awaits the owner. Token-gated action
+   endpoints + the actions panel remain OPEN (they depend on step 2's API groundwork).
 5. **Packaging**: electron-builder, Windows installer, then the owner uses it in anger.
+   (Config checked in at `packages/desktop/electron-builder.yml` with placeholder appId;
+   no installer built yet.)
 
 ## 6. Open questions for the owner (not blockers for steps 1–3)
 
