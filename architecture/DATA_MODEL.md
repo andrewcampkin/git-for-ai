@@ -26,17 +26,29 @@ record whose major version they don't understand rather than guess.
 ## 2. Ledger entry
 
 Stored in git notes under `refs/notes/git-for-ai/intent`, attached to the commit object. The note
-body is a JSON object with an append-only `entries` array (see §2.4 on why an array).
+body is an append-only entry log (see §2.4 on why append-only).
 
-### 2.1 Note body envelope
+### 2.1 Note body wire format
+
+**Current format (`ledger-note@2`, JSONL — the 2026-07-18 W3 decision):** the note body is one
+line per entry, each line a *canonical* JSON object (keys sorted at every level, no insignificant
+whitespace — the same canonicalization as §3.1):
 
 ```jsonc
-{
-  "schema": "git-for-ai/ledger-note@1",
-  "change_id": "9f2c1a7b6e4d0f83c5a1b2d3e4f50617",  // the change this note is anchored to
-  "entries": [ /* one or more ledger-entry objects, append-only, oldest first */ ]
-}
+{"change_id":"9f2c1a7b…","entry":{ /* one ledger-entry object */ },"schema":"git-for-ai/ledger-note@2"}
+{"change_id":"9f2c1a7b…","entry":{ /* a later entry */ },"schema":"git-for-ai/ledger-note@2"}
 ```
+
+Every line is an independently-valid record carrying the note's anchoring (schema tag +
+change-id), so the line-oriented `cat_sort_uniq` notes-merge is conflict-free *by construction*:
+cat/sort/uniq of two divergently-appended notes yields the union of their entry lines, canonical
+serialization makes identical entries byte-identical (so `uniq` dedupes rather than duplicates),
+and line order is meaningless — readers order entries by `created_at`.
+
+**Legacy format (`ledger-note@1`):** the whole note body is one pretty-printed JSON envelope —
+`{ "schema": "git-for-ai/ledger-note@1", "change_id": …, "entries": [ … ] }`. Readers MUST accept
+both formats; writers MUST emit only `@2`. A legacy note is migrated opportunistically the next
+time an entry is appended to it (never via a mass rewrite; reads never write).
 
 ### 2.2 Ledger entry object — field by field
 
@@ -77,8 +89,9 @@ body is a JSON object with an append-only `entries` array (see §2.4 on why an a
 
 A note is modeled as an append log, not a mutable document (git-appraise's insight). A correction to
 intent is a *new* entry appended with a later `created_at`, never an in-place edit. This makes the
-`cat_sort_uniq` notes-merge strategy conflict-free by construction (ARCHITECTURE §12.2): two
-divergent branches each appended distinct JSON lines, and union merge keeps both.
+`cat_sort_uniq` notes-merge strategy conflict-free by construction (ARCHITECTURE §12.2): with the
+§2.1 JSONL format, two divergent branches each appended distinct canonical-JSON lines, and union
+merge keeps both.
 
 **Effective-entry resolution** (what a reader treats as "the" intent for a change): the entry with
 the newest `created_at`; ties broken by `(author.human, revision, sha256(entry))` lexicographic

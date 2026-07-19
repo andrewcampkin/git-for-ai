@@ -22,6 +22,10 @@ import { runReport, type ReportOptions } from "./commands/report.js";
 import { runReview, type ReviewOptions } from "./commands/review.js";
 import { runAsk, type AskCliOptions } from "./commands/ask.js";
 import { runBlame, type BlameCliOptions } from "./commands/blame.js";
+import { runConfigGet, runConfigSet, type ConfigOptions } from "./commands/config.js";
+import { runSync, type SyncOptions } from "./commands/sync.js";
+import { runDoctor } from "./commands/doctor.js";
+import { runExport, type ExportOptions } from "./commands/export.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -349,6 +353,165 @@ program
       opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
     );
     process.exitCode = result.exitCode;
+  });
+
+program
+  .command("export")
+  .description("Export ledger entries: Agent Trace wire format, or a PR-comment markdown")
+  .argument("[target]", "commit-ish or c/<change-id> (pr-comment default: HEAD; agent-trace: narrow to one change)")
+  .option("--format <format>", "agent-trace | pr-comment", "agent-trace")
+  .option("--out <path>", "write the output to this file instead of stdout")
+  .option("--repo <path>", "repository to export from (default: current directory)")
+  .action(async (target: string | undefined, opts) => {
+    const exportOptions: ExportOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      format: opts.format,
+      ...(target !== undefined ? { target } : {}),
+      ...(opts.out !== undefined ? { out: opts.out } : {}),
+    };
+    const result = await runExport(exportOptions);
+    for (const warning of result.warnings) {
+      process.stderr.write(`git-for-ai: warning: ${warning}\n`);
+    }
+    if (result.path !== undefined) {
+      process.stdout.write(`✓ exported to ${result.path}\n`);
+    } else {
+      process.stdout.write(`${result.output}\n`);
+    }
+    process.exitCode = result.exitCode;
+  });
+
+program
+  .command("doctor")
+  .description("Read-only health audit: hooks, refspecs, index, identity, ledger, captures")
+  .option("--repo <path>", "repository to examine (default: current directory)")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    const result = await runDoctor({
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+    });
+    process.stdout.write(
+      opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
+    );
+    process.exitCode = result.data.exitCode;
+  });
+
+program
+  .command("sync")
+  .description("Explicitly push/fetch the intent refs to/from a git remote (never automatic)")
+  .argument("[remote]", "remote to sync with", "origin")
+  .option("--push", "push only")
+  .option("--fetch", "fetch only (default: fetch then push)")
+  .option("--dry-run", "report what would happen without moving any data")
+  .option("--yes", "skip the pre-push confirmation (required off-TTY)")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option("--json", "machine-readable output")
+  .action(async (remote: string, opts) => {
+    const syncOptions: SyncOptions = {
+      remote,
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.push === true ? { push: true } : {}),
+      ...(opts.fetch === true ? { fetch: true } : {}),
+      ...(opts.dryRun === true ? { dryRun: true } : {}),
+      ...(opts.yes === true ? { yes: true } : {}),
+      // The pre-push privacy gate is only offered interactively; anywhere else the
+      // explicit --yes flag is required (ARCHITECTURE.md §12.1 — a conscious choice).
+      ...(process.stdin.isTTY === true && process.stdout.isTTY === true
+        ? {
+            confirm: async (message: string): Promise<boolean> => {
+              const readline = await import("node:readline/promises");
+              const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout,
+              });
+              try {
+                const answer = await rl.question(`${message}\nContinue? [y/N] `);
+                return /^y(es)?$/i.test(answer.trim());
+              } finally {
+                rl.close();
+              }
+            },
+          }
+        : {}),
+    };
+    const result = await runSync(syncOptions);
+    process.stdout.write(
+      opts.json === true
+        ? `${JSON.stringify(
+            {
+              remote: result.remote,
+              mode: result.mode,
+              dryRun: result.dryRun,
+              fetched: result.fetched,
+              pushed: result.pushed,
+              pushAborted: result.pushAborted,
+              warnings: result.warnings,
+              exitCode: result.exitCode,
+            },
+            null,
+            2,
+          )}\n`
+        : `${result.output}\n`,
+    );
+    process.exitCode = result.exitCode;
+  });
+
+program
+  .command("config")
+  .description("Read/write .git-for-ai/config.toml (get <key> | set <key> <value>)")
+  .argument("<action>", "get | set")
+  .argument("<key>", "dotted key, e.g. embedder.provider or capture.enabled")
+  .argument("[value]", "value to set (set only)")
+  .option("--repo <path>", "repository to operate on (default: current directory)")
+  .option(
+    "--accept-consent",
+    "grant the API-embedder consent non-interactively (required off-TTY for e.g. voyage-code-3)",
+  )
+  .option("--json", "machine-readable output")
+  .action(async (action: string, key: string, value: string | undefined, opts) => {
+    const configOptions: ConfigOptions = {
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+      ...(opts.acceptConsent === true ? { acceptConsent: true } : {}),
+      // The consent prompt is only offered on a real interactive terminal; anywhere
+      // else (hooks, CI, pipes) the explicit --accept-consent flag is required.
+      ...(process.stdin.isTTY === true && process.stdout.isTTY === true
+        ? {
+            promptConsent: async (prompt: string): Promise<string> => {
+              const readline = await import("node:readline/promises");
+              const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout,
+              });
+              try {
+                return await rl.question(prompt);
+              } finally {
+                rl.close();
+              }
+            },
+          }
+        : {}),
+    };
+    if (action === "get") {
+      if (value !== undefined) {
+        throw new Error("config get takes no value — did you mean `config set`?");
+      }
+      const result = await runConfigGet(key, configOptions);
+      process.stdout.write(
+        opts.json === true ? `${JSON.stringify({ key: result.key, value: result.value }, null, 2)}\n` : `${result.output}\n`,
+      );
+    } else if (action === "set") {
+      if (value === undefined) {
+        throw new Error("config set requires a value: git for-ai config set <key> <value>");
+      }
+      const result = await runConfigSet(key, value, configOptions);
+      process.stdout.write(
+        opts.json === true
+          ? `${JSON.stringify({ key: result.key, value: result.value, consentRecorded: result.consentRecorded }, null, 2)}\n`
+          : `${result.output}\n`,
+      );
+    } else {
+      throw new Error(`unknown config action '${action}' — expected get or set`);
+    }
   });
 
 program

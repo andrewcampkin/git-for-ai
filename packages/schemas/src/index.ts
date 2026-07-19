@@ -26,6 +26,8 @@ export {
   provenanceSchema,
   ledgerEntrySchema,
   ledgerNoteSchema,
+  ledgerNoteLineSchema,
+  LEDGER_NOTE_JSONL_SCHEMA,
 } from "./ledger.js";
 export type {
   ScopeItem,
@@ -35,6 +37,7 @@ export type {
   Provenance,
   LedgerEntry,
   LedgerNote,
+  LedgerNoteLine,
 } from "./ledger.js";
 
 export {

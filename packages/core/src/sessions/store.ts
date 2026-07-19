@@ -157,6 +157,85 @@ export async function writeSessionRecord(
   return { sessionRef, contentHash, blobSha, created: true };
 }
 
+/** Outcome of {@link mergeSessionsFrom} — the honest per-ref answer `sync` reports. */
+export type SessionsMergeAction =
+  /** No local sessions ref existed; the remote commit was adopted as-is. */
+  | "adopted"
+  /** Local and remote were the same commit. */
+  | "up-to-date"
+  /** Local was an ancestor of remote; the ref fast-forwarded. */
+  | "fast-forward"
+  /** Remote is an ancestor of local; nothing to integrate. */
+  | "local-ahead"
+  /** Divergent histories; a union tree commit (both parents) was created. */
+  | "merged";
+
+export interface SessionsMergeResult {
+  action: SessionsMergeAction;
+  /** The sessions ref's commit after the operation. */
+  commit: string;
+}
+
+async function isAncestor(maybeAncestor: string, descendant: string, ctx: GitContext): Promise<boolean> {
+  const result = await runGit(["merge-base", "--is-ancestor", maybeAncestor, descendant], {
+    ...ctx,
+    allowFailure: true,
+  });
+  return result.exitCode === 0;
+}
+
+/**
+ * Integrate a fetched remote sessions commit into the local sessions ref (M13 `sync`).
+ *
+ * Session records are content-addressed (ARCHITECTURE.md §12.2: "Sessions never
+ * conflict") — identical content means identical shard path AND identical blob, so a
+ * divergent merge is always the plain UNION of both trees' blobs: no same-path-different-
+ * content case can exist by construction. The union commit carries both heads as parents
+ * so a subsequent push fast-forwards the remote.
+ *
+ * The ref update is a compare-and-swap against the local commit that was read, so a
+ * concurrent writer produces a visible error rather than a silently lost record.
+ */
+export async function mergeSessionsFrom(
+  remoteCommit: string,
+  ctx: GitContext = {},
+): Promise<SessionsMergeResult> {
+  const local = await readSessionsCommit(ctx);
+
+  if (local === null) {
+    await updateRef(SESSIONS_REF, remoteCommit, { ...ctx, oldSha: ZERO_SHA });
+    return { action: "adopted", commit: remoteCommit };
+  }
+  if (local === remoteCommit) {
+    return { action: "up-to-date", commit: local };
+  }
+  if (await isAncestor(local, remoteCommit, ctx)) {
+    await updateRef(SESSIONS_REF, remoteCommit, { ...ctx, oldSha: local });
+    return { action: "fast-forward", commit: remoteCommit };
+  }
+  if (await isAncestor(remoteCommit, local, ctx)) {
+    return { action: "local-ahead", commit: local };
+  }
+
+  // Divergent: union both trees' blobs (content-addressing guarantees no conflicts).
+  const files = new Map<string, string>();
+  for (const side of [local, remoteCommit]) {
+    for (const treeEntry of await lsTree(side, { ...ctx, recursive: true })) {
+      if (treeEntry.type === "blob") {
+        files.set(treeEntry.path, treeEntry.sha);
+      }
+    }
+  }
+  const rootTreeSha = await buildShardedTree(files, ctx);
+  const merged = await commitTree(rootTreeSha, {
+    ...ctx,
+    parents: [local, remoteCommit],
+    message: "git-for-ai: union-merge sessions",
+  });
+  await updateRef(SESSIONS_REF, merged, { ...ctx, oldSha: local });
+  return { action: "merged", commit: merged };
+}
+
 /**
  * Read a session record back by its `sha256:<hash>` ref. Returns null when the sessions
  * ref doesn't exist or holds no blob for that hash. A stored blob that no longer parses

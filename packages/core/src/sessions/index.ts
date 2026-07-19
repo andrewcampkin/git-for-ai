@@ -39,8 +39,13 @@ export {
   readSessionsCommit,
   writeSessionRecord,
   readSessionRecord,
+  mergeSessionsFrom,
 } from "./store.js";
-export type { WriteSessionRecordResult } from "./store.js";
+export type {
+  WriteSessionRecordResult,
+  SessionsMergeAction,
+  SessionsMergeResult,
+} from "./store.js";
 
 export {
   STATE_FILE_RELPATH,

@@ -130,17 +130,45 @@ export const ledgerEntrySchema = z
   .passthrough();
 export type LedgerEntry = z.infer<typeof ledgerEntrySchema>;
 
+/** The current (JSONL) note wire-format tag — see {@link ledgerNoteLineSchema}. */
+export const LEDGER_NOTE_JSONL_SCHEMA = "git-for-ai/ledger-note@2" as const;
+
 /**
- * Note body envelope (DATA_MODEL.md §2.1) stored in git notes under
- * `refs/notes/git-for-ai/intent`. `entries` is an append-only array, oldest
+ * Note body envelope (DATA_MODEL.md §2.1): the in-memory shape of a commit's intent
+ * note under `refs/notes/git-for-ai/intent`. `entries` is an append-only log, oldest
  * first, with one or more ledger-entry objects.
+ *
+ * Two on-disk encodings exist (both validated through this envelope after decode):
+ *   - `@1` (legacy): the whole note body is ONE pretty-printed JSON envelope;
+ *   - `@2` (current): the note body is JSONL — one canonical-JSON
+ *     {@link ledgerNoteLineSchema} line per entry — so `cat_sort_uniq` notes-merge is
+ *     conflict-free by construction (ARCHITECTURE.md §12.2; PLAN_2026-07-18.md W3).
+ * Readers accept both; writers emit only `@2`.
  */
 export const ledgerNoteSchema = z
   .object({
-    schema: z.literal("git-for-ai/ledger-note@1"),
+    schema: z.enum(["git-for-ai/ledger-note@1", LEDGER_NOTE_JSONL_SCHEMA]),
     /** The change this note is anchored to. */
     change_id: changeIdSchema,
     entries: z.array(ledgerEntrySchema).min(1),
   })
   .passthrough();
 export type LedgerNote = z.infer<typeof ledgerNoteSchema>;
+
+/**
+ * One line of the current (`@2`) JSONL note body: a self-describing wrapper carrying
+ * the note-level anchoring (schema tag + change-id) alongside exactly one entry, so
+ * every line survives a line-oriented union merge as an independently-valid record.
+ * Serialized canonically (keys sorted, no insignificant whitespace) so identical
+ * entries produce byte-identical lines and `uniq` dedupes them, never corrupts them.
+ */
+export const ledgerNoteLineSchema = z
+  .object({
+    schema: z.literal(LEDGER_NOTE_JSONL_SCHEMA),
+    /** The change this note is anchored to (same for every line of one note). */
+    change_id: changeIdSchema,
+    /** Exactly one ledger entry. */
+    entry: ledgerEntrySchema,
+  })
+  .passthrough();
+export type LedgerNoteLine = z.infer<typeof ledgerNoteLineSchema>;

@@ -24,13 +24,14 @@
 // 3. Detaching a change's ONLY commit is refused — that would leave an empty change; the
 //    caller should annotate or rebuild instead.
 
-import type { ChangeMapEntry } from "@git-for-ai/schemas";
+import { LEDGER_NOTE_JSONL_SCHEMA, type ChangeMapEntry, type LedgerNote } from "@git-for-ai/schemas";
 import {
   findEntryByCommitSha,
   readChangeMapEntry,
   readLedgerNote,
   resolveChangeId,
   runGit,
+  serializeLedgerNote,
   upsertChangeMapEntries,
   INTENT_NOTES_REF,
   type GitContext,
@@ -82,14 +83,17 @@ async function rewriteNoteChangeId(
   if (note === null) {
     return false;
   }
-  const rewritten = {
+  const rewritten: LedgerNote = {
     ...note,
+    schema: LEDGER_NOTE_JSONL_SCHEMA,
     change_id: newChangeId,
     entries: note.entries.map((entry) => ({ ...entry, change_id: newChangeId })),
   };
+  // Every write path emits the JSONL wire format (PLAN_2026-07-18.md W3) — this rewrite
+  // also opportunistically migrates a legacy-envelope note.
   await runGit(["notes", `--ref=${INTENT_NOTES_REF}`, "add", "-f", "-F", "-", sha], {
     ...ctx,
-    input: JSON.stringify(rewritten, null, 2),
+    input: serializeLedgerNote(rewritten),
   });
   return true;
 }

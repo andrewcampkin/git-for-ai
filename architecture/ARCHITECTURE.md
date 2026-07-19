@@ -767,8 +767,10 @@ branches and the notes conflict.
   as an append log, not a mutable document, so `cat_sort_uniq`-style union merge is conflict-free by
   construction.
 - **Merge driver.** `sync` configures `notes.mergeStrategy=cat_sort_uniq` for our notes ref and runs
-  merges by shelling out to the user's `git notes merge` (respecting their config). Because entries
-  are content-line-unique JSON, `cat_sort_uniq` unions them without dropping either side.
+  merges by shelling out to the user's `git notes merge` (respecting their config). Because the note
+  body is JSONL — one canonical-JSON entry line per entry (DATA_MODEL §2.1, the `ledger-note@2`
+  format) — `cat_sort_uniq` unions them without dropping either side, and byte-identical entry
+  lines dedupe instead of duplicating.
 - **Sessions never conflict.** They are content-addressed: identical content ⇒ identical hash ⇒
   identical object; different content ⇒ different hash ⇒ both stored. There is no merge to do.
 - **Change-map merge.** The map is sharded by change-id prefix into separate files, so two users

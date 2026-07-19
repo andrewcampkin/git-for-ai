@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ledgerEntrySchema, ledgerNoteSchema } from "./ledger.js";
+import {
+  ledgerEntrySchema,
+  ledgerNoteSchema,
+  ledgerNoteLineSchema,
+  LEDGER_NOTE_JSONL_SCHEMA,
+} from "./ledger.js";
 
 // Worked example from architecture/DATA_MODEL.md §2.6.
 const workedNoteExample = {
@@ -125,6 +130,46 @@ describe("ledgerNoteSchema", () => {
     const bad = { ...workedNoteExample, entries: [] };
     const result = ledgerNoteSchema.safeParse(bad);
     expect(result.success).toBe(false);
+  });
+
+  it("accepts the current JSONL-era envelope tag (@2) as an in-memory shape", () => {
+    const current = { ...workedNoteExample, schema: LEDGER_NOTE_JSONL_SCHEMA };
+    expect(ledgerNoteSchema.safeParse(current).success).toBe(true);
+  });
+});
+
+describe("ledgerNoteLineSchema (JSONL wire format, PLAN_2026-07-18.md W3)", () => {
+  const line = {
+    schema: LEDGER_NOTE_JSONL_SCHEMA,
+    change_id: workedNoteExample.change_id,
+    entry: workedNoteExample.entries[0],
+  };
+
+  it("parses a well-formed note line", () => {
+    expect(ledgerNoteLineSchema.safeParse(line).success).toBe(true);
+  });
+
+  it("rejects a line with the legacy envelope tag", () => {
+    const bad = { ...line, schema: "git-for-ai/ledger-note@1" };
+    expect(ledgerNoteLineSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a line carrying an entries array instead of one entry", () => {
+    const bad = {
+      schema: LEDGER_NOTE_JSONL_SCHEMA,
+      change_id: workedNoteExample.change_id,
+      entries: workedNoteExample.entries,
+    };
+    expect(ledgerNoteLineSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("preserves unknown fields on the line wrapper (forward-compat)", () => {
+    const withExtra = { ...line, merged_from: "clone-b" };
+    const result = ledgerNoteLineSchema.safeParse(withExtra);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>)["merged_from"]).toBe("clone-b");
+    }
   });
 });
 

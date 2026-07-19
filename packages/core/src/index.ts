@@ -68,11 +68,18 @@ export {
   LedgerNoteFormatError,
   appendLedgerEntry,
   readLedgerNote,
+  readLedgerNoteWithFormat,
   readLedgerEntries,
+  parseLedgerNoteBody,
+  serializeLedgerNote,
   resolveEffectiveEntry,
   canonicalJsonStringify,
 } from "./ledger/index.js";
-export type { LedgerNoteOptions } from "./ledger/index.js";
+export type {
+  LedgerNoteOptions,
+  LedgerNoteStoredFormat,
+  LedgerNoteReadResult,
+} from "./ledger/index.js";
 
 // Milestone 7 — agent session capture (ARCHITECTURE.md §10, §13; DATA_MODEL.md §3).
 export {
@@ -93,6 +100,7 @@ export {
   readSessionsCommit,
   writeSessionRecord,
   readSessionRecord,
+  mergeSessionsFrom,
   STATE_FILE_RELPATH,
   readSessionCaptureState,
   updateSessionCaptureState,
@@ -111,6 +119,8 @@ export type {
   ParseTranscriptResult,
   TranscriptMeta,
   WriteSessionRecordResult,
+  SessionsMergeAction,
+  SessionsMergeResult,
   SessionCaptureState,
   CaptureSettings,
   CaptureEventKind,

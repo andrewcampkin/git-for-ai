@@ -145,7 +145,11 @@ const CLAUDE_POST_TOOL_USE_HOOKS: ReadonlyArray<{ matcher: string; command: stri
   { matcher: "Bash", command: "git for-ai capture-session --event maybe-commit" },
 ];
 
-const EMBEDDERS: Record<
+/**
+ * Embedder metadata table (judgment call #3 above). Exported for `config set
+ * embedder.provider`, which must record the same dim/offline facts init would.
+ */
+export const EMBEDDERS: Record<
   EmbedderProvider,
   { dim: number; offline: boolean; display: string }
 > = {
