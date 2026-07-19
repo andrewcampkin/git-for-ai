@@ -26,6 +26,7 @@ import { blameLineCommit, findLaterTouches } from "./blame.js";
 import {
   enrichSources,
   readChangeLedger,
+  recentChangeSources,
   resolveChangeIdReadOnly,
 } from "./enrich.js";
 import { retrieveSources, toRetrievalPosition } from "./retrieval.js";
@@ -52,9 +53,19 @@ export interface AskOptions {
   k?: number;
   /** Restrict retrieval to specific content kinds. */
   kinds?: IndexedKind[];
+  /**
+   * The recency floor: how many of the repo's most recent changes (effective ledger
+   * entries, read from git — index-staleness-proof) are appended as additional sources
+   * so temporal questions can be answered. Default 5; 0 disables. A change already
+   * retrieved semantically is not duplicated — it just gains the "recency" match side.
+   */
+  recent?: number;
   /** Synthesis configuration (API key, model, fetch seam). */
   synthesis?: SynthesisOptions;
 }
+
+/** Default recency-floor size (see AskOptions.recent). */
+export const DEFAULT_RECENT_SOURCES = 5;
 
 /** Hybrid retrieval + enrichment + (key-gated) synthesis for a free-form question. */
 export async function askQuestion(
@@ -70,6 +81,25 @@ export async function askQuestion(
     ...(options.kinds !== undefined ? { kinds: options.kinds } : {}),
   });
   const sources = await enrichSources(ranked, ctx, warnings);
+
+  // Recency floor: temporal questions can't be served by similarity alone (no source
+  // text resembles "most recent"), so the newest changes ride along as extra sources —
+  // unless the caller narrowed kinds away from ledger content.
+  const recent = options.recent ?? DEFAULT_RECENT_SOURCES;
+  if (recent > 0 && (options.kinds === undefined || options.kinds.includes("ledger"))) {
+    const byKey = new Map(sources.map((s) => [s.chunk.key, s]));
+    for (const recentSource of await recentChangeSources(recent, ctx, warnings)) {
+      const existing = byKey.get(recentSource.chunk.key);
+      if (existing !== undefined) {
+        if (!existing.matchedBy.includes("recency")) {
+          existing.matchedBy.push("recency");
+        }
+      } else {
+        sources.push({ ...recentSource, rank: sources.length + 1 });
+      }
+    }
+  }
+
   const synthesis = await synthesizeAnswer(question, sources, options.synthesis);
 
   return { question, sources, synthesis, warnings };

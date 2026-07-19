@@ -109,7 +109,10 @@ Answer confidence: none — this is git metadata only, not synthesized intent.  
 ## `git for-ai ask "<question>"`
 
 RAG query over the vector index for questions not anchored to a line. Hybrid keyword + vector
-retrieval; every answer lists its sources and a confidence.
+retrieval; every answer lists its sources and a confidence. The most recent changes' effective
+ledger entries always ride along as additional sources (the *recency floor*, read from git
+directly — immune to index staleness), so temporal questions ("what changed recently and why?")
+are answerable even though embedding similarity has no concept of time.
 
 **Flags:** `--k <N>` (retrieval breadth), `--sources-only` (skip synthesis, just show hits),
 `--since/--until`, `--json`.

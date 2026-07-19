@@ -25,6 +25,7 @@ import type {
 import { readCommitMessage } from "../git/index.js";
 import {
   findEntryByCommitSha,
+  readAllChangeMapEntries,
   readChangeMapEntry,
   type GitContext,
 } from "../identity/changeMap.js";
@@ -128,6 +129,78 @@ export async function resolveChangeIdReadOnly(
     };
   }
   return null;
+}
+
+/**
+ * The N most recent changes (by effective-entry `created_at`, newest first) as fully
+ * enriched sources — the recency floor `ask` appends so temporal questions ground in
+ * real history (see MatchSide's doc). Read from git-native records ONLY: works with a
+ * stale index, or no index at all. The synthesized chunk row mirrors what reindex
+ * stores for a ledger item (`ledger:<change_id>`, text = the summary), so dedupe
+ * against retrieval hits is a plain key comparison. O(all changes) like
+ * `findLaterTouches` — the same documented fine-at-dogfood-scale cost.
+ */
+export async function recentChangeSources(
+  n: number,
+  ctx: GitContext = {},
+  warnings: string[] = [],
+): Promise<EnrichedSource[]> {
+  if (n <= 0) {
+    return [];
+  }
+  const all = await readAllChangeMapEntries(ctx);
+  const candidates: Array<{ mapEntry: ChangeMapEntry; effective: LedgerEntry }> = [];
+  for (const mapEntry of all) {
+    if (mapEntry.folded_into !== undefined) {
+      continue; // absorbed — the surviving change carries the story
+    }
+    const { effective } = await readChangeLedger(mapEntry, ctx, warnings);
+    if (effective !== null) {
+      candidates.push({ mapEntry, effective });
+    }
+  }
+  candidates.sort(
+    (a, b) => Date.parse(b.effective.created_at) - Date.parse(a.effective.created_at),
+  );
+
+  const sources: EnrichedSource[] = [];
+  for (const { mapEntry, effective } of candidates.slice(0, n)) {
+    const sessionRef =
+      effective.session_ref !== undefined && effective.session_ref !== null
+        ? effective.session_ref
+        : null;
+    let sessionRecord: SessionRecord | null = null;
+    if (sessionRef !== null) {
+      try {
+        sessionRecord = await readSessionRecord(sessionRef, ctx);
+      } catch (error) {
+        warnings.push(
+          `session ${sessionRef} could not be read: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    sources.push({
+      rank: 0, // assigned by the caller after merging with retrieval hits
+      score: 0, // not retrieval-scored; ordering among recency sources is by date
+      chunk: {
+        key: `ledger:${mapEntry.change_id}`,
+        kind: "ledger",
+        text: effective.summary,
+        path: null,
+        blobSha: null,
+        nodePath: null,
+        startLine: null,
+        endLine: null,
+        changeId: mapEntry.change_id,
+        sessionRef,
+      },
+      matchedBy: ["recency"],
+      changeMapEntry: mapEntry,
+      ledgerEntry: effective,
+      sessionRecord,
+    });
+  }
+  return sources;
 }
 
 /**

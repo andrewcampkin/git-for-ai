@@ -95,6 +95,11 @@ function renderSource(source: EnrichedSource, number: number): string {
         : "";
     header.push(`${chunk.path}${lines}`);
   }
+  if (source.matchedBy.includes("recency")) {
+    // Tells the model this source is here as chronology, not similarity — with the
+    // created_at already in the ledger header, temporal questions become answerable.
+    header.push("[recent change]");
+  }
   return `${header.join(" ")}\n${chunk.text}`;
 }
 

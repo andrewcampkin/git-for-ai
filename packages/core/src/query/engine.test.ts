@@ -196,4 +196,57 @@ describe("askQuestion", () => {
     expect(result.sources.length).toBeGreaterThan(0);
     expect(result.sources.every((s) => s.chunk.kind === "session")).toBe(true);
   });
+
+  it("recency floor: the newest change rides along even when the index has never seen it", async () => {
+    // The live failure this guards (2026-07-19): "what was the most recent change?"
+    // retrieved nothing relevant because similarity has no concept of time — and the
+    // index was stale on top. A brand-new change, deliberately NOT upserted into the
+    // store, must still appear as a cited source, enriched from git directly.
+    const ctx = { cwd: repo.dir };
+    const sha = await repo.commit("Add the flux capacitor", {
+      files: { "src/flux.ts": "export const flux = true;\n" },
+    });
+    const { changeId: newChangeId } = await assignChangeId(sha, ctx);
+    const blob = (await repo.run(["rev-parse", `${sha}:src/flux.ts`])).stdout;
+    await appendLedgerEntry(
+      newChangeId,
+      makeLedgerEntry({
+        changeId: newChangeId,
+        revision: sha,
+        createdAt: "2026-07-19T09:00:00Z", // newer than the cookie change (07-17)
+        summary: "Add the flux capacitor",
+        scopePath: "src/flux.ts",
+        scopeBlob: blob,
+        sessionRef,
+      }),
+      ctx,
+    );
+
+    const result = await askQuestion(
+      { store, embedder, ctx },
+      "what was the most recent change and why was it made",
+      { synthesis: { apiKey: "" } },
+    );
+
+    // Appended after retrieval hits, matched by recency only, fully enriched.
+    const recent = result.sources.find((s) => s.chunk.key === `ledger:${newChangeId}`);
+    expect(recent).toBeDefined();
+    expect(recent!.matchedBy).toEqual(["recency"]);
+    expect(recent!.ledgerEntry?.summary).toBe("Add the flux capacitor");
+    expect(recent!.changeMapEntry?.change_id).toBe(newChangeId);
+    expect(recent!.rank).toBe(result.sources.indexOf(recent!) + 1);
+
+    // A change the retrieval DID find is not duplicated — it gains the recency side.
+    const cookie = result.sources.filter((s) => s.chunk.key === `ledger:${changeId}`);
+    expect(cookie).toHaveLength(1);
+    expect(cookie[0]!.matchedBy).toContain("recency");
+
+    // recent: 0 disables the floor entirely.
+    const disabled = await askQuestion(
+      { store, embedder, ctx },
+      "what was the most recent change and why was it made",
+      { recent: 0, synthesis: { apiKey: "" } },
+    );
+    expect(disabled.sources.find((s) => s.chunk.key === `ledger:${newChangeId}`)).toBeUndefined();
+  });
 });

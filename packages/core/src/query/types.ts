@@ -20,8 +20,15 @@ import type { ChangeMapEntry, LedgerEntry, SessionRecord } from "@git-for-ai/sch
 
 import type { StoredChunk } from "../embeddings/store.js";
 
-/** Which half (or halves) of the hybrid index matched a source. */
-export type MatchSide = "vector" | "keyword";
+/**
+ * How a source earned its place: matched by the vector or keyword half of the hybrid
+ * index — or included by the RECENCY floor ("recency"): ask always appends the most
+ * recent changes' effective ledger entries, read from git directly (never the index, so
+ * they are immune to index staleness), because embedding similarity has no concept of
+ * time and temporal questions ("what changed recently?") would otherwise retrieve
+ * nothing relevant. Added 2026-07-19 after exactly that failure, live.
+ */
+export type MatchSide = "vector" | "keyword" | "recency";
 
 /** Position-boost level applied to a source during blame-style retrieval. */
 export type PositionBoost = "path" | "line";

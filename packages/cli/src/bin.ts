@@ -296,7 +296,26 @@ program
       // user can see the index advancing (stdout stays the clean transcript/JSON).
       onProgress: (line: string) => process.stderr.write(`[reindex] ${line}\n`),
     };
+    // Silent-death guard: a native failure inside the embedding backend (seen live:
+    // onnxruntime "bad allocation" under memory pressure) can strand the inference
+    // promise — it never settles, the event loop drains, and Node exits 0 mid-run with
+    // no error and no state.json update. `beforeExit` fires exactly then; turn that
+    // silence into an honest failure. Progress up to the last batch is cached, so a
+    // re-run resumes cheaply.
+    let settled = false;
+    process.once("beforeExit", () => {
+      if (!settled) {
+        process.stderr.write(
+          "git-for-ai: reindex terminated before completion — the embedding backend " +
+            "stopped responding (likely out-of-memory in the native runtime; close other " +
+            "heavy processes). Embedded batches are cached; re-run `git for-ai reindex` " +
+            "to resume from where it stopped.\n",
+        );
+        process.exitCode = 1;
+      }
+    });
     const result = await runReindex(reindexOptions);
+    settled = true;
     process.stdout.write(
       opts.json === true ? `${JSON.stringify(result.data, null, 2)}\n` : `${result.output}\n`,
     );
