@@ -88,9 +88,11 @@ code is the way it is — use it before re-deriving old decisions.
 
 ## Environment quirks
 
-- Windows: CRLF warnings on commit are normal noise. Bash tool is POSIX; PowerShell is
-  primary — don't mix syntaxes. 8.3 short paths broke a blame test once (canonicalize via
-  realpath when comparing paths git reports).
+- Windows: line endings are pinned LF by `.gitattributes` (blob SHAs key the embedding
+  cache, so endings must never flip). CRLF warnings should no longer appear — if one does,
+  something is writing CRLF; fix the writer, don't silence the warning. Bash tool is POSIX;
+  PowerShell is primary — don't mix syntaxes. 8.3 short paths broke a blame test once
+  (canonicalize via realpath when comparing paths git reports).
 - `node:sqlite` is the sqlite (never better-sqlite3 — it can't build here); it prints an
   ExperimentalWarning when loaded, which is why its require is deferred in `store.ts`.
 - The model cache is per-user under `%LOCALAPPDATA%\git-for-ai\models`
