@@ -26,6 +26,7 @@ import { runConfigGet, runConfigSet, type ConfigOptions } from "./commands/confi
 import { runSync, type SyncOptions } from "./commands/sync.js";
 import { runDoctor } from "./commands/doctor.js";
 import { runExport, type ExportOptions } from "./commands/export.js";
+import { runMcpServer } from "./commands/mcp.js";
 
 /** Read all of stdin (post-rewrite's old/new SHA pairs). Empty when stdin is a TTY. */
 async function readStdin(): Promise<string> {
@@ -454,6 +455,18 @@ program
         : `${result.output}\n`,
     );
     process.exitCode = result.exitCode;
+  });
+
+program
+  .command("mcp")
+  .description("Serve the intent layer as MCP tools over stdio (ask, blame_why, show, log_intent, annotate, doctor)")
+  .option("--repo <path>", "repository to serve (default: current directory)")
+  .action(async (opts) => {
+    // stdout is the MCP protocol channel — print nothing here. The connected
+    // transport keeps the process alive until the client closes stdin.
+    await runMcpServer({
+      ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),
+    });
   });
 
 program

@@ -34,16 +34,26 @@ two convictions:
 | `git for-ai reindex` | Build the local semantic index (tree-sitter chunking + local embeddings; incremental, cached) |
 | `git for-ai relink` / `reconcile` | Identity repair tools (misattribution, lost change-map recovery) |
 | `git for-ai capture-session` | Hook-invoked: captures agent sessions at commit time (redacted, content-addressed) |
+| `git for-ai mcp` | Stdio MCP server: `ask`, `blame_why`, `show`, `log_intent`, `annotate`, `doctor` as native tools for MCP-capable agents |
 
 Under the hood: stable change identity that survives amend/rebase/squash (change-map ref +
 Gerrit-style trailer fallback with lazy healing), append-only intent ledger in git notes, and
 session traces in a content-addressed ref. This repo dogfoods all of it — run the commands
 here and you'll see its own real history, including the sessions that built each feature.
 
-**In progress:** `ask` and `blame --why` (hybrid semantic retrieval + synthesized answers),
-`sync` (one command for the push/fetch refspecs), `doctor`. **Planned next:** an MCP server so
-agents get all of this as native tools, and a local review web UI. See
-[`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md).
+**Planned next:** see
+[`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md) for the wider-surface
+roadmap (shared-index server, desktop wrapper).
+
+### MCP
+
+Agents shouldn't have to shell out and parse console output — `git for-ai mcp` serves the
+intent layer over stdio as native MCP tools (reads plus the schema-validated `annotate` write).
+Register it in Claude Code from your repo:
+
+```sh
+claude mcp add git-for-ai -- git-for-ai mcp
+```
 
 ## Quick start
 
