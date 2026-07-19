@@ -1,7 +1,7 @@
 # git-for-ai — CLI Implementation Plan
 
-Companion to [`ARCHITECTURE.md`](./ARCHITECTURE.md), [`DATA_MODEL.md`](./DATA_MODEL.md),
-[`CLI_REFERENCE.md`](./CLI_REFERENCE.md), and [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md). Those
+Companion to [`ARCHITECTURE.md`](../ARCHITECTURE.md), [`DATA_MODEL.md`](../DATA_MODEL.md),
+[`CLI_REFERENCE.md`](../CLI_REFERENCE.md), and [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md). Those
 documents say *what* to build. This one says *in what order*, with a definition of done for each
 step, so building can start without re-deriving sequencing decisions from scratch.
 
@@ -15,7 +15,7 @@ scaffolded under `packages/`. `server`, `desktop`, and `website` are out of scop
 > Additions beyond this plan (internal-hook dispatcher, `annotate`, `report`,
 > `relink`/`reconcile`, the R4 redesign) are sequenced in
 > [`./PLAN_2026-07-18.md`](./PLAN_2026-07-18.md), which supersedes this file's ordering.
-> Historical session notes live in [`./history/`](./history/HANDOFF_2026-07-17.md).
+> Historical session notes live in [`./history/`](./HANDOFF_2026-07-17.md).
 > Milestone sections below are unchanged as specs; only the checkmarks are new.
 
 ---
@@ -83,7 +83,7 @@ signal to pin a Node version with prebuilt binary support rather than debug a na
 
 Implement Zod schemas for `LedgerEntry` (+ its `ScopeItem` and `reasoning` sub-shapes),
 `SessionRecord` (+ `spans`), `ChangeMapEntry`, and `RepoConfig` — field-for-field matching
-[`DATA_MODEL.md`](./DATA_MODEL.md) §1–5. Export both the Zod schemas and their inferred
+[`DATA_MODEL.md`](../DATA_MODEL.md) §1–5. Export both the Zod schemas and their inferred
 TypeScript types.
 
 **Tests:** for each schema, one test parsing the exact worked example already given in

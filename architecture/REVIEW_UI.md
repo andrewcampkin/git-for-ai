@@ -1,7 +1,14 @@
 # REVIEW_UI.md — `git for-ai review`: the local review web app
 
+> Status: **shipped** (v1 2026-07-19, then the v2 human-first redesign the same day: ask
+> panel promoted to the page top, attention inbox, day-grouped timeline, internals demoted
+> into folds). §§1–3 and 5–6 below remain the binding contract (package shape, server rules,
+> API). §4's v1 scope notes ("ask panel disabled", "when M14 lands") are historical — both
+> landed. Owner direction recorded 2026-07-19: this page serves HUMANS only; agents use the
+> CLI's `--json` and the MCP tools.
+
 Spec for the agent-activity review surface approved in
-[`PLAN_2026-07-18.md`](./PLAN_2026-07-18.md) §2.2. This is the buildable definition the plan
+[`PLAN_2026-07-18.md`](./history/PLAN_2026-07-18.md) §2.2. This is the buildable definition the plan
 deliberately deferred. It inherits everything the plan already fixed: review-SPA-before-
 Electron, served by the CLI, reading through `core` in-process, and the four functions in
 priority order (timeline, change detail, session trace viewer, attention queue) plus a

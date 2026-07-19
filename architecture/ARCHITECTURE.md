@@ -1,18 +1,20 @@
 # git-for-ai — Technical Architecture
 
-> Status: **Design spec (pre-implementation).** This is the entry-point document. It is complete
-> and coherent on its own for the core architecture. Two supporting files add depth without being
-> required reading:
+> Status: **Implemented.** Originally the pre-implementation design spec, this document remains
+> the authoritative description of the system's architecture — the built CLI conforms to it, with
+> deviations recorded in the relevant source files' header comments (notably §7.3's R4 branch,
+> redesigned 2026-07-18 to sibling diff overlap, and §12.2's note body, now JSONL per
+> DATA_MODEL §2.1). Future work: [`ROADMAP.md`](./ROADMAP.md). Supporting files:
 >
 > - [`DATA_MODEL.md`](./DATA_MODEL.md) — exhaustive field-by-field schema definitions and worked
 >   examples for every record type.
 > - [`CLI_REFERENCE.md`](./CLI_REFERENCE.md) — full command reference: every flag, exit code, and
 >   example output.
-> - [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md) — how this engine sits inside a monorepo alongside a
+> - [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md) — how this engine sits inside a monorepo alongside a
 >   desktop app, a hosting/server component, and (future) a website.
 >
-> Grounding documents (read for context, not restated here): [`../research/landscape.md`](../research/landscape.md)
-> (prior art) and [`../ideas/00-overview.md`](../ideas/00-overview.md) plus `../ideas/01`–`06`
+> Grounding documents (read for context, not restated here): [`../research/landscape.md`](./history/research/landscape.md)
+> (prior art) and [`../ideas/00-overview.md`](./history/ideas/00-overview.md) plus `./history/ideas/01`–`06`
 > (the scoped ideas this synthesizes).
 >
 > **Revision note:** this document was originally drafted with Rust as the implementation
@@ -95,7 +97,7 @@ exists in isolation; the loop does not. That gap is the product.
 
 ## 3. Positioning versus prior art
 
-The [landscape doc](../research/landscape.md) names the field. Three projects are close enough that
+The [landscape doc](./history/research/landscape.md) names the field. Three projects are close enough that
 a reviewer will immediately ask "isn't this already done?" — those get a paragraph each. The rest
 get a line.
 
@@ -541,7 +543,7 @@ npm distribution assumes Node.js is already installed, which is a safe assumptio
 MVP; a dependency-free single-executable build (via Node's built-in
 [Single Executable Applications](https://nodejs.org/api/single-executable-applications.html)
 support) is a documented v1.1 nice-to-have for distributing to machines without Node, not required
-now — see [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md).
+now — see [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md).
 
 | Command | Purpose |
 |---|---|
@@ -950,7 +952,7 @@ are made, not left open (per the brief).
     (`nodegit`) is effectively unmaintained, and the pure-JS alternative (`isomorphic-git`)
     reimplements git semantics, which risks the exact divergence-from-real-git this project set out
     to avoid. The performance cost of always shelling out is judged acceptable for an interactive
-    CLI; see [`MONOREPO_PLAN.md`](./MONOREPO_PLAN.md) for the full stack and monorepo consequences
+    CLI; see [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md) for the full stack and monorepo consequences
     of this pivot.
 
 ---

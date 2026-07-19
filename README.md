@@ -32,6 +32,12 @@ two convictions:
 | `git for-ai annotate` | Deliberately record intent — the agent write path (JSON stdin) with rejected-alternatives, constraints, tested evidence |
 | `git for-ai report` | Self-contained HTML/Markdown digest of agent activity — the human review surface |
 | `git for-ai reindex` | Build the local semantic index (tree-sitter chunking + local embeddings; incremental, cached) |
+| `git for-ai ask "<question>"` | Semantic Q&A over code + intent + sessions; cited AI-synthesized answers (offline ranked-sources mode without a key) |
+| `git for-ai blame --why <file>:<line>` | The founding question: the recorded reasoning behind a line, not just a SHA and a name |
+| `git for-ai review` | Local web app (127.0.0.1, read-only): ask box, agent-activity timeline, attention inbox, session traces |
+| `git for-ai sync [--push\|--fetch]` | Explicit ref sync through any ordinary git remote — no server needed (validated on GitHub) |
+| `git for-ai doctor` | 11 read-only health audits with remediation steps |
+| `git for-ai config` / `export` | Config with consent gating; Agent Trace + PR-comment export |
 | `git for-ai relink` / `reconcile` | Identity repair tools (misattribution, lost change-map recovery) |
 | `git for-ai capture-session` | Hook-invoked: captures agent sessions at commit time (redacted, content-addressed) |
 | `git for-ai mcp` | Stdio MCP server: `ask`, `blame_why`, `show`, `log_intent`, `annotate`, `doctor` as native tools for MCP-capable agents |
@@ -41,9 +47,10 @@ Gerrit-style trailer fallback with lazy healing), append-only intent ledger in g
 session traces in a content-addressed ref. This repo dogfoods all of it — run the commands
 here and you'll see its own real history, including the sessions that built each feature.
 
-**Planned next:** see
-[`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md) for the wider-surface
-roadmap (shared-index server, desktop wrapper).
+**The CLI is feature-complete against its reference.** What comes next — hardening, external
+dogfooding, the desktop wrapper, the shared-index server, and the v2 ideas (semantic drift
+detection, intent knowledge graph) — is mapped in
+[`architecture/ROADMAP.md`](architecture/ROADMAP.md).
 
 ### MCP
 
@@ -75,17 +82,13 @@ explicit consent flag.
 - [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — the full spec (identity
   model §7 is the heart of it), with [`DATA_MODEL.md`](architecture/DATA_MODEL.md) (every
   record shape) and [`CLI_REFERENCE.md`](architecture/CLI_REFERENCE.md) (every command).
-- [`architecture/PLAN_2026-07-18.md`](architecture/PLAN_2026-07-18.md) — current build plan
-  and the wider-surface roadmap (MCP, review UI, server).
-- [`architecture/MONOREPO_PLAN.md`](architecture/MONOREPO_PLAN.md) — package layout; why the
-  server's scope is only a shared query index.
-- [`architecture/CLI_PLAN.md`](architecture/CLI_PLAN.md) — milestone-by-milestone build log
-  (M0–M10 ✅).
-- [`ideas/`](ideas/00-overview.md) and [`research/`](research/landscape.md) — the original
-  six idea docs and prior-art survey (Agent Trace, git-ai, Lore, and others).
-- [`architecture/history/`](architecture/history/PROJECT_GENESIS.md) — how this project came
-  to be, plus archived session handoffs. The richer version is live in the repo itself:
-  `git for-ai log --intent`.
+- [`architecture/ROADMAP.md`](architecture/ROADMAP.md) — future features, tiered.
+- [`architecture/REVIEW_UI.md`](architecture/REVIEW_UI.md) — the review web app's spec.
+- [`CLAUDE.md`](CLAUDE.md) — working context and hard rules for AI agents developing this repo.
+- [`architecture/history/`](architecture/history/PROJECT_GENESIS.md) — how this project came to
+  be: the original six idea docs, prior-art research, all executed build plans, and session
+  handoffs. Useful for archaeology; not needed for new work. The richer version is live in the
+  repo itself: `git for-ai log --intent` and `git for-ai ask "..."`.
 
 ## Status
 

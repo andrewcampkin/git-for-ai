@@ -1,6 +1,6 @@
 # git-for-ai — Monorepo & Product Surfaces Plan
 
-Companion to [`ARCHITECTURE.md`](./ARCHITECTURE.md), which specifies the core engine (identity
+Companion to [`ARCHITECTURE.md`](../ARCHITECTURE.md), which specifies the core engine (identity
 model, ledger, session capture, embeddings, sync). This document answers a different question:
 **what packages does this repo need so a CLI, a desktop app, a hosting/server component, and
 (eventually) a website can all be built from the same codebase without duplicating logic** — and
