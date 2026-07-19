@@ -30,6 +30,52 @@ export interface AttentionItem {
 /** Confidence below this is queue-worthy (REVIEW_UI.md §4.4). */
 export const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
+/** One inbox group: a kind, its human title, and its items (order preserved). */
+export interface AttentionGroup {
+  kind: AttentionKind;
+  /** Human group title — what the reader should do/know, not the internal kind name. */
+  title: string;
+  /** One-line explanation of why this group is worth attention. */
+  why: string;
+  items: AttentionItem[];
+}
+
+/**
+ * Inbox severity order + human titles. Record damage first (unreadable notes), then
+ * entries the agent itself was unsure about, then reconstructed intent, then the common
+ * plain-git case last.
+ */
+const GROUPS: { kind: AttentionKind; title: string; why: string }[] = [
+  {
+    kind: "note-unreadable",
+    title: "Unreadable ledger notes",
+    why: "A ledger note exists but could not be parsed — the record is damaged, not missing.",
+  },
+  {
+    kind: "low-confidence",
+    title: "Low-confidence changes",
+    why: `The agent itself rated its confidence below ${LOW_CONFIDENCE_THRESHOLD.toFixed(1)} — review these first.`,
+  },
+  {
+    kind: "inferred-provenance",
+    title: "Inferred intent",
+    why: "Intent was reconstructed after the fact, not captured live from the agent.",
+  },
+  {
+    kind: "no-intent",
+    title: "Commits with no captured intent",
+    why: "Plain git commits — nothing recorded beyond the commit message itself.",
+  },
+];
+
+/** Group attention items into the inbox's severity-ordered groups (empty groups omitted). */
+export function groupAttention(items: AttentionItem[]): AttentionGroup[] {
+  return GROUPS.map((group) => ({
+    ...group,
+    items: items.filter((item) => item.kind === group.kind),
+  })).filter((group) => group.items.length > 0);
+}
+
 export function computeAttention(data: ReportData): AttentionItem[] {
   const items: AttentionItem[] = [];
 

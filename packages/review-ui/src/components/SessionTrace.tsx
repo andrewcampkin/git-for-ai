@@ -49,7 +49,7 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
     return (
       <>
         <a className="back-link" href="#/">
-          ← back to timeline
+          ← back to the overview
         </a>
         <div className="error-box">Could not load the session trace: {result.error}</div>
       </>
@@ -61,7 +61,7 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
     return (
       <>
         <a className="back-link" href="#/">
-          ← back to timeline
+          ← back to the overview
         </a>
         <div className="error-box">
           session trace unavailable — {data.reason ?? "unknown reason"}
@@ -74,24 +74,33 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
   return (
     <>
       <a className="back-link" href="#/">
-        ← back to timeline
+        ← back to the overview
       </a>
       <section className="trace-head">
         <h3>
-          Session trace <code>{data.ref.slice(0, 19)}…</code>
+          {record.agent.tool} session{" "}
+          {record.agent.model !== undefined && (
+            <span className="commit-line">({record.agent.model})</span>
+          )}
         </h3>
         <p className="commit-line">
-          {record.agent.tool} {record.agent.version} ({record.agent.model}) · captured{" "}
-          {fmtWhen(record.captured_at)} · commits {record.commit_range.since.slice(0, 7)}..
+          captured {fmtWhen(record.captured_at)} · {record.agent.tool} {record.agent.version}{" "}
+          · commits {record.commit_range.since.slice(0, 7)}..
           {record.commit_range.until.slice(0, 7)} · redaction{" "}
           {record.redaction.applied
             ? `applied (${record.redaction.redacted_count} redacted)`
             : "not applied"}
         </p>
         {record.summary !== undefined && <p>{record.summary}</p>}
+        <details className="record-details">
+          <summary>Record details</summary>
+          <p className="commit-line">
+            session ref <code>{data.ref}</code>
+          </p>
+        </details>
       </section>
       <h2>
-        {record.spans.length} span{record.spans.length === 1 ? "" : "s"}
+        What it did — {record.spans.length} span{record.spans.length === 1 ? "" : "s"}
       </h2>
       {record.spans.length === 0 && <p className="empty">This session recorded no spans.</p>}
       {record.spans.map((span) => (

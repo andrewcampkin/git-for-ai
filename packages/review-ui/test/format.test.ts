@@ -5,8 +5,11 @@ import { describe, expect, it } from "vitest";
 
 import type { Span } from "../src/types";
 import {
+  dayHeading,
   flagParts,
+  fmtTime,
   fmtWhen,
+  isNoteworthyProvenance,
   sessionLine,
   sessionLineFromShow,
   sourceTag,
@@ -21,6 +24,36 @@ describe("fmtWhen", () => {
   it("passes degraded input through as-is, never guessing", () => {
     expect(fmtWhen("not-a-date")).toBe("not-a-date");
     expect(fmtWhen("")).toBe("");
+  });
+});
+
+describe("fmtTime", () => {
+  it("renders just the minutes from RFC 3339, for rows under a day heading", () => {
+    expect(fmtTime("2026-07-18T09:22:41Z")).toBe("09:22");
+  });
+  it("passes degraded input through as-is, never guessing", () => {
+    expect(fmtTime("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("dayHeading (v2 day-grouped timeline)", () => {
+  it("labels today and yesterday relative to the injected today", () => {
+    expect(dayHeading("2026-07-19", "2026-07-19")).toBe("Today · 2026-07-19");
+    expect(dayHeading("2026-07-18", "2026-07-19")).toBe("Yesterday · 2026-07-18");
+    // month boundary
+    expect(dayHeading("2026-06-30", "2026-07-01")).toBe("Yesterday · 2026-06-30");
+  });
+  it("renders older days plainly and the degraded-day group honestly", () => {
+    expect(dayHeading("2026-07-10", "2026-07-19")).toBe("2026-07-10");
+    expect(dayHeading("", "2026-07-19")).toBe("date unavailable");
+  });
+});
+
+describe("isNoteworthyProvenance", () => {
+  it("keeps the normal cases quiet and surfaces inferred", () => {
+    expect(isNoteworthyProvenance("agent-captured")).toBe(false);
+    expect(isNoteworthyProvenance("human-authored")).toBe(false);
+    expect(isNoteworthyProvenance("inferred")).toBe(true);
   });
 });
 

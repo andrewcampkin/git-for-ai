@@ -1,12 +1,13 @@
-// App shell: hash routing (no router dependency — three routes), overview data fetch, and
-// the masthead the report page carries, made live. The overview is the report's header
-// stats + timeline; the change detail and session trace are routes over the same read-only
-// API (REVIEW_UI.md §4).
+// App shell (Review UI v2): hash routing (no router dependency — three routes) over the
+// same read-only API, reordered around the human reader. The overview reads top-to-bottom
+// as: ask your repo anything (the primary interaction), a one-line activity digest, the
+// attention inbox ("look at these first"), then the day-grouped timeline. Internals that
+// only agents need (index chunk counts, change-ids, provenance-when-normal) are off the
+// page — the CLI's --json output is the agent contract.
 
 import { useEffect, useState } from "react";
 
 import type { ReportData, ReviewMeta } from "./types";
-import { fmtWhen } from "./lib/format";
 import { useFetch } from "./lib/useFetch";
 import { AskPanel } from "./components/AskPanel";
 import { AttentionQueue } from "./components/AttentionQueue";
@@ -46,6 +47,7 @@ function useRoute(): Route {
   return route;
 }
 
+/** Compact masthead status: HEAD and capture state. Index status lives on the ask panel. */
 function MetaLine({ meta }: { meta: ReviewMeta }) {
   return (
     <p className="meta-line">
@@ -63,51 +65,45 @@ function MetaLine({ meta }: { meta: ReviewMeta }) {
       <span>
         capture {meta.initialized ? (meta.captureEnabled ? "on" : "off") : "off (not initialized)"}
       </span>
-      <span>
-        {meta.index.built
-          ? `index: ${meta.index.chunkCount ?? 0} chunks @ ${
-              meta.index.lastIndexedCommit?.slice(0, 7) ?? "?"
-            }${meta.index.updatedAt !== undefined ? ` (${fmtWhen(meta.index.updatedAt)})` : ""}`
-          : meta.index.error !== undefined
-            ? `index state unreadable: ${meta.index.error}`
-            : "index: not built"}
-      </span>
     </p>
   );
 }
 
-function Stats({ data }: { data: ReportData }) {
+/**
+ * One readable line of what the agents have been up to — replaces v1's stat-card grid.
+ * Every number is real; the model list is shown because "which models touched my repo"
+ * is a question humans actually have.
+ */
+function Digest({ data }: { data: ReportData }) {
   const { totals } = data;
-  const attribution =
-    `${totals.agentCommits} agent · ${totals.humanCommits} human` +
-    (totals.mixedCommits > 0 ? ` · ${totals.mixedCommits} mixed` : "") +
-    ` · ${totals.noIntentCommits} no intent`;
   return (
-    <div className="stats">
-      <div className="stat">
-        <div className="num">{totals.commits}</div>
-        <div className="lbl">commits</div>
-      </div>
-      <div className="stat">
-        <div className="num">{totals.changes}</div>
-        <div className="lbl">changes</div>
-      </div>
-      <div className="stat">
-        <div className="num">{totals.agentCommits}</div>
-        <div className="lbl">agent-attributed</div>
-        <div className="sub">{attribution}</div>
-      </div>
-      <div className="stat">
-        <div className="num">{totals.sessionsCaptured}</div>
-        <div className="lbl">sessions captured</div>
-      </div>
-      <div className="stat">
-        <div className="num">{totals.modelsSeen.length}</div>
-        <div className="lbl">models seen</div>
-        <div className="sub">
-          {totals.modelsSeen.length > 0 ? totals.modelsSeen.join(", ") : "none recorded"}
-        </div>
-      </div>
+    <div className="digest">
+      <span className="digest-item">
+        <strong>{totals.commits}</strong> commit{totals.commits === 1 ? "" : "s"}
+      </span>
+      <span className="digest-item">
+        <strong>{totals.agentCommits}</strong> by agents
+      </span>
+      <span className="digest-item">
+        <strong>{totals.humanCommits}</strong> by humans
+      </span>
+      {totals.mixedCommits > 0 && (
+        <span className="digest-item">
+          <strong>{totals.mixedCommits}</strong> mixed
+        </span>
+      )}
+      {totals.noIntentCommits > 0 && (
+        <span className="digest-item digest-warn">
+          <strong>{totals.noIntentCommits}</strong> without captured intent
+        </span>
+      )}
+      <span className="digest-item">
+        <strong>{totals.sessionsCaptured}</strong> session
+        {totals.sessionsCaptured === 1 ? "" : "s"} captured
+      </span>
+      <span className="digest-item">
+        {totals.modelsSeen.length > 0 ? totals.modelsSeen.join(", ") : "no models recorded"}
+      </span>
     </div>
   );
 }
@@ -115,7 +111,7 @@ function Stats({ data }: { data: ReportData }) {
 function Overview({ data }: { data: ReportData }) {
   return (
     <>
-      <Stats data={data} />
+      <Digest data={data} />
       {data.warnings.length > 0 && (
         <section className="warnings" style={{ marginTop: "1.2rem" }}>
           <div className="w-title">Warnings</div>
@@ -128,7 +124,6 @@ function Overview({ data }: { data: ReportData }) {
       )}
       <AttentionQueue data={data} />
       <Timeline rows={data.timeline} />
-      <AskPanel />
     </>
   );
 }
@@ -153,6 +148,7 @@ export function App() {
 
       {route.view === "overview" && (
         <>
+          <AskPanel meta={meta.state === "ok" ? meta.data : null} />
           {overview.state === "loading" && <p className="loading">Reading the repository…</p>}
           {overview.state === "error" && (
             <div className="error-box">Could not load the overview: {overview.error}</div>
@@ -167,7 +163,8 @@ export function App() {
         Served locally by <code>git for-ai review</code> (127.0.0.1 only, read-only).
         Missing data is labeled, never inferred or fabricated: commits without a ledger
         entry show their own git subject, marked "no captured intent"; unresolvable session
-        traces are reported as unavailable.
+        traces are reported as unavailable. Agents don't read this page — they use the
+        CLI's <code>--json</code> output, which carries every identifier this page omits.
       </footer>
     </div>
   );

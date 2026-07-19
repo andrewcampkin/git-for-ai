@@ -1,14 +1,18 @@
-// Timeline (REVIEW_UI.md §4.1): ReportData's timeline rows, filterable CLIENT-SIDE by
-// author kind, model, and date. Each row: sha, when, summary (honest degradation labels
-// preserved verbatim from report.ts), author badge, provenance pill, conf/risk/undo flags.
+// Timeline (Review UI v2): what a human wants first — the SUMMARY, readable, grouped
+// under day headings ("what did my agents do this week"). Evidence and risk flags stay
+// on the row (author badge, conf/risk/undo pills, honest degradation tags); internals
+// are demoted: the sha is a small trailing link, provenance only appears when it is
+// noteworthy (inferred), and change-ids are gone from the page entirely — they remain
+// on the CLI's --json output, which is the agent contract.
 
 import { useMemo, useState } from "react";
 
 import type { ReportTimelineRow } from "../types";
-import { fmtWhen, sourceTag } from "../lib/format";
+import { dayHeading, fmtTime, isNoteworthyProvenance, sourceTag } from "../lib/format";
 import {
   EMPTY_FILTER,
   filterTimeline,
+  groupByDay,
   modelsInTimeline,
   type TimelineFilter,
 } from "../lib/filters";
@@ -18,22 +22,21 @@ function TimelineRow({ row }: { row: ReportTimelineRow }) {
   const tag = sourceTag(row.summarySource);
   return (
     <article className={`row${row.hasIntent ? "" : " no-intent"}`}>
-      <div className="row-head">
-        <a className="sha" href={`#/change/${row.sha}`} title={row.sha}>
-          {row.shortSha}
-        </a>
-        <time dateTime={row.authorDate}>{fmtWhen(row.authorDate)}</time>
-        <BadgePill badge={row.badge} />
-        {row.provenance !== undefined && <ProvenancePill provenance={row.provenance} />}
-        <FlagPills flags={row.flags} />
-        {row.changeId !== null && (
-          <a href={`#/change/c/${row.changeId}`}>c/{row.changeId.slice(0, 8)}</a>
-        )}
-      </div>
       <p className="summary">
-        {row.summary}
+        <a href={`#/change/${row.sha}`}>{row.summary}</a>
         {tag !== null && <span className="degraded-tag">{tag}</span>}
       </p>
+      <div className="row-meta">
+        <BadgePill badge={row.badge} />
+        <FlagPills flags={row.flags} />
+        {row.provenance !== undefined && isNoteworthyProvenance(row.provenance) && (
+          <ProvenancePill provenance={row.provenance} />
+        )}
+        <time dateTime={row.authorDate}>{fmtTime(row.authorDate)}</time>
+        <a className="sha row-sha" href={`#/change/${row.sha}`} title={row.sha}>
+          {row.shortSha}
+        </a>
+      </div>
     </article>
   );
 }
@@ -42,12 +45,14 @@ export function Timeline({ rows }: { rows: ReportTimelineRow[] }) {
   const [filter, setFilter] = useState<TimelineFilter>(EMPTY_FILTER);
   const models = useMemo(() => modelsInTimeline(rows), [rows]);
   const visible = useMemo(() => filterTimeline(rows, filter), [rows, filter]);
+  const days = useMemo(() => groupByDay(visible), [visible]);
+  const today = new Date().toISOString().slice(0, 10);
   const isFiltered =
     filter.kind !== "all" || filter.model !== "all" || filter.since !== "" || filter.until !== "";
 
   return (
-    <section>
-      <h2 id="timeline">Timeline</h2>
+    <section aria-labelledby="timeline">
+      <h2 id="timeline">Activity</h2>
       <div className="filters">
         <label>
           author
@@ -107,8 +112,13 @@ export function Timeline({ rows }: { rows: ReportTimelineRow[] }) {
       {rows.length > 0 && visible.length === 0 && (
         <p className="empty">No commits match the current filters.</p>
       )}
-      {visible.map((row) => (
-        <TimelineRow key={row.sha} row={row} />
+      {days.map((group) => (
+        <div key={group.day === "" ? "undated" : group.day}>
+          <h3 className="day-head">{dayHeading(group.day, today)}</h3>
+          {group.rows.map((row) => (
+            <TimelineRow key={row.sha} row={row} />
+          ))}
+        </div>
       ))}
     </section>
   );

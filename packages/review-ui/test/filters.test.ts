@@ -1,8 +1,8 @@
-// Client-side timeline filtering (REVIEW_UI.md §4.1) — pure-logic tests.
+// Client-side timeline filtering (REVIEW_UI.md §4.1) + v2 day grouping — pure-logic tests.
 
 import { describe, expect, it } from "vitest";
 
-import { EMPTY_FILTER, filterTimeline, modelsInTimeline } from "../src/lib/filters";
+import { EMPTY_FILTER, filterTimeline, groupByDay, modelsInTimeline } from "../src/lib/filters";
 import { makeRow } from "./fixtures";
 
 const agentRow = makeRow({
@@ -99,6 +99,30 @@ describe("filterTimeline", () => {
         until: "",
       }),
     ).toEqual([agentRow]);
+  });
+});
+
+describe("groupByDay", () => {
+  it("groups consecutive rows by calendar day, preserving order", () => {
+    const sameDay = makeRow({
+      sha: "6".repeat(40),
+      shortSha: "6666666",
+      authorDate: "2026-07-18T15:30:00+00:00",
+    });
+    const groups = groupByDay([agentRow, sameDay, humanRow, otherModelRow]);
+    expect(groups.map((g) => g.day)).toEqual(["2026-07-18", "2026-07-17", "2026-07-16"]);
+    expect(groups[0]!.rows.map((r) => r.shortSha)).toEqual(["1111111", "6666666"]);
+    expect(groups[1]!.rows.map((r) => r.shortSha)).toEqual(["2222222"]);
+  });
+
+  it("groups degraded dates under day \"\" — never guessed into a date", () => {
+    const groups = groupByDay([agentRow, badDateRow]);
+    expect(groups.map((g) => g.day)).toEqual(["2026-07-18", ""]);
+    expect(groups[1]!.rows).toEqual([badDateRow]);
+  });
+
+  it("returns no groups for no rows", () => {
+    expect(groupByDay([])).toEqual([]);
   });
 });
 

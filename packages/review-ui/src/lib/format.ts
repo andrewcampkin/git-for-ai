@@ -18,6 +18,43 @@ export function fmtWhen(iso: string): string {
     : iso;
 }
 
+/** `09:22` from an RFC 3339 timestamp (for rows under a day heading); degraded → as-is. */
+export function fmtTime(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(iso) ? iso.slice(11, 16) : iso;
+}
+
+/**
+ * Human heading for a timeline day group. `today` is injected (YYYY-MM-DD) so the
+ * function stays pure. The empty day (degraded/unparseable author dates) is labeled
+ * honestly, never guessed into a date.
+ */
+export function dayHeading(day: string, today: string): string {
+  if (day === "") {
+    return "date unavailable";
+  }
+  if (day === today) {
+    return `Today · ${day}`;
+  }
+  const yesterday = new Date(`${today}T12:00:00Z`);
+  if (!Number.isNaN(yesterday.getTime())) {
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    if (day === yesterday.toISOString().slice(0, 10)) {
+      return `Yesterday · ${day}`;
+    }
+  }
+  return day;
+}
+
+/**
+ * Whether a provenance value deserves the reader's attention on the overview.
+ * `agent-captured` and `human-authored` are the normal, expected cases — showing a pill
+ * for every row would be noise; `inferred` means the intent was reconstructed rather than
+ * directly captured, which a reviewer should see.
+ */
+export function isNoteworthyProvenance(provenance: string): boolean {
+  return provenance !== "agent-captured" && provenance !== "human-authored";
+}
+
 /** Human label for a summary's provenance (the honest-degradation tag), per report.ts. */
 export function sourceTag(source: ReportTimelineRow["summarySource"]): string | null {
   switch (source) {

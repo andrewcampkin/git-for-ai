@@ -50,6 +50,32 @@ export function filterTimeline(
   });
 }
 
+/** One day's worth of timeline rows (rows keep their fetched newest-first order). */
+export interface TimelineDayGroup {
+  /** Calendar day (YYYY-MM-DD), or "" for rows whose author date is degraded. */
+  day: string;
+  rows: ReportTimelineRow[];
+}
+
+/**
+ * Group consecutive timeline rows by calendar day, preserving order — the overview
+ * renders these under day headings ("what did my agents do this week"). Rows with
+ * unparseable dates group under day "" and are labeled as such, never guessed.
+ */
+export function groupByDay(rows: ReportTimelineRow[]): TimelineDayGroup[] {
+  const groups: TimelineDayGroup[] = [];
+  for (const row of rows) {
+    const day = dayOf(row.authorDate);
+    const last = groups[groups.length - 1];
+    if (last !== undefined && last.day === day) {
+      last.rows.push(row);
+    } else {
+      groups.push({ day, rows: [row] });
+    }
+  }
+  return groups;
+}
+
 /** Distinct models present on timeline badges, sorted — the model dropdown's options. */
 export function modelsInTimeline(rows: ReportTimelineRow[]): string[] {
   const models = new Set<string>();

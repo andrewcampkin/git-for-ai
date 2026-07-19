@@ -1,8 +1,8 @@
-// Attention queue computation (REVIEW_UI.md §4.4) — pure-logic tests.
+// Attention queue computation (REVIEW_UI.md §4.4) + v2 inbox grouping — pure-logic tests.
 
 import { describe, expect, it } from "vitest";
 
-import { computeAttention } from "../src/lib/attention";
+import { computeAttention, groupAttention, type AttentionItem } from "../src/lib/attention";
 import { makeEntry, makeReportData, makeRow } from "./fixtures";
 
 describe("computeAttention", () => {
@@ -137,5 +137,51 @@ describe("computeAttention", () => {
       ],
     });
     expect(computeAttention(data)).toEqual([]);
+  });
+});
+
+describe("groupAttention (v2 inbox)", () => {
+  const item = (kind: AttentionItem["kind"], title: string): AttentionItem => ({
+    kind,
+    title,
+    detail: "detail",
+    href: null,
+  });
+
+  it("groups by kind in severity order, omitting empty groups", () => {
+    const items = [
+      item("no-intent", "a"),
+      item("low-confidence", "b"),
+      item("no-intent", "c"),
+      item("note-unreadable", "d"),
+    ];
+    const groups = groupAttention(items);
+    expect(groups.map((g) => g.kind)).toEqual(["note-unreadable", "low-confidence", "no-intent"]);
+    expect(groups[0]!.title).toBe("Unreadable ledger notes");
+    expect(groups[2]!.items.map((i) => i.title)).toEqual(["a", "c"]);
+  });
+
+  it("preserves item order within a group and returns no groups for no items", () => {
+    expect(groupAttention([])).toEqual([]);
+    const groups = groupAttention([
+      item("inferred-provenance", "first"),
+      item("inferred-provenance", "second"),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.kind).toBe("inferred-provenance");
+    expect(groups[0]!.items.map((i) => i.title)).toEqual(["first", "second"]);
+  });
+
+  it("gives every group a human title and a why line", () => {
+    const groups = groupAttention([
+      item("note-unreadable", "n"),
+      item("low-confidence", "l"),
+      item("inferred-provenance", "i"),
+      item("no-intent", "p"),
+    ]);
+    for (const group of groups) {
+      expect(group.title.length).toBeGreaterThan(0);
+      expect(group.why.length).toBeGreaterThan(0);
+    }
   });
 });

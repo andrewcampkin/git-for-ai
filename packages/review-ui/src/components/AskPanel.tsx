@@ -1,13 +1,14 @@
-// Ask panel (REVIEW_UI.md §4.5) — LIVE as of M12: a question box over GET /api/ask,
-// which serves the same engine as `git for-ai ask`. The honesty rules carry over
-// unchanged: an index that is not ready renders the server's actionable reason; with
-// no API key the panel shows the ranked raw sources and says why there is no prose;
-// synthesized answers keep their [n] citations, linked to the numbered source list
-// (ledger sources link to the change detail route, sessions to the trace viewer).
+// Ask panel — the page's PRIMARY interaction (Review UI v2): "ask your repo anything"
+// sits at the top of the overview, above the activity digest. Served by GET /api/ask,
+// the same engine as `git for-ai ask`. The honesty rules carry over unchanged: an index
+// that is not ready renders the server's actionable reason; with no API key the panel
+// shows the ranked raw sources and says why there is no prose; synthesized answers keep
+// their [n] citations, linked to the numbered source list (ledger sources link to the
+// change detail route, sessions to the trace viewer).
 
 import { useState, type FormEvent } from "react";
 
-import type { ReviewAskData, ReviewAskSource, ReviewAskSynthesis } from "../types";
+import type { ReviewAskData, ReviewAskSource, ReviewAskSynthesis, ReviewMeta } from "../types";
 import { splitCitations } from "../lib/citations";
 import { fmtWhen } from "../lib/format";
 
@@ -16,6 +17,13 @@ type AskState =
   | { state: "loading" }
   | { state: "error"; error: string }
   | { state: "ok"; data: ReviewAskData };
+
+/** Example phrasings (UI affordance only — clicking fills the box, nothing is faked). */
+const SUGGESTIONS = [
+  "What did agents change this week?",
+  "Why was this approach chosen?",
+  "What was tested, and how?",
+];
 
 /** Why there is no prose, in one honest line (mirrors the CLI's wording). */
 function skipNote(synthesis: ReviewAskSynthesis): string {
@@ -47,7 +55,6 @@ function SourceRef({ source }: { source: ReviewAskSource }) {
           c/{source.changeId.slice(0, 8)}
         </a>
         {source.scope !== null && <code className="ask-src-path">{source.scope}</code>}
-        {source.provenance !== null && <span className="pill pill-prov prov-agent-captured">{source.provenance}</span>}
       </>
     );
   }
@@ -108,14 +115,16 @@ function Answer({ data }: { data: ReviewAskData }) {
         synthesis !== undefined && <p className="ask-note">{skipNote(synthesis)}</p>
       )}
       {sources.length > 0 && (
-        <>
-          <div className="ask-sources-title">Sources</div>
+        <details className="ask-sources-fold" open={synthesis?.synthesized !== true}>
+          <summary>
+            {sources.length} source{sources.length === 1 ? "" : "s"}
+          </summary>
           <ul className="ask-sources">
             {sources.map((source) => (
               <SourceRow key={source.rank} source={source} />
             ))}
           </ul>
-        </>
+        </details>
       )}
       {(data.warnings ?? []).length > 0 && (
         <ul className="ask-warnings">
@@ -128,19 +137,34 @@ function Answer({ data }: { data: ReviewAskData }) {
   );
 }
 
-export function AskPanel() {
+/**
+ * Index-readiness hint: speak only when something is wrong (not built / unreadable).
+ * A healthy index says nothing — its chunk counts are agent-facing internals.
+ */
+function IndexHint({ meta }: { meta: ReviewMeta | null }) {
+  if (meta === null || meta.index.built) {
+    return null;
+  }
+  return (
+    <p className="ask-note">
+      {meta.index.error !== undefined
+        ? `Index state unreadable: ${meta.index.error}`
+        : "The search index has not been built yet — run `git for-ai index` to enable answers."}
+    </p>
+  );
+}
+
+export function AskPanel({ meta }: { meta: ReviewMeta | null }) {
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState<AskState>({ state: "idle" });
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const trimmed = question.trim();
-    if (trimmed.length === 0 || result.state === "loading") {
+  async function ask(text: string) {
+    if (text.length === 0 || result.state === "loading") {
       return;
     }
     setResult({ state: "loading" });
     try {
-      const response = await fetch(`/api/ask?q=${encodeURIComponent(trimmed)}`);
+      const response = await fetch(`/api/ask?q=${encodeURIComponent(text)}`);
       const body: unknown = await response.json();
       if (!response.ok) {
         const message =
@@ -158,15 +182,26 @@ export function AskPanel() {
     }
   }
 
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void ask(question.trim());
+  }
+
   return (
-    <section className="ask">
-      <h2 id="ask">Ask</h2>
+    <section className="ask" aria-labelledby="ask">
+      <h2 id="ask" className="ask-title">
+        Ask this repository
+      </h2>
+      <p className="ask-sub">
+        Answers come from captured intent — ledger entries, session traces, and the code
+        itself. Every answer lists its sources.
+      </p>
       <form className="ask-controls" onSubmit={submit}>
         <input
           type="text"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask about this repository's changes — e.g. why was the session store replaced?"
+          placeholder="Why was the session store replaced? Who touched the auth flow?"
           aria-label="Question about this repository's changes"
         />
         <button type="submit" disabled={result.state === "loading"}>
@@ -174,15 +209,25 @@ export function AskPanel() {
         </button>
       </form>
       {result.state === "idle" && (
-        <p className="ask-note">
-          Answers come from this repository's captured intent (local hybrid retrieval; prose
-          synthesis only when an API key is configured). Every answer lists its sources.
-        </p>
+        <div className="ask-suggestions">
+          {SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              className="ask-chip"
+              onClick={() => {
+                setQuestion(suggestion);
+                void ask(suggestion);
+              }}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
       )}
+      <IndexHint meta={meta} />
       {result.state === "loading" && <p className="ask-note">Searching the local index…</p>}
-      {result.state === "error" && (
-        <div className="error-box">Ask failed: {result.error}</div>
-      )}
+      {result.state === "error" && <div className="error-box">Ask failed: {result.error}</div>}
       {result.state === "ok" && <Answer data={result.data} />}
     </section>
   );
