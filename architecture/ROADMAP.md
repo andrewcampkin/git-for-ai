@@ -11,9 +11,12 @@ archived plans are marked ⭐ (owner-approved, don't re-litigate without cause).
 
 ## Tier 1 — hardening and finish-work (before any new surface)
 
-- **Publish the npm package** (`npm install -g git-for-ai`). Currently npm-linked only.
-  Includes: version stamping (MCP server info reads the package version), a smoke test of a
-  clean global install on a fresh repo, and deciding the package's Node engines floor
+- **Publish the npm package**. Currently npm-linked only. GATE (owner, 2026-07-19): do
+  nothing until a second machine or a first outside user exists — link is adequate for one
+  dev box. Also owner-decided: **"git-for-ai" is the internal name only; the public
+  name is TBD** and must be chosen before any public artifact (package, installer, app id).
+  When triggered: version stamping (MCP server info reads the package version), workspace-
+  dependency bundling, a clean-machine install smoke test, and the Node engines floor
   (`node:sqlite` requires ≥22.5; this repo runs 24).
 - **Fix repo lint** — `pnpm lint` has NEVER worked (global ESLint 7 vs. flat config in
   `config/`, no eslint devDependency anywhere). Either wire ESLint 9 properly through turbo
@@ -46,10 +49,10 @@ archived plans are marked ⭐ (owner-approved, don't re-litigate without cause).
 
 ## Tier 3 — surfaces (inherited order ⭐: proven-need before build)
 
-- **Electron desktop app** — a thin wrapper around the SHIPPED review-ui build (that was
-  always the plan; the SPA exists precisely so this is packaging, not product work). Gate:
-  wanting the review app as an OS citizen (dock icon, repo picker) badly enough to maintain
-  installers.
+- **Desktop app — NOW ACTIVE (owner, 2026-07-19), promoted from this tier.** No longer a
+  thin wrapper: the full plan, including the branch/merge groundwork it forced (the
+  squash-merge fold gap found by testing) and the git-client elements it needs (branches,
+  diffs, repo picker, action panel), lives in [`DESKTOP.md`](./DESKTOP.md).
 - **Shared-index server** ⭐ — the ONLY server this project will ever need (ref sync is
   server-free; validated against real GitHub 2026-07-18). Job: run the embedding pipeline
   once for a team and expose `/ask`, `/blame` — Fastify + Postgres/pgvector (plays to the
