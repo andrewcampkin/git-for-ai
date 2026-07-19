@@ -95,3 +95,7 @@ code is the way it is — use it before re-deriving old decisions.
   ExperimentalWarning when loaded, which is why its require is deferred in `store.ts`.
 - The model cache is per-user under `%LOCALAPPDATA%\git-for-ai\models`
   (`GIT_FOR_AI_MODEL_CACHE` overrides).
+
+## Documentation
+
+- Always bring documentation up to date at the end of a task. The user will ask you immediately to do it anyway so you can just always include it within standard task finish up.

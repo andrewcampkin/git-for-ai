@@ -1,0 +1,14 @@
+# Line endings are the repo's decision, not the machine's: every text file is LF,
+# on every platform, regardless of core.autocrlf. This kills the "LF will be replaced
+# by CRLF" warning noise on Windows and keeps blob hashes byte-identical everywhere —
+# which matters more than usual here, since scope items and the embedding cache key on
+# blob SHAs (a CRLF-flipped file would re-embed as new content).
+* text=auto eol=lf
+
+# Binaries: never text-converted.
+*.png binary
+*.jpg binary
+*.ico binary
+*.wasm binary
+*.onnx binary
+*.db binary
