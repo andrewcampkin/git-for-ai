@@ -9,6 +9,48 @@ repo dogfoods everything. This document maps future work. How we got here lives 
 Items carry no dates. Order within each tier is rough priority. Decisions inherited from the
 archived plans are marked ⭐ (owner-approved, don't re-litigate without cause).
 
+## Tier 0 — indexing performance (flagged 2026-07-19: too slow for large repos as is)
+
+Recorded at the owner's direction after repeated live failures: **reindex is too slow and
+too fragile for anything beyond dogfooding.** Evidence from this repo (~1k chunks, a small
+codebase): a full index takes tens of minutes of CPU inference; an incremental catch-up
+(~500 chunks) died with a native onnxruntime out-of-memory ("bad allocation") and exited 0
+silently (exit guard since added); the retry run burned 41 CPU-minutes producing zero
+progress before being killed. A repo 10–100× larger is hours of compute and
+worse odds. This tier gates use on large repos.
+
+**Where the time actually goes — and the honest Rust assessment.** The owner asked whether
+rewriting the CLI in Rust (the original design language) would help. Profiling says the
+bottleneck is NOT JavaScript: >95% of reindex wall time is transformer inference inside
+onnxruntime, which is already native C++ — transformers.js is a thin tensor-prep wrapper
+around the same engine a Rust program would call (ort crate → same runtime, same model,
+same latency). A Rust rewrite is weeks of work for single-digit-percent gains on the
+JS-side orchestration (startup, chunking, git subprocess plumbing) and would NOT move
+embedding throughput or fix the native OOM, which lives in ORT's allocator, not in Node.
+**Recommendation: do not rewrite; attack the inference itself.** Revisit Rust only if
+profiling ever shows JS-side dominance (chunking at huge scale is the one candidate).
+
+What plausibly WOULD fix it, in leverage order:
+1. **GPU execution provider** — onnxruntime supports DirectML on Windows; embedding is
+   exactly the workload GPUs are for (5–20× typical). Biggest single lever, zero quality
+   change, same model. Needs: onnxruntime-node with DML support or an alternative binding.
+2. **Smaller/faster model** — the planned retrieval-quality eval (Tier 1) should compare
+   the current 768-dim model against small fast ones (e.g. 384-dim) AND measure speed;
+   if quality holds, 2–4× for free.
+3. **Stability: bound ORT memory** — recreate the inference session every N batches
+   and/or cap ORT arena/threads; the observed OOM after ~700 chunks suggests allocator
+   growth across a long-lived session. Also add a per-batch watchdog to the reindex
+   command itself (no progress in N minutes → fail loudly; never spin silently).
+4. **Investigate over-invalidation** — the incremental run re-embedded ~494 chunks with
+   only ~26 cache hits after ~8 commits; that reuse rate looks wrong (moved files keep
+   their blobs and should hit). Measure invalidation per commit; if windows/nodePaths
+   shift too easily, chunking stability is the fix and every future run gets cheaper.
+5. **The API path as a default** — Voyage embeddings (already built,
+   consent-gated) offload all compute; "offline by default" may invert to "API by
+   default, offline opt-in".
+6. **The shared-index server** (Tier 3) — for teams, embed once centrally; individual
+   machines never pay the cost at all.
+
 ## Tier 1 — hardening and finish-work (before any new surface)
 
 - **Publish the npm package**. Currently npm-linked only. GATE (owner, 2026-07-19): do
