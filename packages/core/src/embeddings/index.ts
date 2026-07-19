@@ -16,8 +16,19 @@ export type { Chunk, Embedder } from "./types.js";
 export { chunkSourceFile, languageForPath } from "./chunking.js";
 export type { ChunkLanguage, ChunkKind, CodeChunk, ChunkSourceFileOptions } from "./chunking.js";
 
-export { TransformersEmbedder, TRANSFORMERS_MODELS } from "./transformersEmbedder.js";
-export type { TransformersEmbedderOptions, TransformersModelSpec } from "./transformersEmbedder.js";
+export {
+  TransformersEmbedder,
+  TRANSFORMERS_MODELS,
+  resolveTransformersDevice,
+} from "./transformersEmbedder.js";
+export type {
+  TransformersEmbedderOptions,
+  TransformersModelSpec,
+  TransformersDevice,
+  TransformersDtype,
+  ResolvedTransformersDevice,
+  ResolveTransformersDeviceOptions,
+} from "./transformersEmbedder.js";
 
 export { VoyageEmbedder, VoyageConsentError, VoyageApiError } from "./voyageEmbedder.js";
 export type { VoyageEmbedderOptions } from "./voyageEmbedder.js";

@@ -17,6 +17,8 @@ import {
   writeSessionRecord,
   readAllChangeMapEntries,
   updateIndexState,
+  modelFingerprint,
+  resolveTransformersDevice,
   INTENT_NOTES_REF,
 } from "@git-for-ai/core";
 import { createFixtureRepo, type FixtureRepo } from "@git-for-ai/core/testing";
@@ -290,7 +292,9 @@ describe("doctor (real git fixture)", () => {
     const gitForAiDir = join(repo.dir, ".git-for-ai");
     await updateIndexState(gitForAiDir, {
       last_indexed_commit: sha,
-      model_fingerprint: "jina-v2-code/768",
+      // The CURRENT platform's resolved fingerprint (GPU machines fold fp16 in) — a
+      // hard-coded legacy value would read as a fingerprint MISMATCH here, not staleness.
+      model_fingerprint: modelFingerprint("jina-v2-code", 768, resolveTransformersDevice().dtype),
       vec_schema_version: 1,
       chunk_count: 7,
     });

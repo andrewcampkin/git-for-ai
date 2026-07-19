@@ -40,6 +40,7 @@ import {
   readIndexState,
   IndexStateFormatError,
   modelFingerprint,
+  resolveTransformersDevice,
   sessionShardPath,
   INTENT_NOTES_REF,
   SESSIONS_REF,
@@ -300,7 +301,15 @@ async function checkConfigAndIndex(
   let voyageConsent: boolean | null = null;
   try {
     const config = await readRepoConfig(gitForAiDir);
-    facts.fingerprintFromConfig = modelFingerprint(config.embedder.provider, config.embedder.dim);
+    // Precision folds into the fingerprint for the local transformers provider (ROADMAP
+    // Tier 0); resolution is pure — the model is still NEVER loaded here.
+    facts.fingerprintFromConfig = modelFingerprint(
+      config.embedder.provider,
+      config.embedder.dim,
+      config.embedder.provider === "voyage-code-3"
+        ? undefined
+        : resolveTransformersDevice().dtype,
+    );
     captureEnabled = config.capture.enabled;
     provider = config.embedder.provider;
     offline = config.embedder.offline;

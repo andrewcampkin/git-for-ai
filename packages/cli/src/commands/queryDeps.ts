@@ -130,8 +130,8 @@ export async function openQueryDeps(options: OpenQueryDepsOptions = {}): Promise
   const fingerprint =
     options.fingerprint ??
     (options.embedder !== undefined
-      ? modelFingerprint(embedder.id, embedder.dim)
-      : modelFingerprint(config.embedder.provider, embedder.dim));
+      ? modelFingerprint(embedder.id, embedder.dim, embedder.precision)
+      : modelFingerprint(config.embedder.provider, embedder.dim, embedder.precision));
 
   // Judgment call #2: cross-check state.json before touching the db, so the mismatch
   // message can name both sides.

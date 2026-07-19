@@ -72,6 +72,20 @@
 //    The first real-model dogfood proved why: a single all-chunks call gave zero
 //    observable/durable progress for the better part of an hour. Batches are
 //    length-sorted first so the embedder's internal padding wastes less compute.
+// 11a. GPU/precision (ROADMAP Tier 0, owner-chosen 2026-07-19): the default embedder now
+//    resolves a device + weight precision (DirectML/fp16 on win32, CPU/int8 elsewhere;
+//    GIT_FOR_AI_DEVICE / GIT_FOR_AI_DTYPE override) and the EFFECTIVE precision folds
+//    into the model fingerprint (`jina-v2-code/768/fp16` vs legacy `jina-v2-code/768`
+//    for int8) — so GPU-fp16 and CPU-int8 vectors can never silently mix, and switching
+//    devices takes the designed IndexFingerprintError → `reindex --full` path. The
+//    resolved device/precision/reason is logged via onProgress at run start so a CPU
+//    fallback is always visible, never silent.
+// 11b. No-progress watchdog (ROADMAP Tier 0 item 3): if no embedding batch completes
+//    within a generous timeout (default 15 min; GIT_FOR_AI_REINDEX_WATCHDOG_MS
+//    overrides, 0 disables), the run aborts with an explicit error instead of spinning
+//    silently. This catches the live-but-stuck failure mode; bin.ts's beforeExit guard
+//    already catches the stranded-promise (dead backend) mode. Native inference runs on
+//    ORT's threadpool, so the event loop stays live and the timer can actually fire.
 // 11. Code chunks are re-windowed at REINDEX_MAX_CHUNK_CHARS (2000 chars ≈ 500 tokens),
 //    well below the chunker's 8000-char default: transformer self-attention cost grows
 //    quadratically with token count, so 2k-token chunks are ~16x costlier than 500-token
@@ -196,6 +210,77 @@ const REINDEX_MAX_CHUNK_CHARS = 2000;
 const EMBED_BATCH = 32;
 
 const INDEX_DB_RELPATH = ".git-for-ai/index.db";
+
+/** Default no-progress watchdog timeout (judgment call #11b). Generous: the first batch
+ * may include a multi-hundred-MB one-time model download. */
+const WATCHDOG_DEFAULT_MS = 15 * 60_000;
+
+function watchdogTimeoutMs(): number {
+  const raw = process.env["GIT_FOR_AI_REINDEX_WATCHDOG_MS"];
+  if (raw !== undefined && raw !== "") {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return WATCHDOG_DEFAULT_MS;
+}
+
+/**
+ * No-progress watchdog (judgment call #11b): `promise` rejects if `pet()` is not called
+ * within `timeoutMs`. Race it against the embedding work; pet it after every batch.
+ * A timeout of 0 disables it (the promise then never settles).
+ */
+class BatchWatchdog {
+  readonly promise: Promise<never>;
+  private timer: NodeJS.Timeout | null = null;
+  private rejectFn: ((error: Error) => void) | null = null;
+  private readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    this.timeoutMs = timeoutMs;
+    this.promise = new Promise<never>((_, reject) => {
+      this.rejectFn = reject;
+    });
+    // Register a handler so an un-raced timeout never surfaces as an unhandled rejection.
+    this.promise.catch(() => {});
+    this.arm();
+  }
+
+  private arm(): void {
+    if (this.timeoutMs <= 0) {
+      return;
+    }
+    this.timer = setTimeout(() => {
+      this.rejectFn?.(
+        new Error(
+          `reindex watchdog: no embedding batch completed within ${Math.round(this.timeoutMs / 60_000)} ` +
+            "minutes — the embedding backend appears stuck (live but making no progress). " +
+            "Completed batches are already cached; re-run `git for-ai reindex` to resume. " +
+            "GIT_FOR_AI_REINDEX_WATCHDOG_MS adjusts this timeout (0 disables); " +
+            "GIT_FOR_AI_DEVICE=cpu forces the CPU backend if the GPU is misbehaving.",
+        ),
+      );
+    }, this.timeoutMs);
+  }
+
+  /** A batch landed: re-arm the timer. */
+  pet(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.arm();
+  }
+
+  /** Stop the timer (always call in finally — a live timer holds the event loop open). */
+  dispose(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+}
 
 /**
  * Durable per-user model cache for the transformers.js embedder (judgment call #7).
@@ -561,6 +646,7 @@ async function embedAndUpsert(
   cache: EmbeddingCache,
   store: SqliteVectorStore,
   onProgress?: (line: string) => void,
+  watchdog?: BatchWatchdog,
 ): Promise<KindCounts> {
   if (pending.length === 0) {
     return { indexed: 0, reused: 0, embedded: 0 };
@@ -576,6 +662,7 @@ async function embedAndUpsert(
       batch.map((p) => p.chunk),
     );
     store.upsert(batch.map((p, i) => ({ ...p.item, vector: vectors[i]! })));
+    watchdog?.pet();
     reused += hits;
     embedded += misses;
     const done = Math.min(offset + EMBED_BATCH, ordered.length);
@@ -679,10 +766,21 @@ export async function runReindex(options: ReindexOptions = {}): Promise<ReindexR
         ? { voyageApiKey: process.env["VOYAGE_API_KEY"] }
         : {}),
     });
+  // Effective precision folds into the fingerprint (judgment call #11a): fp16-GPU and
+  // int8-CPU vectors must never mix. q8/undefined maps to the legacy bare form.
   const fingerprint =
     options.embedder !== undefined
-      ? modelFingerprint(embedder.id, embedder.dim)
-      : modelFingerprint(config.embedder.provider, embedder.dim);
+      ? modelFingerprint(embedder.id, embedder.dim, embedder.precision)
+      : modelFingerprint(config.embedder.provider, embedder.dim, embedder.precision);
+
+  // Make the resolved device visible up front — a CPU fallback must never be silent.
+  const deviceInfo = embedder as Partial<{ device: string; dtype: string; deviceReason: string }>;
+  if (typeof deviceInfo.device === "string" && typeof deviceInfo.dtype === "string") {
+    options.onProgress?.(
+      `embedder ${fingerprint}: device ${deviceInfo.device}, weights ${deviceInfo.dtype}` +
+        (typeof deviceInfo.deviceReason === "string" ? ` (${deviceInfo.deviceReason})` : ""),
+    );
+  }
 
   const indexDbPath = join(gitForAiDir, "index.db");
 
@@ -797,14 +895,35 @@ export async function runReindex(options: ReindexOptions = {}): Promise<ReindexR
       }
     }
     const onProgress = options.onProgress;
-    const codeCounts = await embedAndUpsert("code", codePending, embedder, cache, store, onProgress);
+    // Judgment call #11b: race every embedding phase against a no-progress watchdog.
+    const watchdog = new BatchWatchdog(watchdogTimeoutMs());
+    let codeCounts: KindCounts;
+    let ledgerCounts: KindCounts;
+    let sessionCounts: KindCounts;
+    // If the watchdog fires, the stuck work promise is orphaned; register a noop catch
+    // so its eventual rejection (e.g. upsert on a closed store) is never "unhandled".
+    const raced = (work: Promise<KindCounts>): Promise<KindCounts> => {
+      work.catch(() => {});
+      return Promise.race([work, watchdog.promise]);
+    };
+    try {
+      codeCounts = await raced(
+        embedAndUpsert("code", codePending, embedder, cache, store, onProgress, watchdog),
+      );
 
-    // ── Kinds 2 + 3: ledger entries and session summaries (always full-swept) ──
-    const { pending: ledgerPending, sessionOwner } = await collectLedgerItems(ctx, warnings);
-    const ledgerCounts = await embedAndUpsert("ledger", ledgerPending, embedder, cache, store, onProgress);
+      // ── Kinds 2 + 3: ledger entries and session summaries (always full-swept) ──
+      const { pending: ledgerPending, sessionOwner } = await collectLedgerItems(ctx, warnings);
+      ledgerCounts = await raced(
+        embedAndUpsert("ledger", ledgerPending, embedder, cache, store, onProgress, watchdog),
+      );
 
-    const sessionPending = await collectSessionItems(ctx, sessionOwner, warnings);
-    const sessionCounts = await embedAndUpsert("sessions", sessionPending, embedder, cache, store, onProgress);
+      const sessionPending = await collectSessionItems(ctx, sessionOwner, warnings);
+      sessionCounts = await raced(
+        embedAndUpsert("sessions", sessionPending, embedder, cache, store, onProgress, watchdog),
+      );
+    } finally {
+      watchdog.dispose();
+    }
 
     // ── Bookkeeping (DATA_MODEL.md §5.1) ──
     const totalChunks = store.count();
@@ -916,6 +1035,7 @@ async function verifyIndex(params: {
 }
 
 function parseDim(fingerprint: string): number {
-  const dim = Number(fingerprint.split("/").pop());
+  // `<provider>/<dim>` or `<provider>/<dim>/<precision>` — dim is always segment 1.
+  const dim = Number(fingerprint.split("/")[1]);
   return Number.isFinite(dim) && dim > 0 ? dim : 768;
 }

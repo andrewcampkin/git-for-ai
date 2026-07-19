@@ -330,7 +330,8 @@ hybrid = true                  # keyword FTS5 + vector (recommended default)
 {
   "schema": "git-for-ai/index-state@1",
   "last_indexed_commit": "b7c3e2a1d9f8...",
-  "model_fingerprint": "jina-v2-code/768",     // provider id + dim; change ⇒ reindex --full
+  "model_fingerprint": "jina-v2-code/768",     // provider/dim[/precision]; change ⇒ reindex --full
+                                               // bare form = legacy int8; GPU fp16 ⇒ "jina-v2-code/768/fp16"
   "vec_schema_version": 1,
   "chunk_count": 1284,
   "updated_at": "2026-07-17T09:41:00Z"

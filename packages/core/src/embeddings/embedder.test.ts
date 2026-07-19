@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import type { RepoConfig } from "@git-for-ai/schemas";
 
 import { modelFingerprint } from "./types.js";
-import { TransformersEmbedder } from "./transformersEmbedder.js";
+import { TransformersEmbedder, resolveTransformersDevice } from "./transformersEmbedder.js";
 import { VoyageApiError, VoyageConsentError, VoyageEmbedder } from "./voyageEmbedder.js";
 import { createEmbedderFromConfig } from "./factory.js";
 
@@ -168,5 +168,104 @@ describe("TransformersEmbedder — metadata (no model download)", () => {
     const embedder = createEmbedderFromConfig(repoConfig({}));
     expect(embedder).toBeInstanceOf(TransformersEmbedder);
     expect(embedder.isOffline).toBe(true);
+  });
+
+  it("factory passes device/dtype requests through", () => {
+    const embedder = createEmbedderFromConfig(repoConfig({}), {
+      device: "cpu",
+      dtype: "fp32",
+    }) as TransformersEmbedder;
+    expect(embedder.device).toBe("cpu");
+    expect(embedder.dtype).toBe("fp32");
+  });
+});
+
+// ─── GPU device/precision resolution (ROADMAP Tier 0) ────────────────────────
+
+describe("resolveTransformersDevice — deterministic, no model load", () => {
+  const noEnv: Record<string, string | undefined> = {};
+
+  it("auto on win32 selects DirectML + fp16", () => {
+    const resolved = resolveTransformersDevice({ platform: "win32", env: noEnv });
+    expect(resolved.device).toBe("dml");
+    expect(resolved.dtype).toBe("fp16");
+  });
+
+  it("auto elsewhere falls back to CPU + int8 with a clear reason", () => {
+    const resolved = resolveTransformersDevice({ platform: "linux", env: noEnv });
+    expect(resolved.device).toBe("cpu");
+    expect(resolved.dtype).toBe("q8");
+    expect(resolved.reason).toMatch(/DirectML is unavailable on linux/);
+  });
+
+  it("explicit cpu wins on any platform; explicit dml is Windows-only", () => {
+    expect(resolveTransformersDevice({ device: "cpu", platform: "win32", env: noEnv }).device).toBe("cpu");
+    expect(resolveTransformersDevice({ device: "dml", platform: "win32", env: noEnv })).toMatchObject({
+      device: "dml",
+      dtype: "fp16",
+    });
+    expect(() => resolveTransformersDevice({ device: "dml", platform: "linux", env: noEnv })).toThrow(
+      /Windows-only/,
+    );
+  });
+
+  it("GIT_FOR_AI_DEVICE / GIT_FOR_AI_DTYPE env vars apply, and explicit options beat them", () => {
+    const env = { GIT_FOR_AI_DEVICE: "cpu", GIT_FOR_AI_DTYPE: "fp32" };
+    expect(resolveTransformersDevice({ platform: "win32", env })).toMatchObject({
+      device: "cpu",
+      dtype: "fp32",
+    });
+    expect(
+      resolveTransformersDevice({ device: "auto", dtype: "q8", platform: "win32", env }),
+    ).toMatchObject({ device: "dml", dtype: "q8" });
+  });
+
+  it("rejects invalid device and dtype values honestly", () => {
+    expect(() => resolveTransformersDevice({ device: "cuda", env: noEnv })).toThrow(/invalid embedder device/);
+    expect(() => resolveTransformersDevice({ dtype: "int4", env: noEnv })).toThrow(/invalid embedder dtype/);
+    expect(() =>
+      resolveTransformersDevice({ platform: "win32", env: { GIT_FOR_AI_DEVICE: "gpu" } }),
+    ).toThrow(/GIT_FOR_AI_DEVICE/);
+  });
+});
+
+describe("modelFingerprint — precision folding (vectors never mix, §11.3 + ROADMAP Tier 0)", () => {
+  it("keeps the legacy bare form for absent/q8 precision (existing indexes stay valid)", () => {
+    expect(modelFingerprint("jina-v2-code", 768)).toBe("jina-v2-code/768");
+    expect(modelFingerprint("jina-v2-code", 768, "q8")).toBe("jina-v2-code/768");
+    expect(modelFingerprint("jina-v2-code", 768, undefined)).toBe("jina-v2-code/768");
+  });
+
+  it("appends fp16/fp32 so GPU and CPU-int8 vectors get distinct fingerprints", () => {
+    expect(modelFingerprint("jina-v2-code", 768, "fp16")).toBe("jina-v2-code/768/fp16");
+    expect(modelFingerprint("jina-v2-code", 768, "fp32")).toBe("jina-v2-code/768/fp32");
+    expect(modelFingerprint("jina-v2-code", 768, "fp16")).not.toBe(
+      modelFingerprint("jina-v2-code", 768, "q8"),
+    );
+  });
+});
+
+describe("TransformersEmbedder — device/precision metadata (no model download)", () => {
+  it("exposes the resolved device, dtype, and fingerprint precision", () => {
+    const embedder = new TransformersEmbedder({ device: "cpu" });
+    expect(embedder.device).toBe("cpu");
+    expect(embedder.dtype).toBe("q8");
+    expect(embedder.precision).toBe("q8");
+    expect(modelFingerprint(embedder.provider, embedder.dim, embedder.precision)).toBe(
+      "jina-v2-code/768",
+    );
+  });
+
+  it("a non-default precision folds into the fingerprint", () => {
+    const embedder = new TransformersEmbedder({ device: "cpu", dtype: "fp16" });
+    expect(embedder.precision).toBe("fp16");
+    expect(modelFingerprint(embedder.provider, embedder.dim, embedder.precision)).toBe(
+      "jina-v2-code/768/fp16",
+    );
+  });
+
+  it("maps the deprecated quantized flag onto dtype (true ⇒ q8, false ⇒ fp32)", () => {
+    expect(new TransformersEmbedder({ device: "cpu", quantized: true }).dtype).toBe("q8");
+    expect(new TransformersEmbedder({ device: "cpu", quantized: false }).dtype).toBe("fp32");
   });
 });

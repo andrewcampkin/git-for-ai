@@ -713,19 +713,27 @@ interface Embedder {
 }
 ```
 
-- **Default: self-hosted, in-process — [`@xenova/transformers`](https://github.com/xenova/transformers.js)**
-  (transformers.js), running an open-weight code embedding model (Jina Embeddings v2 code, or Nomic
-  Embed Code) as an ONNX model entirely inside the Node process via WASM/`onnxruntime-node` — no
-  Python, no separate server, no network call. This is what preserves offline-by-default in a
-  Node.js world: the model runs *in* the CLI's own process. Chosen at `init`; recorded as a
-  `modelFingerprint` in `state.json`.
+- **Default: self-hosted, in-process — [`@huggingface/transformers`](https://github.com/huggingface/transformers.js)**
+  (transformers.js v3, the maintained successor of `@xenova/transformers`), running an open-weight
+  code embedding model (Jina Embeddings v2 code, or Nomic Embed Code) as an ONNX model entirely
+  inside the Node process via `onnxruntime-node` — no Python, no separate server, no network call.
+  This is what preserves offline-by-default in a Node.js world: the model runs *in* the CLI's own
+  process. Chosen at `init`; recorded as a `modelFingerprint` in `state.json`.
+- **GPU (ROADMAP Tier 0, owner-chosen 2026-07-19):** on Windows the embedder auto-selects the
+  DirectML execution provider with fp16 weights (int8 quantization does not accelerate on GPU);
+  elsewhere it stays CPU + int8. `GIT_FOR_AI_DEVICE=dml|cpu|auto` and `GIT_FOR_AI_DTYPE=fp16|fp32|q8`
+  override. Device/precision resolution is deterministic and happens before any model load, because
+  the **effective precision folds into the fingerprint** (below). A failed GPU load is a hard,
+  actionable error — never a silent CPU fallback, which would mix precisions.
 - **Opt-in API: Voyage AI `voyage-code-3`** (Anthropic's recommended embeddings provider; Anthropic
   has no first-party embeddings API). Higher retrieval quality, but sends code to an API — so it is
   explicit opt-in with a clear one-time consent prompt, never the default. A thin `fetch`-based
   provider implementation, no SDK dependency needed.
-- **Model change ⇒ reindex.** The `modelFingerprint` includes provider id + dim. If it changes,
-  vectors are incompatible; `doctor` flags it and `reindex --full` re-embeds. We never mix vectors
-  from two models in one index.
+- **Model change ⇒ reindex.** The `modelFingerprint` is `<provider>/<dim>` plus, for non-default
+  weight precisions, a suffix: `jina-v2-code/768` (legacy int8/CPU) vs `jina-v2-code/768/fp16`
+  (GPU). If it changes — model OR precision — vectors are incompatible; `doctor` flags it and
+  `reindex --full` re-embeds. We never mix vectors from two models (or two precisions of one
+  model) in one index. int8/q8 keeps the bare legacy form so pre-GPU indexes stay valid.
 
 ### 11.4 Storage: sqlite-vec (MVP), LanceDB (upgrade path)
 

@@ -38,14 +38,19 @@ class FakeEmbedder implements Embedder {
   readonly dim: number;
   readonly maxTokens = 8192;
   readonly isOffline = true;
+  /** Optional precision tag — folds into the fingerprint like the real GPU embedder's. */
+  readonly precision?: string;
   /** Number of embed() invocations that reached the "model". */
   embedCalls = 0;
   /** Every text actually embedded (i.e. every embcache miss). */
   embeddedTexts: string[] = [];
 
-  constructor(id = "fake", dim = 8) {
+  constructor(id = "fake", dim = 8, precision?: string) {
     this.id = id;
     this.dim = dim;
+    if (precision !== undefined) {
+      this.precision = precision;
+    }
   }
 
   async embed(chunks: Chunk[]): Promise<Float32Array[]> {
@@ -313,6 +318,36 @@ describe("runReindex — model fingerprint safety (ARCHITECTURE §11.3)", () => 
 
     const state = await readIndexState(`${repo.dir}/.git-for-ai`);
     expect(state!.model_fingerprint).toBe("fake-b/8");
+  });
+
+  it("a precision change alone is a model change (fp16 vs int8, ROADMAP Tier 0)", async () => {
+    await setUpIndexedRepo();
+    // Legacy int8-era index: no precision tag ⇒ bare fingerprint.
+    await runReindex({ cwd: repo.dir, embedder: new FakeEmbedder("fake-a") });
+
+    // Same id, same dim, but fp16 weights: vectors must never mix without --full.
+    await expect(
+      runReindex({ cwd: repo.dir, embedder: new FakeEmbedder("fake-a", 8, "fp16") }),
+    ).rejects.toThrow(IndexFingerprintError);
+
+    // The designed migration path.
+    const { data } = await runReindex({
+      cwd: repo.dir,
+      full: true,
+      embedder: new FakeEmbedder("fake-a", 8, "fp16"),
+    });
+    expect(data.modelFingerprint).toBe("fake-a/8/fp16");
+    // Precision is part of the embcache key too ⇒ nothing reused across precisions.
+    expect(data.code.embedded).toBe(data.code.indexed);
+
+    const state = await readIndexState(`${repo.dir}/.git-for-ai`);
+    expect(state!.model_fingerprint).toBe("fake-a/8/fp16");
+
+    // q8 maps to the LEGACY bare fingerprint (fake-a/8) — distinct from fp16, so it
+    // mismatches the fp16 index; conversely an int8-era index would reopen cleanly.
+    await expect(
+      runReindex({ cwd: repo.dir, embedder: new FakeEmbedder("fake-a", 8, "q8") }),
+    ).rejects.toThrow(IndexFingerprintError);
   });
 });
 

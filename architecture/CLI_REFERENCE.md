@@ -159,9 +159,18 @@ code). Used after index corruption, an embedder change, or a fresh clone.
 **Flags:** `--full` (drop and re-embed everything; required after a `model_fingerprint` change),
 `--since <commit>` (partial), `--verify` (check index against `state.json` without rebuilding).
 
+**Device/precision (GPU):** the local embedder resolves a device and weight precision before
+loading anything — DirectML + fp16 on Windows, CPU + int8 elsewhere. `GIT_FOR_AI_DEVICE=dml|cpu|auto`
+and `GIT_FOR_AI_DTYPE=fp16|fp32|q8` override. The effective precision is part of the fingerprint
+(`jina-v2-code/768/fp16`; the bare `jina-v2-code/768` form means legacy int8), so switching device
+class requires `reindex --full` — the CLI tells you when it does. The resolved device and the
+reason are printed on stderr at the start of every run; a GPU load failure is a hard error naming
+`GIT_FOR_AI_DEVICE=cpu`, never a silent CPU fallback. `GIT_FOR_AI_REINDEX_WATCHDOG_MS` tunes the
+no-progress watchdog (default 15 min per embedding batch; 0 disables).
+
 ```console
 $ git for-ai reindex --full
-Embedder jina-v2-code/768. Re-embedding from scratch.
+Embedder jina-v2-code/768/fp16. Re-embedding from scratch.
   code chunks:      1284  (312 reused from embcache, 972 embedded)
   ledger entries:     12
   session summaries:   5

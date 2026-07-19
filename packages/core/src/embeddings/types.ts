@@ -20,7 +20,7 @@ export interface Chunk {
  *
  * Implementations in this package:
  * - {@link import("./transformersEmbedder.js").TransformersEmbedder} — the offline
- *   default (@xenova/transformers, in-process ONNX).
+ *   default (@huggingface/transformers, in-process ONNX; DirectML GPU on Windows).
  * - {@link import("./voyageEmbedder.js").VoyageEmbedder} — opt-in Voyage AI API,
  *   hard-gated behind the `voyage_consent` config flag.
  */
@@ -33,17 +33,35 @@ export interface Embedder {
   readonly maxTokens: number;
   /** Gates the "offline by default" guarantee (ARCHITECTURE.md §2.1). */
   readonly isOffline: boolean;
+  /**
+   * Optional weight-precision tag ("fp16" | "fp32" | "q8" | ...) folded into the model
+   * fingerprint so vectors from different precisions are never mixed (ROADMAP Tier 0).
+   * Absent (or "q8", the historical int8 default) keeps the legacy `<provider>/<dim>`
+   * fingerprint — see {@link modelFingerprint}.
+   */
+  readonly precision?: string;
   /** Embed each chunk's text; result[i] corresponds to chunks[i], each of length `dim`. */
   embed(chunks: Chunk[]): Promise<Float32Array[]>;
 }
 
 /**
  * The `model_fingerprint` recorded in `.git-for-ai/state.json` (DATA_MODEL.md §5.1):
- * `<provider>/<dim>`, e.g. `"jina-v2-code/768"`. Uses the *config provider name* (the
- * `embedder.provider` enum), not the embedder implementation id, matching what
- * `git for-ai init` (M5) already writes. Vectors from different fingerprints are never
- * mixed in one index (ARCHITECTURE.md §11.3 — "model change ⇒ reindex").
+ * `<provider>/<dim>`, e.g. `"jina-v2-code/768"`, optionally suffixed with the weight
+ * precision, e.g. `"jina-v2-code/768/fp16"` (ROADMAP Tier 0: GPU fp16 vectors and CPU
+ * int8 vectors must NEVER silently mix — a precision change is a model change, and the
+ * designed migration is IndexFingerprintError → `git for-ai reindex --full`).
+ *
+ * Uses the *config provider name* (the `embedder.provider` enum), not the embedder
+ * implementation id, matching what `git for-ai init` (M5) already writes.
+ *
+ * Precision `"q8"` (or absent) maps to the LEGACY bare `<provider>/<dim>` form: int8 was
+ * the only precision that ever existed before the GPU migration, so existing CPU-built
+ * indexes and embcaches remain valid without a rebuild.
  */
-export function modelFingerprint(provider: string, dim: number): string {
-  return `${provider}/${dim}`;
+export function modelFingerprint(provider: string, dim: number, precision?: string): string {
+  const base = `${provider}/${dim}`;
+  if (precision === undefined || precision === "" || precision === "q8") {
+    return base;
+  }
+  return `${base}/${precision}`;
 }

@@ -16,6 +16,14 @@ export interface CreateEmbedderOptions {
   voyageApiKey?: string;
   /** Model cache directory override for the transformers.js provider. */
   transformersCacheDir?: string;
+  /**
+   * Device request for the transformers.js provider: `"auto"` (default) | `"dml"` |
+   * `"cpu"`. When absent, GIT_FOR_AI_DEVICE / GIT_FOR_AI_DTYPE env vars apply — see
+   * resolveTransformersDevice() in ./transformersEmbedder.ts.
+   */
+  device?: string;
+  /** Weight-precision request for the transformers.js provider: `"fp16"` | `"fp32"` | `"q8"`. */
+  dtype?: string;
 }
 
 /**
@@ -46,5 +54,7 @@ export function createEmbedderFromConfig(
     ...(options.transformersCacheDir !== undefined
       ? { cacheDir: options.transformersCacheDir }
       : {}),
+    ...(options.device !== undefined ? { device: options.device } : {}),
+    ...(options.dtype !== undefined ? { dtype: options.dtype } : {}),
   });
 }

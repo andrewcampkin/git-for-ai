@@ -175,6 +175,17 @@ describe("SqliteVectorStore — persistence and fingerprint gate", () => {
     ).toThrow(IndexFingerprintError);
   });
 
+  it("treats a precision suffix as a different model (GPU fp16 vs legacy int8, ROADMAP Tier 0)", () => {
+    store.close();
+    expect(() =>
+      SqliteVectorStore.open({
+        path: join(dir, "index.db"),
+        dim: DIM,
+        modelFingerprint: `${FINGERPRINT}/fp16`,
+      }),
+    ).toThrow(IndexFingerprintError);
+  });
+
   it("opens the zero-byte index.db stub that M5's init leaves behind", async () => {
     const stubDir = await mkdtemp(join(tmpdir(), "git-for-ai-stub-"));
     try {
