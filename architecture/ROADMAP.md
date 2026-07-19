@@ -31,9 +31,13 @@ embedding throughput or fix the native OOM, which lives in ORT's allocator, not 
 profiling ever shows JS-side dominance (chunking at huge scale is the one candidate).
 
 What plausibly WOULD fix it, in leverage order:
-1. **GPU execution provider** — onnxruntime supports DirectML on Windows; embedding is
-   exactly the workload GPUs are for (5–20× typical). Biggest single lever, zero quality
-   change, same model. Needs: onnxruntime-node with DML support or an alternative binding.
+1. **GPU execution provider — CHOSEN PATH (owner, 2026-07-19), in progress.** DirectML on
+   the owner's RTX 3060 (12GB — the model needs <1GB): migrate to the maintained
+   transformers.js successor for a modern onnxruntime with the DML execution provider,
+   fp16 weights on GPU (int8 quantization doesn't accelerate; precision folds into the
+   model fingerprint so vectors never mix), automatic CPU fallback, plus the watchdog /
+   session-bounding hardening below. Everything stays on-device: no keys, no code leaving,
+   the offline-by-default promise made fast instead of merely principled.
 2. **Smaller/faster model** — the planned retrieval-quality eval (Tier 1) should compare
    the current 768-dim model against small fast ones (e.g. 384-dim) AND measure speed;
    if quality holds, 2–4× for free.
@@ -45,9 +49,9 @@ What plausibly WOULD fix it, in leverage order:
    only ~26 cache hits after ~8 commits; that reuse rate looks wrong (moved files keep
    their blobs and should hit). Measure invalidation per commit; if windows/nodePaths
    shift too easily, chunking stability is the fix and every future run gets cheaper.
-5. **The API path as a default** — Voyage embeddings (already built,
-   consent-gated) offload all compute; "offline by default" may invert to "API by
-   default, offline opt-in".
+5. **Cloud embedding — deferred.** Explored (Bedrock/Voyage mechanics,
+   bring-your-own-cloud) and consciously put off: for local use the GPU path above makes
+   it unnecessary.
 6. **The shared-index server** (Tier 3) — for teams, embed once centrally; individual
    machines never pay the cost at all.
 
