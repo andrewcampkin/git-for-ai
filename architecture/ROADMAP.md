@@ -98,7 +98,10 @@ What plausibly WOULD fix it, in leverage order:
 - **Desktop app — NOW ACTIVE (owner, 2026-07-19), promoted from this tier.** No longer a
   thin wrapper: the full plan, including the branch/merge groundwork it forced (the
   squash-merge fold gap found by testing) and the git-client elements it needs (branches,
-  diffs, repo picker, action panel), lives in [`DESKTOP.md`](./DESKTOP.md).
+  diffs, repo picker, action panel), lives in [`DESKTOP.md`](./DESKTOP.md). Progress:
+  squash-merge fold (step 1), the Electron shell (step 4a), the read-only branch/diff API
+  (step 2) and the branch + diff UI (step 3) are done; the token-gated actions panel
+  (step 4b) and installers (step 5) remain.
 - **Shared-index server** ⭐ — the ONLY server this project will ever need (ref sync is
   server-free; validated against real GitHub 2026-07-18). Job: run the embedding pipeline
   once for a team and expose `/ask`, `/blame` — Fastify + Postgres/pgvector (plays to the

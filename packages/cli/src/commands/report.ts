@@ -52,6 +52,12 @@ export interface ReportOptions {
   until?: string;
   /** `-n <N>` — limit to the N most recent commits. */
   maxCount?: number;
+  /**
+   * Revision to walk (any `git log` rev: a branch name, tag, SHA). Default HEAD.
+   * Same contract as ./log.ts: an unborn HEAD is an empty report, but an explicitly
+   * requested rev that does not resolve is an error (never silently an empty report).
+   */
+  rev?: string;
   /** Output format. Default `html` (self-contained page); `md` is the same content plainly. */
   format?: "md" | "html";
   /** `--out <path>` — also write the rendered report to this file (relative to cwd). */
@@ -168,6 +174,8 @@ export interface ReportData {
     /** The `--since` / `--until` filters as given, or null. */
     since: string | null;
     until: string | null;
+    /** The rev walked, when one was explicitly requested; null means the default HEAD. */
+    rev: string | null;
     /** Author dates of the newest/oldest commits actually in the report, or null if none. */
     newestCommitDate: string | null;
     oldestCommitDate: string | null;
@@ -216,13 +224,17 @@ async function walkCommits(options: ReportOptions, ctx: GitContext): Promise<Wal
   // Fail loudly (GitError) when cwd is not a git repository at all.
   await runGit(["rev-parse", "--git-dir"], ctx);
 
-  // An unborn branch (fresh `git init`, no commits) is an empty report, not an error.
-  const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], {
-    ...ctx,
-    allowFailure: true,
-  });
-  if (head.exitCode !== 0) {
-    return [];
+  // An unborn branch (fresh `git init`, no commits) is an empty report, not an error — but
+  // that leniency is for the DEFAULT rev only; an explicitly-requested rev that doesn't
+  // resolve must fail loudly rather than render as "nothing happened here" (./log.ts §same).
+  if (options.rev === undefined) {
+    const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], {
+      ...ctx,
+      allowFailure: true,
+    });
+    if (head.exitCode !== 0) {
+      return [];
+    }
   }
 
   const args = ["log", `--format=%H%x1f%h%x1f%aI%x1f%aN%x1f%aE%x1f%s`];
@@ -235,7 +247,7 @@ async function walkCommits(options: ReportOptions, ctx: GitContext): Promise<Wal
   if (options.until !== undefined) {
     args.push(`--until=${options.until}`);
   }
-  args.push("HEAD");
+  args.push(options.rev ?? "HEAD");
 
   const result = await runGit(args, ctx);
   if (result.stdout.length === 0) {
@@ -562,6 +574,7 @@ async function assembleReport(options: ReportOptions, ctx: GitContext): Promise<
     range: {
       since: options.since ?? null,
       until: options.until ?? null,
+      rev: options.rev ?? null,
       newestCommitDate: timeline[0]?.authorDate ?? null,
       oldestCommitDate: timeline[timeline.length - 1]?.authorDate ?? null,
     },
@@ -651,6 +664,9 @@ function renderMarkdown(data: ReportData): string {
   lines.push("");
   lines.push(`Generated ${fmtWhen(data.generatedAt)} (UTC) by \`git for-ai report\`.`);
   const rangeBits: string[] = [];
+  if (data.range.rev !== null) {
+    rangeBits.push(`rev ${data.range.rev}`);
+  }
   if (data.range.since !== null) {
     rangeBits.push(`since ${data.range.since}`);
   }
@@ -1159,6 +1175,9 @@ function renderHtml(data: ReportData): string {
   const linkable = new Set(data.changes.map((change) => change.changeId));
 
   const rangeBits: string[] = [];
+  if (data.range.rev !== null) {
+    rangeBits.push(`rev ${esc(data.range.rev)}`);
+  }
   if (data.range.since !== null) {
     rangeBits.push(`since ${esc(data.range.since)}`);
   }

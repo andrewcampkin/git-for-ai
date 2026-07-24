@@ -234,6 +234,7 @@ program
   .option("--since <date>", "only commits after this date")
   .option("--until <date>", "only commits before this date")
   .option("-n, --max-count <N>", "limit to the N most recent commits", (v) => Number.parseInt(v, 10))
+  .option("--rev <rev>", "walk this revision instead of HEAD (branch, tag, or SHA)")
   .option("--md", "Markdown to stdout instead of HTML")
   .option("--out <path>", "write to this file (default: .git-for-ai/report.html for HTML)")
   .action(async (opts) => {
@@ -245,6 +246,7 @@ program
       ...(opts.since !== undefined ? { since: opts.since } : {}),
       ...(opts.until !== undefined ? { until: opts.until } : {}),
       ...(opts.maxCount !== undefined ? { maxCount: opts.maxCount } : {}),
+      ...(opts.rev !== undefined ? { rev: opts.rev } : {}),
       format,
       ...(out !== undefined ? { out } : {}),
     };

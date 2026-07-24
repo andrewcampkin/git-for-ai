@@ -46,6 +46,7 @@ export function makeReportData(overrides: Partial<ReportData> = {}): ReportData 
     range: {
       since: null,
       until: null,
+      rev: null,
       newestCommitDate: "2026-07-18T09:00:00+00:00",
       oldestCommitDate: "2026-07-16T09:00:00+00:00",
     },

@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import type { LedgerEntry, ShowData, ShowLedgerRow } from "../types";
 import { fmtWhen, isNoteworthyProvenance, sessionLineFromShow } from "../lib/format";
 import { useFetch } from "../lib/useFetch";
+import { DiffPane } from "./DiffPane";
 import { BadgePill, FlagPills, ProvenancePill } from "./Pills";
 
 /** Derive the badge from a ledger entry (same derivation as report.ts's toBadge). */
@@ -217,7 +218,14 @@ function RecordDetails({ data, effective }: { data: ShowData; effective: LedgerE
   );
 }
 
-export function ChangeDetail({ target }: { target: string }) {
+export function ChangeDetail({
+  target,
+  showDiff = false,
+}: {
+  target: string;
+  /** `/api/meta`'s diff capability — the pane must not render where it would 404. */
+  showDiff?: boolean;
+}) {
   const result = useFetch<ShowData>(`/api/change/${target}`);
 
   if (result.state === "loading") {
@@ -277,6 +285,9 @@ export function ChangeDetail({ target }: { target: string }) {
         <RecordDetails data={data} effective={effective} />
         <SupersededEntries rows={superseded} />
       </section>
+
+      {/* The evidence the ledger cannot fake: the code this change actually made. */}
+      {showDiff && data.commit !== null && <DiffPane sha={data.commit.sha} />}
 
       {data.warnings.length > 0 && (
         <section className="warnings">

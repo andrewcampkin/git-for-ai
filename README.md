@@ -34,7 +34,7 @@ two convictions:
 | `git for-ai reindex` | Build the local semantic index (tree-sitter chunking + local embeddings; incremental, cached) |
 | `git for-ai ask "<question>"` | Semantic Q&A over code + intent + sessions; cited AI-synthesized answers (offline ranked-sources mode without a key) |
 | `git for-ai blame --why <file>:<line>` | The founding question: the recorded reasoning behind a line, not just a SHA and a name |
-| `git for-ai review` | Local web app (127.0.0.1, read-only): ask box, agent-activity timeline, attention inbox, session traces |
+| `git for-ai review` | Local web app (127.0.0.1, read-only): ask box, agent-activity timeline, attention inbox, session traces, branch scoping, and each commit's diff beside its recorded intent |
 | `git for-ai sync [--push\|--fetch]` | Explicit ref sync through any ordinary git remote — no server needed (validated on GitHub) |
 | `git for-ai doctor` | 11 read-only health audits with remediation steps |
 | `git for-ai config` / `export` | Config with consent gating; Agent Trace + PR-comment export |
@@ -50,6 +50,8 @@ here and you'll see its own real history, including the sessions that built each
 There is also a desktop app: `packages/desktop` wraps the same local review server + SPA in
 an Electron shell with a repo picker and one-click init
 (`pnpm --filter @git-for-ai/desktop start` — see [`architecture/DESKTOP.md`](architecture/DESKTOP.md)).
+Its next piece is the actions panel; the branch and diff surfaces it needed are built and
+ship in the browser too.
 
 **The CLI is feature-complete against its reference.** What comes next — hardening, external
 dogfooding, the rest of the desktop app, the shared-index server, and the v2 ideas (semantic

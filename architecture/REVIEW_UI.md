@@ -44,13 +44,26 @@ those modules produce today; no new data assembly in the server:
 
 | Endpoint | Backed by | Returns |
 |---|---|---|
-| `GET /api/overview?since&until&n` | `runReport`'s `ReportData` | header stats + timeline + per-change details |
+| `GET /api/overview?since&until&n&rev` | `runReport`'s `ReportData` | header stats + timeline + per-change details |
 | `GET /api/change/:target` | `runShow`'s `ShowData` | one change: identity, full ledger (incl. superseded), session info |
 | `GET /api/session/:ref` | show's session read | full span list for the trace viewer |
-| `GET /api/meta` | git + config reads | repo name/root, HEAD, capture on/off, index state |
+| `GET /api/meta` | git + config reads | repo name/root, HEAD, capture on/off, index state, capabilities |
+| `GET /api/branches` | `listBranches` (plain git) | local branches (`refs/heads/` only), current one marked, upstream ahead/behind |
+| `GET /api/diff/:sha?context` | `readCommitDiff` (plain git) | one commit's per-file diff: hunks, line numbers, rename/binary/truncation labels |
 
 Types for these live in the CLI package next to their commands and are imported as
 **types-only** by `review-ui` (erased at build; preserves the no-core-imports rule).
+
+**Amendment (2026-07-25, DESKTOP.md §5 step 2).** The last two rows were added for the
+desktop app and are documented here rather than bolted on silently. Both are **read-only
+GETs like everything else**, so browser mode serves them too — §2 rule 2 is untouched (the
+write path is still CLI/MCP only; token-gated POST actions remain unbuilt). Two consequences
+worth stating: `?rev=` scopes the timeline to a branch but NOT `/api/ask`, whose answers
+still reflect the revision the index was built at (DESKTOP.md §1 G2 — the page says so where
+a branch is selected); and `/api/branches` reads `refs/heads/` exclusively, so our own
+metadata refs cannot leak into a branch list. `/api/meta` grew a `capabilities` object
+(`mode`, `branches`, `diff`, `actions`) so one SPA build can serve both hosts by asking the
+server what it offers rather than sniffing the client.
 
 ## 4. v1 functional scope (maps to PLAN §2.2's priority order)
 
@@ -59,8 +72,12 @@ Types for these live in the CLI package next to their commands and are imported 
    degradation labels preserved), author badge, provenance pill, conf/risk/undo flags.
 2. **Change detail** — route per change: intent, constraints, rejected (option+why), tested
    evidence, scope file list, superseded entries (collapsed, labeled), session summary line.
-   v1 renders the change's *scope + reasoning*; commit diff rendering is explicitly v2 (a
+   v1 renders the change's *scope + reasoning*; commit diff rendering was explicitly v2 (a
    diff viewer is real surface area; ship the review of *recorded intent* first).
+   **Landed 2026-07-25** (DESKTOP.md §5 step 3): the diff now renders beneath the intent —
+   the evidence a ledger entry cannot fake — gated on `/api/meta`'s `diff` capability.
+   Syntax highlighting is deliberately still absent (every bundled highlighter is real
+   weight; add/delete coloring in mono reads fine), recorded as deferred, not dropped.
 3. **Session trace viewer** — spans as a readable narrative list (tool, one-line rendering of
    the key attribute — command/file — timestamp), collapsible raw attributes per span.
 4. **Attention queue** — v1 minimal, computed from data already available: changes with
@@ -82,6 +99,7 @@ vitest component tests; the no-external-requests assertion on the built index.ht
 
 ## 6. Explicitly out of scope for v1
 
-Diff rendering, annotate-from-UI (write path stays CLI/MCP for now), multi-repo switching,
-any network exposure, Electron packaging (later, wrapping this unchanged), live file
-watching (manual refresh is fine for v1).
+Diff rendering *(shipped 2026-07-25 — see §4.2)*, annotate-from-UI (write path stays
+CLI/MCP for now), multi-repo switching *(shipped in the desktop shell, not the browser)*,
+any network exposure, Electron packaging *(the shell exists; installers still pending)*,
+live file watching (manual refresh is fine for v1).

@@ -104,15 +104,40 @@ New, in priority order:
 ## 5. Build order (each step lands + verifies before the next)
 
 **Order amended 2026-07-19 at the owner's explicit direction: the Electron shell shipped
-first** (step 4's shell half), so the app exists now; steps 2–3 land next, inside it.
+first** (step 4's shell half), so the app exists now; steps 2–3 landed next (2026-07-25),
+inside it. What remains: step 4's **token-gated action endpoints + actions panel**, then
+step 5 packaging.
 
 1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
    (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
 2. **API groundwork** in the CLI server: `rev` param on overview, `/api/branches`,
    `/api/diff/:sha`, capability flags in `/api/meta`. All still read-only; browser mode
-   benefits too.
+   benefits too. ✅ **DONE 2026-07-25.** All four landed, plus `git for-ai report --rev`
+   (the same walk, exposed on the CLI where it was equally missing). The two new endpoints
+   are backed by `packages/cli/src/commands/reviewGit.ts` — plain git reads, no identity
+   minting, so the byte-identical-refs guarantee still holds across the whole surface (the
+   review test now sweeps the new endpoints too). Judgment calls recorded in that file's
+   header: metadata refs are excluded *structurally* (`refs/heads/` only, not filtered
+   after the fact); a merge commit's diff is shown against its first parent WITH an explicit
+   warning rather than rendering empty; truncation clips bodies but never the +/- counts;
+   an unresolvable `?rev=` is a 400, never a silently empty timeline. REVIEW_UI.md §3 was
+   amended, as §4 of this document requires.
 3. **Review-UI additions**: branch sidebar + diff pane (usable in the browser immediately —
-   value ships before Electron exists).
+   value ships before Electron exists). ✅ **DONE 2026-07-25.**
+   - **Deviation, recorded not silent**: the branch selector ships as a **chip row** under
+     the masthead, not a sidebar. This page is one narrow reading column and most repos
+     have a handful of branches; a permanent sidebar would spend the page's scarcest
+     resource on a control used once a session. Its contract (a rev in, a rev out) is
+     sidebar-ready if the desktop window later grows a multi-pane layout.
+   - Branch scope lives in the URL (`#/?rev=<branch>`), so a branch view is reloadable and
+     the shell can restore it.
+   - G2 is surfaced, not hidden: selecting a branch prints that `ask` still answers from
+     the revision the index was built at.
+   - The diff pane renders under the change's intent on the change route (files foldable,
+     big commits start folded, binary/rename/truncation labeled). **Syntax highlighting is
+     deferred** — the one part of §3's item 3 not built; add/delete coloring in mono is
+     legible and no bundled highlighter earns its weight yet.
+   - Both panes are gated on `/api/meta`'s capability flags, never on host sniffing.
 4. **Electron shell**: `packages/desktop` main process, window management, repo picker,
    token-gated action endpoints + actions panel.
    ✅ **Shell half DONE 2026-07-19** (pulled ahead of steps 2–3): `packages/desktop` is a
@@ -121,8 +146,10 @@ first** (step 4's shell half), so the app exists now; steps 2–3 land next, ins
    dialog, uninitialized-repo opt-in screen wired to the pure `runInit`, remembered
    bounds/last-repo, single-instance lock, graceful in-process server shutdown, locked-down
    renderer (contextIsolation on, sandbox on, no preload surface for the SPA). Single
-   window v1 — §6 Q2 (window-per-repo) still awaits the owner. Token-gated action
-   endpoints + the actions panel remain OPEN (they depend on step 2's API groundwork).
+   window v1 — §6 Q2 (window-per-repo) still awaits the owner. The shell now starts its
+   server with `mode: "desktop"`, which only changes the capability flags `/api/meta`
+   advertises. Token-gated action endpoints + the actions panel remain **OPEN — this is
+   the next piece of work**; step 2's API groundwork they depended on is now done.
 5. **Packaging**: electron-builder, Windows installer, then the owner uses it in anger.
    (Config checked in at `packages/desktop/electron-builder.yml` with placeholder appId;
    no installer built yet.)

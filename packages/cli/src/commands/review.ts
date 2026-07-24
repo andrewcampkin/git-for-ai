@@ -19,8 +19,11 @@
 //
 // The API is a thin wrapper over ALREADY-TESTED command logic (REVIEW_UI.md §3): it
 // returns the structured results those modules produce today; no new data assembly here.
-// The one endpoint without a preexisting module is /api/meta, which is plain git +
-// config/state file reads (also read-only).
+// The endpoints without a preexisting command module are /api/meta (plain git +
+// config/state file reads) and the DESKTOP.md §5-step-2 pair /api/branches + /api/diff/:sha,
+// whose plain-git reads live next door in ./reviewGit.ts. All three are read-only like the
+// rest, so browser mode serves them too — the desktop app needs them first, but nothing
+// about them is desktop-specific.
 //
 // Judgment calls:
 //   - `/api/change/:target` maps ANY runShow error to 404 with the message in the body.
@@ -62,6 +65,7 @@ import {
 
 import { openQueryDeps, type QueryDeps } from "./queryDeps.js";
 import { runReport } from "./report.js";
+import { listBranches, readCommitDiff } from "./reviewGit.js";
 import { runShow } from "./show.js";
 
 // ---------------------------------------------------------------------------------------
@@ -83,6 +87,28 @@ export interface ReviewOptions {
    * this unset so the key comes from the environment, exactly like `git for-ai ask`).
    */
   synthesis?: SynthesisOptions;
+  /**
+   * Which host is serving (DESKTOP.md §4). `browser` (default) is `git for-ai review`:
+   * strictly read-only. `desktop` is the Electron shell, which may later enable the
+   * token-gated action endpoints — the SPA renders host-specific panes off the
+   * capability flags in /api/meta, never off user-agent sniffing.
+   */
+  mode?: "browser" | "desktop";
+}
+
+/**
+ * `/api/meta.capabilities` — what THIS server offers, so one SPA build can serve both
+ * hosts without guessing. Flags describe the server, not the client; a false flag means
+ * the pane must not render (rather than render and 404 on click).
+ */
+export interface ReviewCapabilities {
+  mode: "browser" | "desktop";
+  /** `/api/branches` is served (branch sidebar + `?rev=` scoping). */
+  branches: boolean;
+  /** `/api/diff/:sha` is served (diff pane). */
+  diff: boolean;
+  /** Token-gated POST action endpoints are served. False until DESKTOP.md §5 step 4b. */
+  actions: boolean;
 }
 
 /** Index (`.git-for-ai/state.json`) status for `/api/meta`. Absence is labeled, never faked. */
@@ -109,6 +135,8 @@ export interface ReviewMeta {
   /** `[capture].enabled` from config.toml (init default true); false when uninitialized. */
   captureEnabled: boolean;
   index: ReviewMetaIndex;
+  /** What this server offers — the SPA renders its optional panes off these. */
+  capabilities: ReviewCapabilities;
 }
 
 /** `GET /api/session/:ref` — the full span list for the trace viewer (REVIEW_UI.md §3). */
@@ -272,7 +300,7 @@ async function readCaptureEnabled(gitForAiDir: string): Promise<boolean> {
   return true;
 }
 
-async function assembleMeta(ctx: GitContext): Promise<ReviewMeta> {
+async function assembleMeta(ctx: GitContext, options: ReviewOptions): Promise<ReviewMeta> {
   const top = await runGit(["rev-parse", "--show-toplevel"], { ...ctx, allowFailure: true });
   const repoRoot = top.exitCode === 0 && top.stdout.length > 0 ? top.stdout : (ctx.cwd ?? process.cwd());
   const repoName = basename(repoRoot);
@@ -316,7 +344,23 @@ async function assembleMeta(ctx: GitContext): Promise<ReviewMeta> {
     }
   }
 
-  return { repoName, repoRoot, head, initialized, captureEnabled, index };
+  const mode = options.mode ?? "browser";
+  return {
+    repoName,
+    repoRoot,
+    head,
+    initialized,
+    captureEnabled,
+    index,
+    capabilities: {
+      mode,
+      // Both are plain read-only git reads: the browser gets them too (DESKTOP.md §5.2).
+      branches: true,
+      diff: true,
+      // Writes stay off everywhere until the token-gated endpoints land (step 4b).
+      actions: false,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -498,6 +542,7 @@ async function handleApi(
     const since = query.get("since");
     const until = query.get("until");
     const n = query.get("n");
+    const rev = query.get("rev");
     let maxCount: number | undefined;
     if (n !== null) {
       maxCount = Number.parseInt(n, 10);
@@ -506,15 +551,63 @@ async function handleApi(
         return;
       }
     }
-    // format "md" — the API serves the structured data; nobody reads the rendered string.
-    const { data } = await runReport({
-      ...(ctx.cwd !== undefined ? { cwd: ctx.cwd } : {}),
-      ...(since !== null ? { since } : {}),
-      ...(until !== null ? { until } : {}),
-      ...(maxCount !== undefined ? { maxCount } : {}),
-      format: "md",
-    });
-    sendJson(res, 200, data);
+    try {
+      // format "md" — the API serves the structured data; nobody reads the rendered string.
+      const { data } = await runReport({
+        ...(ctx.cwd !== undefined ? { cwd: ctx.cwd } : {}),
+        ...(since !== null ? { since } : {}),
+        ...(until !== null ? { until } : {}),
+        ...(maxCount !== undefined ? { maxCount } : {}),
+        ...(rev !== null && rev.length > 0 ? { rev } : {}),
+        format: "md",
+      });
+      sendJson(res, 200, data);
+    } catch (error) {
+      // An unresolvable `rev` is the caller's mistake, not a server fault — and it must
+      // never degrade into "this branch has no history", which would read as a fact.
+      if (rev !== null && rev.length > 0) {
+        sendJson(res, 400, {
+          error: `cannot walk rev ${rev}: ${error instanceof Error ? error.message : String(error)}`,
+        });
+        return;
+      }
+      throw error;
+    }
+    return;
+  }
+
+  if (pathname === "/api/branches") {
+    sendJson(res, 200, await listBranches(ctx));
+    return;
+  }
+
+  if (pathname.startsWith("/api/diff/")) {
+    const target = decodeURIComponent(pathname.slice("/api/diff/".length));
+    if (target.length === 0) {
+      sendJson(res, 404, { error: "missing commit target" });
+      return;
+    }
+    const contextRaw = query.get("context");
+    let contextLines: number | undefined;
+    if (contextRaw !== null) {
+      contextLines = Number.parseInt(contextRaw, 10);
+      if (!Number.isInteger(contextLines) || contextLines < 0 || contextLines > 100) {
+        sendJson(res, 400, {
+          error: `invalid context parameter: ${contextRaw} (expected an integer 0..100)`,
+        });
+        return;
+      }
+    }
+    try {
+      const data = await readCommitDiff(target, {
+        ...(ctx.cwd !== undefined ? { cwd: ctx.cwd } : {}),
+        ...(contextLines !== undefined ? { contextLines } : {}),
+      });
+      sendJson(res, 200, data);
+    } catch (error) {
+      // Same judgment call as /api/change: every lookup failure is a 404 with the reason.
+      sendJson(res, 404, { error: error instanceof Error ? error.message : String(error) });
+    }
     return;
   }
 
@@ -545,7 +638,7 @@ async function handleApi(
   }
 
   if (pathname === "/api/meta") {
-    sendJson(res, 200, await assembleMeta(ctx));
+    sendJson(res, 200, await assembleMeta(ctx, runtime.options));
     return;
   }
 

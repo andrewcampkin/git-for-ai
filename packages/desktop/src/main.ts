@@ -175,7 +175,10 @@ async function openRepo(dir: string): Promise<OpenRepoResult> {
   await stopServer();
   let handle: ReviewServerHandle;
   try {
-    handle = await startReviewServer({ cwd: validation.repoRoot });
+    // `mode: "desktop"` only sets the capability flags /api/meta advertises (DESKTOP.md
+    // §4): same server, same read-only endpoints — the SPA uses it to decide which panes
+    // belong in this host, never to unlock anything.
+    handle = await startReviewServer({ cwd: validation.repoRoot, mode: "desktop" });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log(`review server failed to start: ${message}`);

@@ -36,6 +36,7 @@ import {
   type ReviewSessionData,
   type ReviewServerHandle,
 } from "./review.js";
+import type { ReviewBranchesData, ReviewDiffData } from "./reviewGit.js";
 
 const FAKE_BLOB = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
 const INTENT_REF = "refs/notes/git-for-ai/intent";
@@ -102,6 +103,7 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
   let cidAgent: string;
   let sessionRef: string;
   let shaCorrupt: string;
+  let shaBranch: string;
   let refsBefore: string;
 
   const get = (path: string): Promise<Response> => fetch(new URL(path, base));
@@ -150,6 +152,15 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
       "this is not JSON at all",
       shaCorrupt,
     ]);
+
+    // A second branch, so /api/branches and ?rev= have something real to say. Created
+    // BEFORE the ref snapshot below — the byte-identical assertion covers the server's
+    // behavior, not the fixture's setup.
+    await repo.run(["checkout", "-b", "feature/cookies"]);
+    shaBranch = await repo.commit("branch-only commit", {
+      files: { "src/branch.ts": "export const onlyOnTheBranch = true;\n" },
+    });
+    await repo.run(["checkout", "main"]);
 
     // Snapshot every ref BEFORE the server touches the repo (non-minting guarantee).
     refsBefore = (await repo.run(["for-each-ref"])).stdout;
@@ -204,6 +215,61 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
     const bad = await get("/api/overview?n=zero");
     expect(bad.status).toBe(400);
     expect(((await bad.json()) as { error: string }).error).toContain("invalid n");
+  });
+
+  it("GET /api/overview?rev= scopes the timeline to that branch", async () => {
+    const onBranch = (await (await get("/api/overview?rev=feature/cookies")).json()) as ReportData;
+    expect(onBranch.range.rev).toBe("feature/cookies");
+    // The branch was cut from main, so it carries main's history plus its own tip…
+    expect(onBranch.timeline[0]!.sha).toBe(shaBranch);
+    expect(onBranch.timeline.map((row) => row.sha)).toContain(shaCorrupt);
+
+    // …while the default (HEAD = main) never shows the branch-only commit.
+    const onHead = (await (await get("/api/overview")).json()) as ReportData;
+    expect(onHead.range.rev).toBeNull();
+    expect(onHead.timeline.map((row) => row.sha)).not.toContain(shaBranch);
+  });
+
+  it("GET /api/overview with an unresolvable rev is a 400, never an empty timeline", async () => {
+    const response = await get("/api/overview?rev=no-such-branch");
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { error: string }).error).toContain("no-such-branch");
+  });
+
+  it("GET /api/branches lists local branches with the current one marked", async () => {
+    const response = await get("/api/branches");
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as ReviewBranchesData;
+
+    expect(data.current).toBe("main");
+    expect(data.detached).toBe(false);
+    expect(data.branches.map((b) => b.name).sort()).toEqual(["feature/cookies", "main"]);
+    expect(data.branches.find((b) => b.name === "main")!.current).toBe(true);
+    expect(data.branches.find((b) => b.name === "feature/cookies")!.sha).toBe(shaBranch);
+    // DESKTOP.md §1: our own storage refs are never branches.
+    expect(data.branches.every((b) => b.ref.startsWith("refs/heads/"))).toBe(true);
+  });
+
+  it("GET /api/diff/<sha> returns the commit's per-file diff", async () => {
+    const response = await get(`/api/diff/${shaAgent}`);
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as ReviewDiffData;
+
+    expect(data.sha).toBe(shaAgent);
+    expect(data.isMerge).toBe(false);
+    expect(data.files.map((f) => f.path)).toEqual(["src/auth/session.ts"]);
+    expect(data.files[0]!.status).toBe("added");
+    expect(data.files[0]!.hunks[0]!.lines[0]!.text).toBe("export const session = 1;");
+    expect(data.totals.additions).toBe(1);
+  });
+
+  it("GET /api/diff/<unresolvable> is a 404 with the reason, like /api/change", async () => {
+    const response = await get("/api/diff/deadbeefdeadbeef");
+    expect(response.status).toBe(404);
+    expect(((await response.json()) as { error: string }).error.length).toBeGreaterThan(0);
+
+    const badContext = await get(`/api/diff/${shaAgent}?context=nine`);
+    expect(badContext.status).toBe(400);
   });
 
   it("GET /api/change/<sha> returns runShow's ShowData (ledger incl. superseded)", async () => {
@@ -269,6 +335,17 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
     expect(meta.initialized).toBe(false);
     expect(meta.captureEnabled).toBe(false);
     expect(meta.index).toEqual({ built: false });
+  });
+
+  it("GET /api/meta advertises this host's capabilities (browser mode by default)", async () => {
+    const meta = (await (await get("/api/meta")).json()) as ReviewMeta;
+    expect(meta.capabilities).toEqual({
+      mode: "browser",
+      branches: true,
+      diff: true,
+      // Writes stay off until the token-gated endpoints exist (DESKTOP.md §5 step 4b).
+      actions: false,
+    });
   });
 
   it("GET /api/ask on an index-less repo is honest degradation, not an error", async () => {
@@ -345,8 +422,12 @@ describe("git for-ai review server (real fixture repo, real listening node:http 
     // Hit every endpoint once more, including the no-identity commit's detail page (the
     // path that would tempt resolveChangeId's minting branches).
     await get("/api/overview");
+    await get("/api/overview?rev=feature/cookies");
     await get(`/api/change/${shaPlain}`);
     await get(`/api/change/${shaCorrupt}`);
+    await get("/api/branches");
+    await get(`/api/diff/${shaPlain}`);
+    await get(`/api/diff/${shaCorrupt}`);
     await get("/api/meta");
 
     const plainDetail = (await (await get(`/api/change/${shaPlain}`)).json()) as ShowData;

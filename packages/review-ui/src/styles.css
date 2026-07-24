@@ -304,6 +304,80 @@ details.record-details .facts { margin-top: 0.4rem; }
   overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
+/* ── branch bar (DESKTOP.md §5 step 3) ───────────────────────────────────── */
+.branch-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin: 0 0 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--line);
+}
+.branch-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); margin-right: 0.2rem;
+}
+.branch-chip {
+  background: var(--surface); border: 1px solid var(--line); color: var(--text);
+  border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.82rem; cursor: pointer;
+  font-family: var(--mono);
+}
+.branch-chip:hover { border-color: var(--accent); }
+.branch-chip.current { font-weight: 700; }
+.branch-chip.current::before { content: "● "; color: var(--ok); }
+.branch-chip.selected {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+.branch-track { margin-left: 0.35rem; color: var(--muted); font-size: 0.75rem; }
+.branch-more {
+  background: none; border: none; color: var(--muted); font-size: 0.8rem; cursor: pointer;
+  text-decoration: underline;
+}
+.branch-scope { color: var(--muted); font-size: 0.8rem; margin-left: auto; }
+.scope-note { display: block; font-size: 0.85rem; margin: 0.6rem 0 0; }
+
+/* ── diff pane ───────────────────────────────────────────────────────────── */
+.diff { margin-top: 1.4rem; }
+.diff h3 { display: flex; align-items: baseline; gap: 0.6rem; margin: 0 0 0.6rem; }
+.diff-totals { color: var(--muted); font-size: 0.82rem; font-weight: 400; }
+.diff-warning {
+  background: var(--warn-soft); border-left: 3px solid var(--warn); color: var(--warn);
+  margin: 0 0 0.6rem; padding: 0.5rem 0.8rem; font-size: 0.84rem; border-radius: 0.3rem;
+}
+.diff-file {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 0.6rem;
+  margin-bottom: 0.6rem; overflow: hidden;
+}
+.diff-file-head {
+  display: flex; align-items: baseline; gap: 0.6rem; width: 100%; text-align: left;
+  background: var(--surface-2); border: none; color: var(--text); cursor: pointer;
+  padding: 0.5rem 0.8rem; font-size: 0.85rem;
+}
+.diff-caret { color: var(--muted); }
+.diff-path { font-family: var(--mono); font-size: 0.82rem; overflow-wrap: anywhere; }
+.diff-status { color: var(--muted); font-size: 0.76rem; }
+.diff-counts { margin-left: auto; color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.status-added .diff-status { color: var(--ok); }
+.status-deleted .diff-status { color: var(--bad); }
+.diff-body { padding: 0.4rem 0; overflow-x: auto; }
+.diff-hunk { border-top: 1px solid var(--line); }
+.diff-hunk:first-child { border-top: none; }
+.hunk-head {
+  font-family: var(--mono); font-size: 0.76rem; color: var(--muted);
+  background: var(--surface-2); padding: 0.2rem 0.8rem;
+}
+.diff-line {
+  display: flex; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5;
+  white-space: pre; padding: 0 0.4rem;
+}
+.diff-line .ln {
+  color: var(--muted); opacity: 0.7; padding: 0 0.4rem; user-select: none;
+  text-align: right; flex: none;
+}
+.diff-line .mk { width: 1.2ch; flex: none; }
+.diff-line .tx { flex: 1; overflow-wrap: anywhere; white-space: pre-wrap; }
+.diff-line.add { background: var(--ok-soft); }
+.diff-line.add .mk { color: var(--ok); }
+.diff-line.del { background: var(--bad-soft); }
+.diff-line.del .mk { color: var(--bad); }
+.diff-body > .absent, .diff-body .absent { padding: 0.4rem 0.8rem; display: block; }
+
 /* ── shared page states ──────────────────────────────────────────────────── */
 .empty { color: var(--muted); font-style: italic; }
 .loading { color: var(--muted); padding: 2rem 0; }
