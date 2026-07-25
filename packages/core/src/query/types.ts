@@ -72,7 +72,27 @@ export type SynthesisSkipReason =
   | "not-requested" // caller did not ask for synthesis (blame default)
   | "api-error" // request failed (network / non-2xx) — degraded, never thrown
   | "refusal" // model declined (stop_reason "refusal")
-  | "empty-response"; // 2xx but no text content came back
+  | "empty-response" // 2xx but no text content came back
+  | "tool-iteration-cap"; // still calling tools at the cap — labeled, never silently truncated
+
+/**
+ * One repository read the answering model performed for itself (ASK_TOOLS.md §4): the
+ * tool it called and the arguments it chose. Recorded so the answer's grounding is
+ * VISIBLE — a claim backed by `git show d487e6a` is more verifiable than one backed by
+ * an embedding hit, and hiding that would waste the strongest signal we have.
+ */
+export interface SynthesisToolCall {
+  /** Tool name as declared to the API (e.g. `commit_diff`). */
+  name: string;
+  /** Arguments the model chose, exactly as sent to the tool. */
+  input: Record<string, unknown>;
+  /** False when the tool threw — the failure is reported to the model AND recorded here. */
+  ok: boolean;
+  /** Failure message (present iff `ok` is false). Never swallowed. */
+  error?: string;
+  /** Size of the text handed back to the model, in characters. */
+  chars: number;
+}
 
 /**
  * Outcome of the synthesis step. `synthesized: false` is a NORMAL result (the
@@ -90,8 +110,17 @@ export interface SynthesisResult {
   citedSources: number[];
   /** Model id that produced the answer (present iff synthesized). */
   model?: string;
-  /** Token usage reported by the API (present iff synthesized). */
+  /**
+   * Token usage reported by the API, summed across every request the tool loop made
+   * (present iff synthesized) — one answer can now cost several round trips.
+   */
   usage?: { inputTokens: number; outputTokens: number };
+  /**
+   * Repository reads the model performed for itself, in call order. Present (and
+   * possibly non-empty) even when synthesis failed part-way — what was consulted before
+   * the failure is still true, and still worth showing.
+   */
+  toolCalls?: SynthesisToolCall[];
   /** Present iff not synthesized. */
   skippedReason?: SynthesisSkipReason;
   /** Human-readable detail for `api-error`. */

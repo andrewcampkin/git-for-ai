@@ -244,3 +244,165 @@ describe("runAsk — index readiness (actionable errors, staleness warning)", ()
     }
   });
 });
+
+// ── The tool loop, end to end (architecture/ASK_TOOLS.md) ────────────────────
+//
+// The live failure: "tell me what changed in the last commit" got "I cannot answer this
+// question from the provided sources", because the only thing the model ever saw for
+// HEAD was its eleven-word summary line. Here the model asks for the diff instead, and
+// what comes back is a REAL patch read from a REAL repository — only the model's side of
+// the conversation is scripted.
+
+describe("runAsk — synthesis reads the repository for itself", () => {
+  it("runs the tool the model asks for and feeds the real diff back", async () => {
+    const head = (await repo.run(["rev-parse", "HEAD"])).stdout;
+    const subject = (await repo.run(["log", "-1", "--format=%s"])).stdout;
+    const bodies = [
+      {
+        content: [{ type: "tool_use", id: "toolu_1", name: "commit_diff", input: { sha: "HEAD" } }],
+        model: "claude-sonnet-5",
+        stop_reason: "tool_use",
+        usage: { input_tokens: 200, output_tokens: 40 },
+      },
+      {
+        content: [{ type: "text", text: `The last commit (${subject}) changed notes.txt.` }],
+        model: "claude-sonnet-5",
+        stop_reason: "end_turn",
+        usage: { input_tokens: 400, output_tokens: 25 },
+      },
+    ];
+    let index = 0;
+    const fetchImpl = vi.fn(async (): Promise<Response> => {
+      const body = bodies[Math.min(index, bodies.length - 1)];
+      index += 1;
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const result = await runAsk("tell me what changed in the last commit", {
+      cwd: repo.dir,
+      embedder,
+      synthesis: { apiKey: "test-key", fetchImpl: fetchImpl as unknown as typeof fetch },
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    // Request 1 declared the four v1 tools.
+    const first = JSON.parse(
+      (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    ) as Record<string, unknown>;
+    expect((first["tools"] as Array<{ name: string }>).map((t) => t.name).sort()).toEqual([
+      "blame_why",
+      "commit_diff",
+      "log_intent",
+      "show_change",
+    ]);
+
+    // Request 2 carries the ACTUAL patch, read from the real repository.
+    const second = JSON.parse(
+      (fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].body as string,
+    ) as Record<string, unknown>;
+    const messages = second["messages"] as Array<{ role: string; content: unknown }>;
+    const toolResult = (messages[2]!.content as Array<Record<string, unknown>>)[0]!;
+    expect(toolResult["tool_use_id"]).toBe("toolu_1");
+    const patch = toolResult["content"] as string;
+    expect(patch).toContain(`commit ${head}`);
+    expect(patch).toContain("notes.txt");
+
+    // Provenance is carried on the result and rendered for the reader.
+    expect(result.data.synthesis.toolCalls).toEqual([
+      { name: "commit_diff", input: { sha: "HEAD" }, ok: true, chars: patch.length },
+    ]);
+    expect(result.output).toContain("Consulted:");
+    expect(result.output).toContain("git show HEAD");
+    expect(result.output).toContain("Confidence: high (read directly from the repository");
+    // Usage is summed across both round trips — one answer, two requests.
+    expect(result.data.synthesis.usage).toEqual({ inputTokens: 600, outputTokens: 65 });
+  });
+
+  it("surfaces a failed read instead of hiding it, and still answers", async () => {
+    const bodies = [
+      {
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "commit_diff", input: { sha: "nope-not-a-commit" } },
+        ],
+        model: "claude-sonnet-5",
+        stop_reason: "tool_use",
+      },
+      {
+        content: [{ type: "text", text: "That commit is not in this repository." }],
+        model: "claude-sonnet-5",
+        stop_reason: "end_turn",
+      },
+    ];
+    let index = 0;
+    const fetchImpl = vi.fn(async (): Promise<Response> => {
+      const body = bodies[Math.min(index, bodies.length - 1)];
+      index += 1;
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const result = await runAsk("what changed in nope-not-a-commit", {
+      cwd: repo.dir,
+      embedder,
+      synthesis: { apiKey: "test-key", fetchImpl: fetchImpl as unknown as typeof fetch },
+    });
+
+    expect(result.data.synthesis.synthesized).toBe(true);
+    expect(result.data.synthesis.toolCalls?.[0]?.ok).toBe(false);
+    expect(result.output).toContain("git show nope-not-a-commit — failed:");
+    // A failed read is not evidence: confidence falls back to the retrieval signals.
+    expect(result.output).not.toContain("read directly from the repository");
+  });
+
+  it("--sources-only stays fully local: no API call, no tools", async () => {
+    const fetchImpl = vi.fn();
+    const result = await runAsk("what changed in the last commit", {
+      cwd: repo.dir,
+      embedder,
+      sourcesOnly: true,
+      synthesis: { apiKey: "would-not-be-used", fetchImpl: fetchImpl as unknown as typeof fetch },
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.data.synthesis.toolCalls).toBeUndefined();
+  });
+
+  it("says so when the answer never stopped reading, rather than inventing one", async () => {
+    const fetchImpl = vi.fn(
+      async (): Promise<Response> =>
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: "tool_use", id: "toolu_x", name: "log_intent", input: { n: 5 } },
+            ],
+            model: "claude-sonnet-5",
+            stop_reason: "tool_use",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    const result = await runAsk("what changed in the last commit", {
+      cwd: repo.dir,
+      embedder,
+      synthesis: {
+        apiKey: "test-key",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        maxToolIterations: 2,
+      },
+    });
+
+    expect(result.data.synthesis.synthesized).toBe(false);
+    expect(result.data.synthesis.skippedReason).toBe("tool-iteration-cap");
+    expect(result.output).toContain("hit the read limit");
+    // The ranked sources still stand on their own, and the reads are still shown.
+    expect(result.output).toMatch(/\[\d+\] ledger /);
+    expect(result.output).toContain("Consulted:");
+    expect(result.data.synthesis.toolCalls).toHaveLength(2);
+  });
+});

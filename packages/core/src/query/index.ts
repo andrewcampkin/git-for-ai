@@ -23,13 +23,14 @@ export { blameLineCommit, findLaterTouches } from "./blame.js";
 
 export {
   DEFAULT_SYNTHESIS_MODEL,
+  DEFAULT_MAX_TOOL_ITERATIONS,
   SYNTHESIS_MODEL_ENV,
   SYNTHESIS_KEY_ENV,
   buildSynthesisPrompt,
   extractCitations,
   synthesizeAnswer,
 } from "./synthesis.js";
-export type { SynthesisOptions, SynthesisPrompt } from "./synthesis.js";
+export type { SynthesisOptions, SynthesisPrompt, SynthesisTool } from "./synthesis.js";
 
 export { askQuestion, explainLine } from "./engine.js";
 export type { AskDeps, AskOptions, BlameWhyDeps, BlameWhyOptions } from "./engine.js";
@@ -40,6 +41,7 @@ export type {
   RankedSource,
   EnrichedSource,
   SynthesisSkipReason,
+  SynthesisToolCall,
   SynthesisResult,
   AskResult,
   BlamePosition,

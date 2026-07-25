@@ -63,6 +63,7 @@ import {
   type SynthesisResult,
 } from "@git-for-ai/core";
 
+import { createAskTools } from "./askTools.js";
 import { openQueryDeps, type QueryDeps } from "./queryDeps.js";
 import { runReport } from "./report.js";
 import { ReviewActions, type ReviewActionName } from "./reviewActions.js";
@@ -215,6 +216,23 @@ export interface ReviewAskSynthesis {
   citedSources: number[];
   model?: string;
   skippedReason?: string;
+  error?: string;
+  /**
+   * Repository reads the answer made for itself (ASK_TOOLS.md §5.5), in call order.
+   * An answer grounded in a live read is MORE verifiable than one grounded in an
+   * embedding hit, so the page can show what was consulted beside it.
+   */
+  consulted?: ReviewAskConsulted[];
+}
+
+/** One repository read performed while answering. */
+export interface ReviewAskConsulted {
+  /** Tool name (`commit_diff`, `show_change`, `log_intent`, `blame_why`). */
+  name: string;
+  /** Arguments the answer chose. */
+  input: Record<string, unknown>;
+  /** False when that read failed — surfaced, never hidden. */
+  ok: boolean;
   error?: string;
 }
 
@@ -487,6 +505,16 @@ function toAskSynthesis(synthesis: SynthesisResult): ReviewAskSynthesis {
     ...(synthesis.model !== undefined ? { model: synthesis.model } : {}),
     ...(synthesis.skippedReason !== undefined ? { skippedReason: synthesis.skippedReason } : {}),
     ...(synthesis.error !== undefined ? { error: synthesis.error } : {}),
+    ...(synthesis.toolCalls !== undefined && synthesis.toolCalls.length > 0
+      ? {
+          consulted: synthesis.toolCalls.map((call) => ({
+            name: call.name,
+            input: call.input,
+            ok: call.ok,
+            ...(call.error !== undefined ? { error: call.error } : {}),
+          })),
+        }
+      : {}),
   };
 }
 
@@ -543,9 +571,16 @@ async function handleAsk(
       question,
       {
         ...(k !== undefined ? { k } : {}),
-        ...(runtime.options.synthesis !== undefined
-          ? { synthesis: runtime.options.synthesis }
-          : {}),
+        // Synthesis may read the repository for itself (ASK_TOOLS.md): the same toolbox
+        // `git for-ai ask` uses, over the same read-only commands this server already
+        // serves — so the non-minting guarantee holds unchanged. The request's embedder
+        // is threaded through so a nested blame_why reuses it (RAM rule).
+        synthesis: {
+          ...runtime.options.synthesis,
+          ...(runtime.options.synthesis?.tools === undefined
+            ? { tools: createAskTools({ cwd: deps.repoRoot, embedder: deps.embedder }) }
+            : {}),
+        },
       },
     );
     const body: ReviewAskData = {

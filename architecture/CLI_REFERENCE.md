@@ -128,6 +128,26 @@ Sources:
 Confidence: high (direct match on an explicit rejected-alternative).
 ```
 
+**Answers can read the repository (2026-07-25, [`ASK_TOOLS.md`](./ASK_TOOLS.md)).**
+When synthesis is enabled, retrieval is the starting point rather than the boundary: the
+answer may also run the same reads these commands expose — a commit's diff, a change's record,
+recent history, or a line's blame — and everything it consulted is listed under the answer, so
+you can run the same thing yourself. No flags changed; nothing new is written; a read that
+fails is shown as failed. With `--json`, the same detail arrives as `synthesis.toolCalls`.
+
+```console
+$ git for-ai ask "tell me what changed in the last commit"
+Answer (from 1 ledger entry, 5 code chunks):
+  The last commit (ce23522, "Spec: ask should use the tool's own features") added
+  architecture/ASK_TOOLS.md and updated architecture/ROADMAP.md — no code changed [9].
+Sources:
+  [9] ledger 0f30b7b4  architecture/ASK_TOOLS.md  (agent-captured)
+  …
+Consulted:
+  git show HEAD
+Confidence: high (read directly from the repository, not from similarity alone)
+```
+
 ---
 
 ## `git for-ai sync [--push | --fetch] [<remote>]`

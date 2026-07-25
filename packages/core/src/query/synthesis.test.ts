@@ -8,11 +8,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredChunk } from "../embeddings/store.js";
 import {
+  DEFAULT_MAX_TOOL_ITERATIONS,
   DEFAULT_SYNTHESIS_MODEL,
   SYNTHESIS_MODEL_ENV,
   buildSynthesisPrompt,
   extractCitations,
   synthesizeAnswer,
+  type SynthesisTool,
 } from "./synthesis.js";
 import type { EnrichedSource } from "./types.js";
 import { makeLedgerEntry, makeSessionRecord } from "./testSupport.js";
@@ -112,10 +114,61 @@ function anthropicFetch(body: unknown, status = 200) {
 
 const okBody = (text: string) => ({
   content: [{ type: "text", text }],
-  model: "claude-haiku-4-5",
+  model: "claude-sonnet-5",
   stop_reason: "end_turn",
   usage: { input_tokens: 120, output_tokens: 34 },
 });
+
+/** A `tool_use` turn: what the API returns when the model wants a repository read. */
+const toolUseBody = (
+  calls: Array<{ id: string; name: string; input: Record<string, unknown> }>,
+  extraContent: unknown[] = [],
+) => ({
+  content: [
+    ...extraContent,
+    ...calls.map((call) => ({ type: "tool_use", id: call.id, name: call.name, input: call.input })),
+  ],
+  model: "claude-sonnet-5",
+  stop_reason: "tool_use",
+  usage: { input_tokens: 200, output_tokens: 40 },
+});
+
+/** A fetch mock walking a scripted sequence of response bodies (the tool loop needs several). */
+function sequenceFetch(bodies: unknown[]) {
+  let index = 0;
+  return vi.fn(async (): Promise<Response> => {
+    const body = bodies[Math.min(index, bodies.length - 1)];
+    index += 1;
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+}
+
+/** Parse the request body of the nth (0-based) call to a fetch mock. */
+function requestBody(fetchImpl: ReturnType<typeof sequenceFetch>, n: number): Record<string, unknown> {
+  const [, init] = fetchImpl.mock.calls[n] as unknown as [string, RequestInit];
+  return JSON.parse(init.body as string) as Record<string, unknown>;
+}
+
+/** A tool whose calls are recorded, returning canned text (or throwing). */
+function fakeTool(
+  name: string,
+  behavior: (input: Record<string, unknown>) => string,
+): SynthesisTool & { calls: Array<Record<string, unknown>> } {
+  const calls: Array<Record<string, unknown>> = [];
+  return {
+    name,
+    description: `test tool ${name}`,
+    inputSchema: { type: "object", properties: { target: { type: "string" } } },
+    calls,
+    async run(input) {
+      calls.push(input);
+      return behavior(input);
+    },
+  };
+}
 
 afterEach(() => {
   delete process.env[SYNTHESIS_MODEL_ENV];
@@ -137,6 +190,23 @@ describe("buildSynthesisPrompt", () => {
     expect(prompt.user).toContain("Rejected: Redis session store");
     // Order is rank order.
     expect(prompt.user.indexOf("[1] ledger")).toBeLessThan(prompt.user.indexOf("[2] session"));
+  });
+
+  it("renders the ledger entry's scope — the per-file record of WHAT changed (§6)", () => {
+    // The bug this fixes: scope was retrieved and then never shown to the model, so a
+    // "what changed" question saw only the summary line and was answered "I can't tell".
+    const prompt = buildSynthesisPrompt("what changed", SOURCES);
+    expect(prompt.user).toContain("Files changed (1):");
+    expect(prompt.user).toContain("src/auth/session.ts:1-5");
+  });
+
+  it("adds the tool instructions only when tools are available", () => {
+    expect(buildSynthesisPrompt("q", SOURCES).system).not.toContain("tools that read this repository");
+    const withTools = buildSynthesisPrompt("q", SOURCES, [fakeTool("show_change", () => "x")]);
+    expect(withTools.system).toContain("tools that read this repository");
+    expect(withTools.system).toContain("Never say you lack the information");
+    // The citation contract survives — tool results are the addition, not a replacement.
+    expect(withTools.system).toContain("Cite every claim");
   });
 });
 
@@ -200,8 +270,13 @@ describe("synthesizeAnswer", () => {
     expect(headers["anthropic-version"]).toBe("2023-06-01");
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body["model"]).toBe(DEFAULT_SYNTHESIS_MODEL);
-    expect(body["max_tokens"]).toBe(1024);
+    expect(body["max_tokens"]).toBe(4096);
     expect(body["system"]).toContain("Cite every claim");
+    // No tools configured → no `tools` key, and no thinking/effort fields that would
+    // break a GIT_FOR_AI_SYNTHESIS_MODEL override (judgment call #5).
+    expect(body["tools"]).toBeUndefined();
+    expect(body["thinking"]).toBeUndefined();
+    expect(body["output_config"]).toBeUndefined();
     const messages = body["messages"] as Array<{ role: string; content: string }>;
     expect(messages).toHaveLength(1);
     expect(messages[0]!.role).toBe("user");
@@ -211,8 +286,9 @@ describe("synthesizeAnswer", () => {
     expect(result.synthesized).toBe(true);
     expect(result.answer).toContain("explicitly rejected");
     expect(result.citedSources).toEqual([1, 2]);
-    expect(result.model).toBe("claude-haiku-4-5");
+    expect(result.model).toBe("claude-sonnet-5");
     expect(result.usage).toEqual({ inputTokens: 120, outputTokens: 34 });
+    expect(result.toolCalls).toBeUndefined();
   });
 
   it("honors a per-call model override and the env override", async () => {
@@ -255,5 +331,231 @@ describe("synthesizeAnswer", () => {
     const fetchImpl = anthropicFetch({ content: [], stop_reason: "end_turn" });
     const result = await synthesizeAnswer("q", SOURCES, { apiKey: "k", fetchImpl });
     expect(result.skippedReason).toBe("empty-response");
+  });
+});
+
+// ── The tool loop (ASK_TOOLS.md §4) ──────────────────────────────────────────
+//
+// The live failure this fixes: asked "what changed in the last commit", the model was
+// given eleven words of summary and honestly refused. With tools it reads the repository
+// itself. Everything here drives the REAL loop through the fetchImpl seam — no network,
+// no key, and the "tools" are plain functions, so a failing assertion means the loop is
+// wrong, not that Claude had an off day.
+
+describe("synthesizeAnswer with tools", () => {
+  it("declares the tools, runs the requested one, and feeds the result back", async () => {
+    const diff = fakeTool("commit_diff", () => "M packages/core/src/query/synthesis.ts");
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_1", name: "commit_diff", input: { sha: "HEAD" } }]),
+      okBody("The last commit touched packages/core/src/query/synthesis.ts."),
+    ]);
+
+    const result = await synthesizeAnswer("what changed in the last commit", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [diff],
+    });
+
+    // Two round trips: ask → tool → answer.
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    // Request 1 declares the tool in the documented wire shape.
+    const first = requestBody(fetchImpl, 0);
+    expect(first["tools"]).toEqual([
+      {
+        name: "commit_diff",
+        description: "test tool commit_diff",
+        input_schema: { type: "object", properties: { target: { type: "string" } } },
+      },
+    ]);
+
+    // The tool ran with exactly the arguments the model chose.
+    expect(diff.calls).toEqual([{ sha: "HEAD" }]);
+
+    // Request 2 replays the assistant turn verbatim, then ONE user message of results.
+    const second = requestBody(fetchImpl, 1);
+    const messages = second["messages"] as Array<{ role: string; content: unknown }>;
+    expect(messages).toHaveLength(3);
+    expect(messages[1]!.role).toBe("assistant");
+    expect(messages[1]!.content).toEqual([
+      { type: "tool_use", id: "toolu_1", name: "commit_diff", input: { sha: "HEAD" } },
+    ]);
+    expect(messages[2]!.role).toBe("user");
+    expect(messages[2]!.content).toEqual([
+      {
+        type: "tool_result",
+        tool_use_id: "toolu_1",
+        content: "M packages/core/src/query/synthesis.ts",
+      },
+    ]);
+
+    expect(result.synthesized).toBe(true);
+    expect(result.answer).toContain("synthesis.ts");
+    // Provenance: what was consulted, with what arguments (§5.5).
+    expect(result.toolCalls).toEqual([
+      { name: "commit_diff", input: { sha: "HEAD" }, ok: true, chars: 38 },
+    ]);
+    // Usage is summed across every request the answer cost.
+    expect(result.usage).toEqual({ inputTokens: 320, outputTokens: 74 });
+  });
+
+  it("echoes thinking blocks back untouched alongside the tool call", async () => {
+    // Adaptive thinking is on by default on the current model; a filtered or reordered
+    // assistant turn is rejected by the API, so the loop replays content verbatim.
+    const thinking = { type: "thinking", thinking: "" };
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_1", name: "show_change", input: {} }], [thinking]),
+      okBody("done"),
+    ]);
+    await synthesizeAnswer("q", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [fakeTool("show_change", () => "change c/abc")],
+    });
+    const messages = requestBody(fetchImpl, 1)["messages"] as Array<{ content: unknown }>;
+    expect((messages[1]!.content as unknown[])[0]).toEqual(thinking);
+  });
+
+  it("runs parallel tool calls and returns all results in one user message", async () => {
+    const show = fakeTool("show_change", () => "change c/abc");
+    const log = fakeTool("log_intent", () => "ce23522 Spec: ask should use the tool's own features");
+    const fetchImpl = sequenceFetch([
+      toolUseBody([
+        { id: "toolu_1", name: "show_change", input: { target: "HEAD" } },
+        { id: "toolu_2", name: "log_intent", input: { n: 3 } },
+      ]),
+      okBody("Both reads agree [1]."),
+    ]);
+
+    const result = await synthesizeAnswer("q", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [show, log],
+    });
+
+    expect(show.calls).toHaveLength(1);
+    expect(log.calls).toHaveLength(1);
+    const messages = requestBody(fetchImpl, 1)["messages"] as Array<{ content: unknown }>;
+    const results = messages[2]!.content as Array<Record<string, unknown>>;
+    expect(results).toHaveLength(1 + 1);
+    expect(results.map((r) => r["tool_use_id"])).toEqual(["toolu_1", "toolu_2"]);
+    expect(result.toolCalls?.map((call) => call.name)).toEqual(["show_change", "log_intent"]);
+  });
+
+  it("reports a throwing tool to the model and records the failure — never swallows it", async () => {
+    const boom = fakeTool("commit_diff", () => {
+      throw new Error("cannot resolve commit: deadbeef");
+    });
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_1", name: "commit_diff", input: { sha: "deadbeef" } }]),
+      okBody("That commit is not in this repository."),
+    ]);
+
+    const result = await synthesizeAnswer("q", SOURCES, { apiKey: "k", fetchImpl, tools: [boom] });
+
+    const messages = requestBody(fetchImpl, 1)["messages"] as Array<{ content: unknown }>;
+    const [toolResult] = messages[2]!.content as Array<Record<string, unknown>>;
+    expect(toolResult!["is_error"]).toBe(true);
+    expect(toolResult!["content"]).toContain("cannot resolve commit: deadbeef");
+
+    // The answer still lands, and the failed read is visible in the provenance.
+    expect(result.synthesized).toBe(true);
+    expect(result.toolCalls?.[0]).toMatchObject({
+      name: "commit_diff",
+      ok: false,
+      error: "cannot resolve commit: deadbeef",
+    });
+  });
+
+  it("reports an unknown tool name as a tool error rather than crashing", async () => {
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_1", name: "rm_rf", input: {} }]),
+      okBody("No such tool."),
+    ]);
+    const result = await synthesizeAnswer("q", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [fakeTool("show_change", () => "x")],
+    });
+    expect(result.synthesized).toBe(true);
+    expect(result.toolCalls?.[0]).toMatchObject({ name: "rm_rf", ok: false });
+    expect(result.toolCalls?.[0]?.error).toContain("unknown tool");
+  });
+
+  it("stops at the iteration cap with a labeled outcome, not a truncated answer", async () => {
+    // A model that never stops calling tools: the loop must stop, say so, and still
+    // report everything it read on the way (honest degradation, hard rule 5).
+    const loop = fakeTool("commit_diff", () => "diff…");
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_x", name: "commit_diff", input: { sha: "HEAD" } }]),
+    ]);
+
+    const result = await synthesizeAnswer("q", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [loop],
+      maxToolIterations: 3,
+    });
+
+    expect(result.synthesized).toBe(false);
+    expect(result.answer).toBeNull();
+    expect(result.skippedReason).toBe("tool-iteration-cap");
+    expect(result.error).toContain("3 rounds");
+    expect(loop.calls).toHaveLength(3);
+    expect(result.toolCalls).toHaveLength(3);
+    // 3 tool rounds + the request that asked for a 4th = 4 requests, then we stop.
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  it("defaults the cap to DEFAULT_MAX_TOOL_ITERATIONS", async () => {
+    const loop = fakeTool("commit_diff", () => "diff…");
+    const fetchImpl = sequenceFetch([
+      toolUseBody([{ id: "toolu_x", name: "commit_diff", input: {} }]),
+    ]);
+    const result = await synthesizeAnswer("q", SOURCES, { apiKey: "k", fetchImpl, tools: [loop] });
+    expect(result.skippedReason).toBe("tool-iteration-cap");
+    expect(loop.calls).toHaveLength(DEFAULT_MAX_TOOL_ITERATIONS);
+  });
+
+  it("declares no tools when the cap is zero", async () => {
+    const fetchImpl = sequenceFetch([okBody("plain answer [1]")]);
+    const tool = fakeTool("commit_diff", () => "diff…");
+    const result = await synthesizeAnswer("q", SOURCES, {
+      apiKey: "k",
+      fetchImpl,
+      tools: [tool],
+      maxToolIterations: 0,
+    });
+    expect(requestBody(fetchImpl, 0)["tools"]).toBeUndefined();
+    expect(result.synthesized).toBe(true);
+    expect(tool.calls).toHaveLength(0);
+  });
+
+  it("keeps the no-key path fully local — tools are never run without synthesis", async () => {
+    const tool = fakeTool("commit_diff", () => "diff…");
+    const fetchImpl = sequenceFetch([okBody("unused")]);
+    const result = await synthesizeAnswer("q", SOURCES, { apiKey: "", fetchImpl, tools: [tool] });
+    expect(result.skippedReason).toBe("no-api-key");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(tool.calls).toHaveLength(0);
+  });
+
+  it("carries the reads it managed before an API failure into the fallback", async () => {
+    const show = fakeTool("show_change", () => "change c/abc");
+    let call = 0;
+    const fetchImpl = vi.fn(async (): Promise<Response> => {
+      call += 1;
+      if (call === 1) {
+        return new Response(
+          JSON.stringify(toolUseBody([{ id: "toolu_1", name: "show_change", input: {} }])),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("{}", { status: 529 });
+    });
+
+    const result = await synthesizeAnswer("q", SOURCES, { apiKey: "k", fetchImpl, tools: [show] });
+    expect(result.skippedReason).toBe("api-error");
+    expect(result.toolCalls?.map((c) => c.name)).toEqual(["show_change"]);
   });
 });

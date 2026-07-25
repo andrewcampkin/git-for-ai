@@ -1,6 +1,31 @@
 # ASK_TOOLS.md — `ask` should use the tool's own features
 
-Written 2026-07-25 after a live failure. Spec first, per CLAUDE.md; no code written yet.
+Written 2026-07-25 after a live failure. Spec first, per CLAUDE.md.
+
+> **Status: SHIPPED 2026-07-25.** Built in the build order below. The acceptance test (§8.4)
+> passes live against this repository: `git for-ai ask "tell me what changed in the last
+> commit"` now calls `commit_diff`, reads the real patch, and names
+> `architecture/ASK_TOOLS.md` and `architecture/ROADMAP.md` with their line counts.
+>
+> Two decisions the implementing session took to the owner rather than assuming:
+>
+> - **The default model is now `claude-sonnet-5`** (owner, 2026-07-25), replacing
+>   `claude-haiku-4-5`. §5.4 said to measure before changing; the owner changed it up front,
+>   and the reasoning holds independently: the task is no longer summarize-retrieved-text but
+>   decide-which-read-answers-this, and a wrong tool choice costs a round trip *and* the
+>   answer. Consequence handled in code: that model runs adaptive thinking when `thinking` is
+>   omitted, and `max_tokens` covers thinking plus response text — so the per-request cap rose
+>   from 1024 to 4096, and the request body deliberately carries no `thinking`/`output_config`
+>   field (either would 400 on some models and break the `GIT_FOR_AI_SYNTHESIS_MODEL` escape
+>   hatch). Thinking blocks are echoed back verbatim inside the loop, as that model requires.
+> - **The iteration cap is visible to the user, but as an outcome — never as a number.** Hitting
+>   it renders "the answer was still reading the repository when it hit the read limit" plus the
+>   ranked sources and the reads it did manage; the cap value itself is machine-facing
+>   (`--json` / MCP carry `skippedReason: "tool-iteration-cap"` and full `toolCalls`). Rule 10:
+>   the count is our plumbing, the incomplete answer is the user's problem.
+>
+> Also shipped alongside: §6's `scope` rendering, and (not in the spec) a `Consulted:` block in
+> the CLI, a `consulted` array on `/api/ask`, and an "Also checked: …" line in the review panel.
 
 ## 1. The failure
 

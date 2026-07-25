@@ -57,13 +57,20 @@ What plausibly WOULD fix it, in leverage order:
 
 ## Tier 1 — hardening and finish-work (before any new surface)
 
-- **`ask` gets tools — NOW ACTIVE (owner, 2026-07-25), specced, not yet built.** A live
-  failure ("tell me what changed in the last commit" → an honest refusal) exposed that
-  synthesis only ever sees retrieved text, so commit-shaped questions are unanswerable no
-  matter how good retrieval gets. The owner rejected the pre-classify-and-stuff-context
-  fix in favour of letting `ask` use the tool's own features — the same ones `git for-ai
-  mcp` already exposes to other agents. Full diagnosis, design, and constraints:
-  [`ASK_TOOLS.md`](./ASK_TOOLS.md).
+- ~~**`ask` gets tools**~~ — **SHIPPED 2026-07-25.** A live failure ("tell me what changed
+  in the last commit" → an honest refusal) exposed that synthesis only ever sees retrieved
+  text, so commit-shaped questions were unanswerable no matter how good retrieval got. The
+  owner rejected the pre-classify-and-stuff-context fix in favour of letting `ask` use the
+  tool's own features — the same ones `git for-ai mcp` already exposes to other agents.
+  Synthesis is now an agentic loop over four read tools (`commit_diff`, `show_change`,
+  `log_intent`, `blame_why`), capped and with every read surfaced beside the answer; the
+  default model moved to `claude-sonnet-5` at the same time, since choosing the right read
+  is the part a cheap tier gets wrong. Design and constraints: [`ASK_TOOLS.md`](./ASK_TOOLS.md);
+  architecture: ARCHITECTURE.md §11.5. Follow-ups it deliberately left open: a
+  `search_repository` tool (circular — revisit now the loop is proven), folding scope paths
+  into `ledgerText()` so filenames become keyword-searchable (needs a reindex to take
+  effect), and answer verbosity on the new default model (sonnet writes long; the system
+  prompt already asks for concision).
 
 - **Publish the npm package**. Currently npm-linked only. GATE (owner, 2026-07-19): do
   nothing until a second machine or a first outside user exists — link is adequate for one

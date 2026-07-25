@@ -118,8 +118,10 @@ export function createMcpServer(options: McpCliOptions = {}): McpServer {
         "keyword+vector retrieval. Returns the AskResult JSON: ranked `sources` with the " +
         "records behind them, and `synthesis` (a cited prose answer when an Anthropic key " +
         "is configured — GIT_FOR_AI_ANTHROPIC_KEY preferred — otherwise an honest " +
-        "skippedReason with the ranked sources standing on their own). Requires the local " +
-        "index (`git for-ai reindex`).",
+        "skippedReason with the ranked sources standing on their own). When synthesis is " +
+        "enabled it may also read this repository directly (commit diffs, changes, log, " +
+        "blame) to answer; `synthesis.toolCalls` records exactly what it read. Requires " +
+        "the local index (`git for-ai reindex`).",
       inputSchema: {
         question: z.string().describe("Free-form question about this repository's changes"),
         k: z.number().int().min(1).optional().describe("Retrieval breadth (default 8)"),

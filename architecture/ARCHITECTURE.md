@@ -763,6 +763,40 @@ research is clear that pure-embedding search has failure modes (Sourcegraph's Co
 walk-back) — we always blend keyword and vector rather than betting the query layer on embeddings
 alone.
 
+### 11.5 Answering: retrieval first, then the model reads for itself
+
+**Amendment (2026-07-25 — see [`ASK_TOOLS.md`](./ASK_TOOLS.md) for the full diagnosis).**
+Retrieval alone bounds what an answer can know, and the bound is lower than it looks: a ledger
+entry is indexed as its summary plus reasoning, so a question like *"what changed in the last
+commit"* reaches the model as one sentence about a commit and gets an honest refusal. Nothing
+in the index is keyed by commit, so no amount of retrieval tuning fixes that class of question.
+
+So synthesis is an agentic loop. Ranked, numbered, citable sources still go in first — that is
+what makes answers verifiable, and it is unchanged. On top of them the model may call back into
+the repository: `commit_diff` (what a commit actually modified), `show_change` (a change's
+recorded reasoning), `log_intent` (recent history), `blame_why` (why one line looks that way).
+Each tool wraps the **identical pure function its CLI command wraps**, so degradation messages
+and the non-minting read guarantee are inherited rather than re-implemented. Core owns the
+interface and the loop (`SynthesisTool`, `synthesizeAnswer`); the CLI injects the
+implementations, because those commands live there and core never imports the CLI.
+
+Four properties hold this in place:
+
+- **Still raw `fetch`, no SDK** (§11.3's reasoning applies unchanged) — the injectable
+  `fetchImpl` remains the one sanctioned mock seam, and the loop is fully driven through it
+  in tests.
+- **Still a read.** No tool writes. `ask` was a read and stays one.
+- **Bounded and labeled.** Tool rounds are capped (6 by default). Hitting the cap is a named
+  outcome (`tool-iteration-cap` → ranked sources with an honest note), never a half answer.
+- **Provenance is surfaced, not hidden.** Every call is recorded with its arguments and
+  rendered beside the answer (`Consulted: git show d487e6a`). An answer grounded in a live
+  read is *more* verifiable than one grounded in an embedding hit, and the confidence label
+  says so — still derived from retrieval signals, never model-claimed.
+
+The default synthesis model moved from `claude-haiku-4-5` to `claude-sonnet-5` at the same time
+(owner decision): the task changed from summarizing retrieved text to deciding which repository
+read answers the question, and a wrong tool choice costs a wasted round trip plus a bad answer.
+
 ---
 
 ## 12. Sync model and notes-merge strategy

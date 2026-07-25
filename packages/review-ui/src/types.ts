@@ -32,6 +32,7 @@ export type {
   ReviewAskData,
   ReviewAskSource,
   ReviewAskSynthesis,
+  ReviewAskConsulted,
 } from "../../cli/dist/commands/review";
 
 // Doctor's structured result — rendered by the desktop actions panel (DESKTOP.md §5

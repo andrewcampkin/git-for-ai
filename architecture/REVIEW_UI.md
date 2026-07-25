@@ -73,6 +73,16 @@ metadata refs cannot leak into a branch list. `/api/meta` grew a `capabilities` 
 (`mode`, `branches`, `diff`, `actions`) so one SPA build can serve both hosts by asking the
 server what it offers rather than sniffing the client.
 
+**Amendment (2026-07-25, [`ASK_TOOLS.md`](./ASK_TOOLS.md)).** `/api/ask`'s synthesis may now
+read the repository for itself (a commit's diff, a change's record, recent history, a line's
+blame) instead of answering only from retrieved text. Three consequences for this document:
+the endpoint stays a **read-only GET** — every tool wraps a command this server already serves
+on a non-minting read path, and the ref byte-identity test still passes unchanged; the response's
+`synthesis` object grew a `consulted` array (what was read, with what arguments, and whether it
+succeeded); and the panel renders it as one muted line — *"Also checked: the changes in
+ce23522"* — in the reader's words, never ours (§2's audience rule: no tool names, no internal
+vocabulary). A read that failed says so rather than disappearing.
+
 ## 4. v1 functional scope (maps to PLAN §2.2's priority order)
 
 1. **Timeline** — the `ReportData` timeline, filterable client-side by author kind

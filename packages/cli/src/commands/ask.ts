@@ -25,6 +25,10 @@
 //    for synthesized answers — ranked raw sources carry their own signals instead.
 // 5. Zero retrieved sources exits 2 (degraded-but-answered, CLI_REFERENCE conventions):
 //    the command answered honestly ("nothing indexed matches"), but nobody got an answer.
+// 6. Synthesis gets the repository toolbox (askTools.ts / ASK_TOOLS.md) by default, so
+//    the model can read a commit, change, log or line for itself instead of refusing when
+//    retrieval alone came up thin. A caller that passes its own `synthesis.tools` (even
+//    an empty array) wins — that is how `--sources-only` and tests stay tool-free.
 
 import {
   askQuestion,
@@ -37,8 +41,10 @@ import {
   type EnrichedSource,
   type SynthesisOptions,
   type SynthesisResult,
+  type SynthesisToolCall,
 } from "@git-for-ai/core";
 
+import { createAskTools } from "./askTools.js";
 import { openQueryDeps } from "./queryDeps.js";
 
 // ─── Public types ────────────────────────────────────────────────────────────
@@ -196,11 +202,52 @@ function kindCountsPhrase(sources: EnrichedSource[]): string {
   return parts.join(", ");
 }
 
+/**
+ * One consulted repository read, phrased the way a person would name it:
+ * `git for-ai show d487e6a`, `git diff HEAD`. Provenance is only useful if the reader
+ * can go and run the same thing.
+ */
+export function toolCallLabel(call: SynthesisToolCall): string {
+  const text = (field: string): string | undefined => {
+    const value = call.input[field];
+    return typeof value === "string" && value.length > 0 ? value : undefined;
+  };
+  const number = (field: string): string | undefined => {
+    const value = call.input[field];
+    return typeof value === "number" ? String(value) : undefined;
+  };
+  switch (call.name) {
+    case "commit_diff":
+      return `git show ${text("sha") ?? "(?)"}`;
+    case "show_change":
+      return `git for-ai show ${text("target") ?? "(?)"}`;
+    case "log_intent": {
+      const path = text("path");
+      const n = number("n");
+      return `git for-ai log --intent${n !== undefined ? ` -n ${n}` : ""}${path !== undefined ? ` ${path}` : ""}`;
+    }
+    case "blame_why":
+      return `git for-ai blame --why ${text("file") ?? "(?)"}:${number("line") ?? "?"}`;
+    default:
+      return call.name;
+  }
+}
+
 /** Deterministic retrieval-signal confidence (judgment call #4). */
 export function confidenceFor(
   sources: EnrichedSource[],
   citedSources: number[],
+  toolCalls: SynthesisToolCall[] = [],
 ): AskConfidence {
+  // A successful tool call is the strongest signal available: the answer was written
+  // against a live read of this repository, not a similarity match. Still a retrieval
+  // signal, never a model-reported one (hard rule 5).
+  if (toolCalls.some((call) => call.ok)) {
+    return {
+      level: "high",
+      reason: "read directly from the repository, not from similarity alone",
+    };
+  }
   const consulted =
     citedSources.length > 0
       ? citedSources
@@ -244,12 +291,29 @@ export function synthesisSkipLine(synthesis: SynthesisResult, sourcesOnly: boole
       return "No synthesized answer: the model declined to answer. Ranked sources:";
     case "empty-response":
       return "No synthesized answer: the API returned no text. Ranked sources:";
+    case "tool-iteration-cap":
+      return (
+        "No synthesized answer: the answer was still reading the repository when it hit " +
+        "the read limit, so nothing complete came back. Ranked sources:"
+      );
     default:
       return "No synthesized answer. Ranked sources:";
   }
 }
 
 // ─── Rendering ───────────────────────────────────────────────────────────────
+
+/** `Consulted:` block — the reads the answer made for itself, failures included. */
+function consultedLines(toolCalls: SynthesisToolCall[] | undefined): string[] {
+  if (toolCalls === undefined || toolCalls.length === 0) {
+    return [];
+  }
+  const lines = ["Consulted:"];
+  for (const call of toolCalls) {
+    lines.push(`  ${toolCallLabel(call)}${call.ok ? "" : ` — failed: ${call.error ?? "unknown"}`}`);
+  }
+  return lines;
+}
 
 function render(data: AskCliData, sourcesOnly: boolean): string {
   const lines: string[] = [];
@@ -270,11 +334,13 @@ function render(data: AskCliData, sourcesOnly: boolean): string {
     data.sources.forEach((source, index) => {
       lines.push(`  ${sourceRefLine(source, index + 1)}`);
     });
+    lines.push(...consultedLines(data.synthesis.toolCalls));
     if (data.confidence !== undefined) {
       lines.push(`Confidence: ${data.confidence.level} (${data.confidence.reason})`);
     }
   } else {
     lines.push(synthesisSkipLine(data.synthesis, sourcesOnly));
+    lines.push(...consultedLines(data.synthesis.toolCalls));
     data.sources.forEach((source, index) => {
       lines.push(`  ${sourceRefLine(source, index + 1)}`);
       lines.push(...sourceDetailLines(source, "      "));
@@ -333,9 +399,18 @@ export async function runAsk(question: string, options: AskCliOptions = {}): Pro
     // --sources-only never reaches the API (judgment call #3); the apiKey "" makes any
     // accidental call path fall back rather than bill anyone, and we overwrite the
     // reason below with the honest one.
+    //
+    // Otherwise synthesis gets the repository toolbox (judgment call #6). The embedder is
+    // threaded through so a nested blame_why reuses the model this process already
+    // loaded instead of loading a second one (RAM rule; askTools judgment call #5).
     const synthesisOptions: SynthesisOptions | undefined = options.sourcesOnly
       ? { apiKey: "" }
-      : options.synthesis;
+      : {
+          ...options.synthesis,
+          ...(options.synthesis?.tools === undefined
+            ? { tools: createAskTools({ cwd: deps.repoRoot, embedder: deps.embedder }) }
+            : {}),
+        };
 
     let result: AskResult;
     if (since === null && until === null) {
@@ -380,7 +455,13 @@ export async function runAsk(question: string, options: AskCliOptions = {}): Pro
       ...result,
       warnings: [...deps.warnings, ...result.warnings],
       ...(result.synthesis.synthesized
-        ? { confidence: confidenceFor(result.sources, result.synthesis.citedSources) }
+        ? {
+            confidence: confidenceFor(
+              result.sources,
+              result.synthesis.citedSources,
+              result.synthesis.toolCalls ?? [],
+            ),
+          }
         : {}),
     };
     return {

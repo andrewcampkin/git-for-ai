@@ -8,7 +8,13 @@
 
 import { useState, type FormEvent } from "react";
 
-import type { ReviewAskData, ReviewAskSource, ReviewAskSynthesis, ReviewMeta } from "../types";
+import type {
+  ReviewAskConsulted,
+  ReviewAskData,
+  ReviewAskSource,
+  ReviewAskSynthesis,
+  ReviewMeta,
+} from "../types";
 import { splitCitations } from "../lib/citations";
 import { fmtWhen } from "../lib/format";
 
@@ -42,9 +48,60 @@ function skipNote(synthesis: ReviewAskSynthesis): string {
       return "The model declined to answer — showing the sources found instead.";
     case "empty-response":
       return "No answer came back — showing the sources found instead.";
+    case "tool-iteration-cap":
+      return "The answer was still digging when it ran out of time — showing the sources found instead.";
     default:
       return "No answer available — showing the sources found instead.";
   }
+}
+
+/**
+ * What the answer went and looked at, in the reader's words. Never the tool name: the
+ * person reading this wants to know the answer was checked against their repository, not
+ * which function we called (the audience split — this page is for humans).
+ */
+function consultedLabel(entry: ReviewAskConsulted): string {
+  const text = (field: string): string | undefined => {
+    const value = entry.input[field];
+    return typeof value === "string" && value.length > 0 ? value : undefined;
+  };
+  switch (entry.name) {
+    case "commit_diff":
+      return `the changes in ${text("sha") ?? "a commit"}`;
+    case "show_change":
+      return `the record for ${text("target") ?? "a change"}`;
+    case "log_intent": {
+      const path = text("path");
+      return path !== undefined ? `recent history for ${path}` : "recent history";
+    }
+    case "blame_why": {
+      const file = text("file");
+      const line = entry.input["line"];
+      return file !== undefined
+        ? `${file}${typeof line === "number" ? `, line ${line}` : ""}`
+        : "a specific line";
+    }
+    default:
+      return "this repository";
+  }
+}
+
+/** "Also checked: the changes in ce23522" — the strongest grounding an answer can have. */
+function Consulted({ consulted }: { consulted: ReviewAskConsulted[] }) {
+  if (consulted.length === 0) {
+    return null;
+  }
+  return (
+    <p className="ask-consulted">
+      Also checked:{" "}
+      {consulted.map((entry, index) => (
+        <span key={index}>
+          {index > 0 && " · "}
+          {entry.ok ? consultedLabel(entry) : `couldn't read ${consultedLabel(entry)}`}
+        </span>
+      ))}
+    </p>
+  );
 }
 
 function SourceRef({ source }: { source: ReviewAskSource }) {
@@ -126,6 +183,7 @@ function Answer({ data }: { data: ReviewAskData }) {
       ) : (
         synthesis !== undefined && <p className="ask-note">{skipNote(synthesis)}</p>
       )}
+      {synthesis?.consulted !== undefined && <Consulted consulted={synthesis.consulted} />}
       {sources.length > 0 && (
         <details className="ask-sources-fold" open={synthesis?.synthesized !== true}>
           <summary>

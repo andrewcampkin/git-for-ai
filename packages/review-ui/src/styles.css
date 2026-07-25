@@ -101,6 +101,7 @@ h2 {
 .ask-chip:hover { color: var(--accent); border-color: var(--accent); }
 .ask-note { color: var(--muted); font-size: 0.84rem; margin: 0.7rem 0 0; }
 .ask-result { margin-top: 0.9rem; }
+.ask-consulted { color: var(--muted); font-size: 0.8rem; margin: -0.3rem 0 0.8rem; }
 .ask-answer { font-size: 0.98rem; line-height: 1.6; margin: 0 0 0.8rem; }
 .ask-answer .cite {
   font-size: 0.78rem; vertical-align: super; text-decoration: none; margin: 0 0.1rem;
