@@ -34,6 +34,10 @@ export type {
   ReviewAskSynthesis,
 } from "../../cli/dist/commands/review";
 
+// Doctor's structured result — rendered by the desktop actions panel (DESKTOP.md §5
+// step 4b) when a checkup finishes.
+export type { DoctorData, DoctorCheck, DoctorStatus } from "../../cli/dist/commands/doctor";
+
 // Branch + diff payloads (DESKTOP.md §5 steps 2–3): read-only like everything else, so
 // the browser renders them too — nothing here is desktop-only.
 export type {

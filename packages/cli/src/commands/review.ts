@@ -65,8 +65,19 @@ import {
 
 import { openQueryDeps, type QueryDeps } from "./queryDeps.js";
 import { runReport } from "./report.js";
+import { ReviewActions, type ReviewActionName } from "./reviewActions.js";
 import { listBranches, readCommitDiff } from "./reviewGit.js";
 import { runShow } from "./show.js";
+
+/** The action verbs advertised by `/api/meta` when actions are enabled. */
+const ACTION_NAMES_PUBLIC: readonly ReviewActionName[] = [
+  "doctor",
+  "reindex",
+  "sync",
+  "annotate",
+  "relink",
+  "reconcile",
+];
 
 // ---------------------------------------------------------------------------------------
 // Options and structured result types (imported as TYPES ONLY by review-ui — §3)
@@ -89,11 +100,19 @@ export interface ReviewOptions {
   synthesis?: SynthesisOptions;
   /**
    * Which host is serving (DESKTOP.md §4). `browser` (default) is `git for-ai review`:
-   * strictly read-only. `desktop` is the Electron shell, which may later enable the
+   * strictly read-only. `desktop` is the Electron shell, which may also enable the
    * token-gated action endpoints — the SPA renders host-specific panes off the
    * capability flags in /api/meta, never off user-agent sniffing.
    */
   mode?: "browser" | "desktop";
+  /**
+   * Enables the POST action endpoints (DESKTOP.md §5 step 4b), which are the only way
+   * this server can write to a repository. The host generates a fresh random token per
+   * launch and gives it to its OWN renderer out of band; every action request must carry
+   * it in `x-git-for-ai-token`. Absent (the `git for-ai review` case) the endpoints do
+   * not exist at all and the server stays strictly read-only.
+   */
+  actionToken?: string;
 }
 
 /**
@@ -107,8 +126,14 @@ export interface ReviewCapabilities {
   branches: boolean;
   /** `/api/diff/:sha` is served (diff pane). */
   diff: boolean;
-  /** Token-gated POST action endpoints are served. False until DESKTOP.md §5 step 4b. */
+  /**
+   * Token-gated POST action endpoints are served. True only when the host launched with
+   * an action token (the desktop shell); `git for-ai review` leaves this false and the
+   * endpoints genuinely do not exist.
+   */
   actions: boolean;
+  /** The actions this server accepts, so the panel renders buttons it can actually press. */
+  actionNames?: string[];
 }
 
 /** Index (`.git-for-ai/state.json`) status for `/api/meta`. Absence is labeled, never faked. */
@@ -352,6 +377,7 @@ async function assembleMeta(ctx: GitContext, options: ReviewOptions): Promise<Re
   }
 
   const mode = options.mode ?? "browser";
+  const actions = options.actionToken !== undefined && options.actionToken.length > 0;
   return {
     repoName,
     repoRoot,
@@ -364,8 +390,10 @@ async function assembleMeta(ctx: GitContext, options: ReviewOptions): Promise<Re
       // Both are plain read-only git reads: the browser gets them too (DESKTOP.md §5.2).
       branches: true,
       diff: true,
-      // Writes stay off everywhere until the token-gated endpoints land (step 4b).
-      actions: false,
+      // Writes exist only where a launch token does. The token itself is NEVER served
+      // here — anything on localhost can read /api/meta.
+      actions,
+      ...(actions ? { actionNames: [...ACTION_NAMES_PUBLIC] } : {}),
     },
   };
 }
@@ -539,7 +567,35 @@ async function handleApi(
   res: ServerResponse,
   ctx: GitContext,
   runtime: AskRuntime,
+  actions: ReviewActions | null,
+  req: IncomingMessage,
+  port: number,
 ): Promise<void> {
+  // Job status is a READ, but of write-path data, so it carries the same token gate: a
+  // job's result can contain repository detail the page's other readers don't expose.
+  if (pathname.startsWith("/api/actions/jobs")) {
+    if (actions === null) {
+      sendJson(res, 404, { error: "this server does not offer actions (read-only)" });
+      return;
+    }
+    if (!actions.authorize(req, port)) {
+      sendJson(res, 401, { error: "missing or invalid action token" });
+      return;
+    }
+    const id = pathname.slice("/api/actions/jobs".length).replace(/^\//, "");
+    if (id.length === 0) {
+      sendJson(res, 200, { jobs: actions.jobs() });
+      return;
+    }
+    const job = actions.job(decodeURIComponent(id));
+    if (job === null) {
+      sendJson(res, 404, { error: `no such job: ${id}` });
+      return;
+    }
+    sendJson(res, 200, job);
+    return;
+  }
+
   if (pathname === "/api/ask") {
     await handleAsk(query, res, ctx, runtime);
     return;
@@ -688,23 +744,82 @@ async function serveStatic(
   sendJson(res, 404, { error: `not found: ${pathname}` });
 }
 
+/**
+ * POST `/api/actions/<name>` — the only write path (DESKTOP.md §5 step 4b). Every guard
+ * lives here or in ReviewActions: no token, no actions; wrong token, 401; another action
+ * running, 409. See reviewActions.ts's header for why each rule exists.
+ */
+async function handleActionRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  actions: ReviewActions | null,
+  port: number,
+): Promise<void> {
+  if (actions === null) {
+    // Not "forbidden" — on a browser-mode server these endpoints genuinely do not exist.
+    sendJson(res, 404, { error: "this server does not offer actions (read-only)" });
+    return;
+  }
+  if (!actions.authorize(req, port)) {
+    sendJson(res, 401, { error: "missing or invalid action token" });
+    return;
+  }
+
+  const action = ReviewActions.parseActionPath(pathname);
+  if (action === null) {
+    sendJson(res, 404, { error: `unknown action: ${pathname}` });
+    return;
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await ReviewActions.readBody(req);
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+
+  try {
+    // 202: the job is accepted and running; the client polls for its outcome.
+    sendJson(res, 202, actions.start(action, body));
+  } catch (error) {
+    sendJson(res, 409, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: GitContext,
   distDir: string,
   runtime: AskRuntime,
+  actions: ReviewActions | null,
+  port: number,
 ): Promise<void> {
   try {
-    // Rule 2 (REVIEW_UI.md §2): read-only — every endpoint is a GET.
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      res.setHeader("allow", "GET, HEAD");
-      sendJson(res, 405, { error: "this server is read-only: GET only" });
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+
+    if (req.method === "POST" && url.pathname.startsWith("/api/actions/")) {
+      await handleActionRequest(req, res, url.pathname, actions, port);
       return;
     }
-    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+
+    // REVIEW_UI.md §2 rule 2, as amended by DESKTOP.md §4: every OTHER endpoint is a GET.
+    // Reads never write, and the write path is exactly the one branch above.
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.setHeader("allow", actions === null ? "GET, HEAD" : "GET, HEAD, POST");
+      sendJson(res, 405, {
+        error:
+          actions === null
+            ? "this server is read-only: GET only"
+            : "only /api/actions/<name> accepts POST",
+      });
+      return;
+    }
+
     if (url.pathname.startsWith("/api/")) {
-      await handleApi(url.pathname, url.searchParams, res, ctx, runtime);
+      await handleApi(url.pathname, url.searchParams, res, ctx, runtime, actions, req, port);
     } else {
       await serveStatic(url.pathname, res, distDir);
     }
@@ -740,8 +855,16 @@ export async function startReviewServer(options: ReviewOptions = {}): Promise<Re
   const distDir = resolveUiDist();
 
   const runtime: AskRuntime = { options };
+  // Actions exist only where the host supplied a launch token (DESKTOP.md §5 step 4b);
+  // otherwise this stays the strictly read-only server it has always been.
+  const actions =
+    options.actionToken !== undefined && options.actionToken.length > 0
+      ? new ReviewActions(options.actionToken, ctx)
+      : null;
+  // The bound port is only known after listen(); the handler reads it then (Origin check).
+  let boundPort = 0;
   const server = createServer((req, res) => {
-    void handleRequest(req, res, ctx, distDir, runtime);
+    void handleRequest(req, res, ctx, distDir, runtime, actions, boundPort);
   });
 
   await new Promise<void>((resolvePromise, reject) => {
@@ -754,6 +877,7 @@ export async function startReviewServer(options: ReviewOptions = {}): Promise<Re
   });
 
   const address = server.address() as AddressInfo;
+  boundPort = address.port;
   const url = `http://127.0.0.1:${address.port}/`;
   return {
     port: address.port,

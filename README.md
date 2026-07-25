@@ -50,8 +50,9 @@ here and you'll see its own real history, including the sessions that built each
 There is also a desktop app: `packages/desktop` wraps the same local review server + SPA in
 an Electron shell with a repo picker and one-click init
 (`pnpm --filter @git-for-ai/desktop start` — see [`architecture/DESKTOP.md`](architecture/DESKTOP.md)).
-Its next piece is the actions panel; the branch and diff surfaces it needed are built and
-ship in the browser too.
+It also has a maintenance panel (checkup, update search, fetch/send) — the app's only write
+path, gated behind a per-launch token so nothing else on the machine can drive it. The
+branch and diff surfaces it needed ship in the browser too.
 
 **The CLI is feature-complete against its reference.** What comes next — hardening, external
 dogfooding, the rest of the desktop app, the shared-index server, and the v2 ideas (semantic

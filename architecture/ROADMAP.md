@@ -106,8 +106,9 @@ What plausibly WOULD fix it, in leverage order:
   squash-merge fold gap found by testing) and the git-client elements it needs (branches,
   diffs, repo picker, action panel), lives in [`DESKTOP.md`](./DESKTOP.md). Progress:
   squash-merge fold (step 1), the Electron shell (step 4a), the read-only branch/diff API
-  (step 2) and the branch + diff UI (step 3) are done; the token-gated actions panel
-  (step 4b) and installers (step 5) remain.
+  (step 2), the branch + diff UI (step 3) and the token-gated action endpoints + panel
+  (step 4b) are done. Remaining: the annotate form and attention-item guided repair (the
+  two verbs served without UI), then step 5 packaging/installers.
 - **Shared-index server** ⭐ — the ONLY server this project will ever need (ref sync is
   server-free; validated against real GitHub 2026-07-18). Job: run the embedding pipeline
   once for a team and expose `/ask`, `/blame` — Fastify + Postgres/pgvector (plays to the

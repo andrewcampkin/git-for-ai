@@ -32,6 +32,7 @@
 //   4. State lives in userData/desktop-state.json via the pure appState module; a corrupt
 //      file resets to defaults rather than bricking launch (see appState.ts).
 
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -174,11 +175,18 @@ async function openRepo(dir: string): Promise<OpenRepoResult> {
 
   await stopServer();
   let handle: ReviewServerHandle;
+  // A fresh token per server launch (DESKTOP.md §5 step 4b). It is what makes the write
+  // endpoints reachable from THIS window and from nothing else on the machine: no
+  // endpoint ever serves it, and it dies with the server it was minted for.
+  const actionToken = randomUUID();
   try {
     // `mode: "desktop"` only sets the capability flags /api/meta advertises (DESKTOP.md
-    // §4): same server, same read-only endpoints — the SPA uses it to decide which panes
-    // belong in this host, never to unlock anything.
-    handle = await startReviewServer({ cwd: validation.repoRoot, mode: "desktop" });
+    // §4): same server — the SPA uses it to decide which panes belong in this host.
+    handle = await startReviewServer({
+      cwd: validation.repoRoot,
+      mode: "desktop",
+      actionToken,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log(`review server failed to start: ${message}`);
@@ -191,7 +199,10 @@ async function openRepo(dir: string): Promise<OpenRepoResult> {
   saveAppState(stateFile, state);
 
   if (win !== null) {
-    await win.loadURL(handle.url);
+    // The token travels in the URL FRAGMENT, which browsers never send to a server and
+    // which no other local process can read out of this window. The SPA takes it into
+    // memory and clears it from the address on first read.
+    await win.loadURL(`${handle.url}#token=${actionToken}`);
     win.setTitle(`git-for-ai — ${basename(validation.repoRoot)}`);
     log(`SPA loaded (title: git-for-ai — ${basename(validation.repoRoot)})`);
   }

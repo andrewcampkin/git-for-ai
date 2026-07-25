@@ -32,6 +32,14 @@ post-M12 ask panel.
 2. **Read-only**: every endpoint is a GET; the server never writes to the repo, and all git
    reads follow the established non-minting pattern (log.ts/show.ts) — viewing the UI must
    leave every ref byte-identical (same guarantee `report` proved).
+   **Amended 2026-07-25 (DESKTOP.md §5 step 4b), narrowly:** a server launched WITH an
+   action token — only the desktop shell does this — also serves `POST
+   /api/actions/<verb>`. `git for-ai review` passes no token, so in browser mode those
+   routes do not exist (404) and rule 2 holds unchanged; every other non-GET is still 405
+   in both modes. The token is minted per launch, delivered to the desktop's own renderer
+   out of band, never served by any endpoint, and required in a header. Reads remain reads:
+   the actions are the only write path, and each wraps the identical pure `run*` function
+   its CLI command uses.
 3. **Fully self-contained**: the SPA makes zero external requests (no CDNs, fonts, telemetry);
    enforced the same way report.test.ts asserts no external `src`/`href`.
 4. No auth (localhost-only, single user). The future hosted version adds auth *around* this

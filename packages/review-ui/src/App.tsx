@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 
 import type { ReportData, ReviewMeta } from "./types";
 import { useFetch } from "./lib/useFetch";
+import { hasActionToken } from "./lib/actions";
+import { ActionsPanel } from "./components/ActionsPanel";
 import { AskPanel } from "./components/AskPanel";
 import { AttentionQueue } from "./components/AttentionQueue";
 import { BranchBar } from "./components/BranchBar";
@@ -149,6 +151,10 @@ export function App() {
   // The branch bar only renders where the server says it can be served (and where it
   // means something — the overview is the only rev-scoped route).
   const showBranches = meta.state === "ok" && meta.data.capabilities.branches;
+  // Maintenance needs BOTH halves: a server that offers actions, and a window holding the
+  // launch token that can call them. Either alone renders nothing.
+  const showActions =
+    meta.state === "ok" && meta.data.capabilities.actions && hasActionToken();
 
   return (
     <div className="wrap">
@@ -185,6 +191,7 @@ export function App() {
             <div className="error-box">Could not load the overview: {overview.error}</div>
           )}
           {overview.state === "ok" && <Overview data={overview.data} />}
+          {showActions && <ActionsPanel />}
         </>
       )}
       {route.view === "change" && (
