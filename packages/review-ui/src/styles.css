@@ -428,3 +428,57 @@ footer {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
   color: var(--muted); font-size: 0.8rem;
 }
+
+/* Recording reasoning by hand (the annotate form) — the app's one authoring surface, so
+   it reads as a considered act rather than a settings pane: framed, roomy fields, and
+   the append-only consequence stated before the save button. */
+.annotate-launch { margin-top: 1.2rem; }
+.annotate-launch button {
+  background: var(--surface); color: var(--muted); border: 1px solid var(--line);
+  border-radius: 0.6rem; padding: 0.45rem 1rem; cursor: pointer; font: inherit;
+  font-size: 0.85rem;
+}
+.annotate-launch button:hover { border-color: var(--accent); color: var(--accent); }
+.annotate {
+  margin-top: 1.4rem; padding: 1.1rem 1.2rem; border: 1px solid var(--line);
+  border-radius: 0.7rem; background: var(--surface);
+}
+.annotate h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.annotate-intro { margin: 0 0 1rem; color: var(--muted); font-size: 0.82rem; }
+.annotate-field { display: block; margin-bottom: 0.9rem; }
+.annotate-label { display: block; font-size: 0.82rem; font-weight: 650; margin-bottom: 0.15rem; }
+.annotate-hint { display: block; color: var(--muted); font-size: 0.78rem; margin-bottom: 0.35rem; }
+.annotate input[type="text"], .annotate textarea, .annotate select {
+  width: 100%; font: inherit; font-size: 0.9rem; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem; box-sizing: border-box;
+}
+.annotate textarea { resize: vertical; font-family: inherit; }
+.annotate input:focus, .annotate textarea:focus, .annotate select:focus {
+  outline: 2px solid var(--accent); outline-offset: -1px;
+}
+.annotate-rejected-row { display: flex; gap: 0.4rem; margin-bottom: 0.35rem; }
+.annotate-rejected-row input { flex: 1; }
+.annotate-drop {
+  background: none; border: 1px solid var(--line); border-radius: 0.5rem; color: var(--muted);
+  cursor: pointer; padding: 0 0.6rem; font-size: 1rem; line-height: 1;
+}
+.annotate-drop:hover { border-color: var(--accent); color: var(--accent); }
+.annotate-add {
+  background: none; border: none; color: var(--muted); cursor: pointer; font: inherit;
+  font-size: 0.8rem; padding: 0.2rem 0;
+}
+.annotate-add:hover { color: var(--accent); }
+.annotate-flags { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.annotate-flags .annotate-field { flex: 1; min-width: 8rem; }
+.annotate-buttons { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+.annotate-buttons button {
+  background: var(--accent); color: var(--bg); border: 1px solid var(--accent);
+  border-radius: 0.6rem; padding: 0.45rem 1.2rem; cursor: pointer; font: inherit;
+  font-weight: 650;
+}
+.annotate-buttons button:disabled { opacity: 0.6; cursor: wait; }
+.annotate-buttons .annotate-cancel {
+  background: none; color: var(--muted); border-color: var(--line); font-weight: 400;
+}
+.annotate-buttons .annotate-cancel:hover { border-color: var(--accent); color: var(--accent); }

@@ -125,6 +125,86 @@ describe("action endpoints (token-gated writes)", () => {
     expect(((await listed.json()) as { jobs: ReviewActionJob[] }).jobs.length).toBeGreaterThan(0);
   });
 
+  it("writes a full annotate entry — the form's fields land in the ledger verbatim", async () => {
+    // The desktop annotate form (review-ui) posts exactly this body shape. What matters
+    // is that every field it collects survives the endpoint -> runAnnotate -> ledger
+    // path: a form that silently dropped `tested` or `rejected` would be worse than one
+    // that never offered them.
+    const started = await post(
+      "/api/actions/annotate",
+      {
+        target: "HEAD",
+        summary: "Move session state to signed cookies",
+        intent: "run more than one replica without sticky sessions",
+        constraints: ["no new infrastructure"],
+        rejected: ["Redis session store::avoid an infra dependency"],
+        tested: ["pnpm turbo test", "manual login round-trip"],
+        confidence: 0.82,
+        scopeRisk: "medium",
+        reversibility: "easy",
+      },
+      { "x-git-for-ai-token": TOKEN },
+    );
+    expect(started.status).toBe(202);
+    const job = await settle(base, ((await started.json()) as ReviewActionJob).id);
+    expect(job.status).toBe("done");
+
+    const result = job.result as {
+      changeId: string;
+      entry: {
+        summary: string;
+        provenance: string;
+        author: { type: string };
+        reasoning: {
+          intent?: string;
+          constraints?: string[];
+          rejected?: Array<{ option: string; why: string }>;
+          tested?: string[];
+          confidence?: number;
+          scope_risk?: string;
+          reversibility?: string;
+        };
+      };
+    };
+    expect(result.entry.summary).toBe("Move session state to signed cookies");
+    expect(result.entry.reasoning.intent).toBe(
+      "run more than one replica without sticky sessions",
+    );
+    expect(result.entry.reasoning.constraints).toEqual(["no new infrastructure"]);
+    expect(result.entry.reasoning.rejected).toEqual([
+      { option: "Redis session store", why: "avoid an infra dependency" },
+    ]);
+    expect(result.entry.reasoning.tested).toEqual(["pnpm turbo test", "manual login round-trip"]);
+    expect(result.entry.reasoning.confidence).toBe(0.82);
+    expect(result.entry.reasoning.scope_risk).toBe("medium");
+    expect(result.entry.reasoning.reversibility).toBe("easy");
+    // A person typed this, so it is recorded as a person's: no agent author, no
+    // agent-captured provenance. The GUI cannot claim an agent wrote it.
+    expect(result.entry.author.type).toBe("human");
+    expect(result.entry.provenance).toBe("human-authored");
+
+    // And it is readable straight back through the read API the page re-fetches.
+    const change = await fetch(new URL(`/api/change/c/${result.changeId}`, base));
+    const shown = (await change.json()) as {
+      ledger: Array<{ effective: boolean; entry: { summary: string } }>;
+    };
+    expect(shown.ledger.find((row) => row.effective)?.entry.summary).toBe(
+      "Move session state to signed cookies",
+    );
+  });
+
+  it("refuses an annotate with nothing to record", async () => {
+    const started = await post("/api/actions/annotate", { target: "HEAD" }, {
+      "x-git-for-ai-token": TOKEN,
+    });
+    // Argument validation lives in the job (it is the same check the CLI makes), so the
+    // request is accepted and the JOB fails with the actionable message. Nothing is
+    // written — a summary is what a ledger entry IS.
+    const job = await settle(base, ((await started.json()) as ReviewActionJob).id);
+    expect(job.status).toBe("failed");
+    expect(job.error).toMatch(/needs a summary/i);
+  });
+
   it("advertises actions in /api/meta — but never the token itself", async () => {
     const response = await fetch(new URL("/api/meta", base));
     const meta = (await response.json()) as ReviewMeta;

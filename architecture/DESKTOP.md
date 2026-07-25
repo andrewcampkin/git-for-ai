@@ -105,8 +105,10 @@ New, in priority order:
 
 **Order amended 2026-07-19 at the owner's explicit direction: the Electron shell shipped
 first** (step 4's shell half), so the app exists now; steps 2–3 landed next (2026-07-25),
-inside it. What remains: step 4's **token-gated action endpoints + actions panel**, then
-step 5 packaging.
+inside it, followed by step 4's action endpoints, panel, and annotate form. What remains:
+**guided repair on attention items** (the relink/reconcile verbs, served but still without
+UI), then step 5 packaging — which needs the product-name decision (§6 Q3) first, since the
+installer name and app id bake it in.
 
 1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
    (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
@@ -169,9 +171,24 @@ step 5 packaging.
    - **Pushing needs explicit confirmation in the body**; the panel asks first, in the
      same terms the CLI prompt uses.
    Panel v1 has buttons for the three verbs a person actually reaches for — checkup,
-   update search, fetch/send. **Annotate, relink and reconcile are served but have no UI
-   yet**: annotate wants a real form and the repair verbs belong on attention items
-   (§3 item 4's "guided repair"), which is the next increment, not this one.
+   update search, fetch/send.
+   ✅ **Annotate form DONE 2026-07-25.** It lives on the **change route**, not in the
+   maintenance panel, because that is where the gap is visible: you read a change, see
+   "no reasoning recorded for this change yet", and say what happened in place. Gated on
+   the same two halves as the panel (capability flag AND launch token), so browser mode
+   never shows it. It opens seeded from the current entry — correcting a record is editing
+   a draft, not retyping one — and states that saving appends a corrected version while
+   the current one stays readable, since the ledger is append-only and a form that implied
+   otherwise would teach the wrong model. No author fields: a form submission is a human's,
+   and letting a GUI claim an agent wrote something would be a provenance lie with a nice
+   widget. Field rules live in `review-ui/src/lib/annotate.ts` (unit-tested there, the way
+   this package tests logic rather than rendering) and refuse a half-record — a rejected
+   alternative missing its reason, a confidence that is not 0–1 — with a sentence naming
+   the fix. The endpoint gained `tested` passthrough in the same change: it is the field
+   the change page most prominently shows as "nothing recorded", so it is the one people
+   open the form to fill.
+   **Still without UI: relink and reconcile** — those belong on attention items (§3 item
+   4's "guided repair"), which is the next increment.
 5. **Packaging**: electron-builder, Windows installer, then the owner uses it in anger.
    (Config checked in at `packages/desktop/electron-builder.yml` with placeholder appId;
    no installer built yet.)

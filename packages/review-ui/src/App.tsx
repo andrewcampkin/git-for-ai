@@ -198,6 +198,7 @@ export function App() {
         <ChangeDetail
           target={route.target}
           showDiff={meta.state === "ok" && meta.data.capabilities.diff}
+          canAnnotate={showActions}
           key={route.target}
         />
       )}

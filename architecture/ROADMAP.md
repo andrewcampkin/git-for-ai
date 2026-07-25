@@ -81,6 +81,30 @@ What plausibly WOULD fix it, in leverage order:
   effect), and answer verbosity on the new default model (sonnet writes long; the system
   prompt already asks for concision).
 
+- **OPEN QUESTION (owner, 2026-07-25): should `ask` become a semi-persistent
+  question-and-answer surface?** Today every `ask` is a one-shot: a question, a set of
+  sources, an answer, gone. The obvious next shape is continuity — follow-up questions that
+  keep the previous turns, a thread in the review panel rather than a single answer box, and
+  a conversation the MCP tool can resume. Now that synthesis is an agentic loop
+  ([`ASK_TOOLS.md`](./ASK_TOOLS.md)) the model already builds up context within one answer,
+  so extending that across answers is a smaller step than it was. Not decided; the design
+  questions to settle first are:
+  - **Where does the thread live?** Storage is git-native by rule, but a Q&A transcript is
+    *derived*, not source of truth — it belongs beside the index in `.git-for-ai/` (local,
+    gitignored, never synced) rather than in a ref, unless we decide an answer is itself
+    worth keeping as a record. Which raises:
+  - **Is an answer ever an artifact?** A conversation that produced a good explanation looks
+    a lot like intent worth recording — but the ledger is for why a CHANGE was made, and
+    filling it with Q&A would blur the one thing that makes it valuable. If answers become
+    keepable, "promote this answer to an annotation" is the honest bridge, not automatic
+    capture.
+  - **Cost and staleness.** Each turn resends the thread, and answers cite sources from an
+    index that may have moved underneath them; a persisted thread has to show its age
+    rather than imply the answers are still current.
+  - **Which surfaces?** The CLI is process-per-invocation (a thread needs an id or a
+    `--continue` flag), the review panel is the natural home, and MCP would need a session
+    concept it does not have.
+
 - **Publish the npm package**. Currently npm-linked only. GATE (owner, 2026-07-19): do
   nothing until a second machine or a first outside user exists — link is adequate for one
   dev box. Also owner-decided: **"git-for-ai" is the internal name only; the public

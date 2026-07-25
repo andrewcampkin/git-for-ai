@@ -96,6 +96,17 @@ vocabulary). A read that failed says so rather than disappearing.
    the evidence a ledger entry cannot fake — gated on `/api/meta`'s `diff` capability.
    Syntax highlighting is deliberately still absent (every bundled highlighter is real
    weight; add/delete coloring in mono reads fine), recorded as deferred, not dropped.
+   **Recording reasoning by hand — landed 2026-07-25** (DESKTOP.md §5 step 4). The change
+   route is also where a person *writes*: an annotate form, gated on the same two halves as
+   the maintenance panel (a server offering actions AND a window holding the launch token),
+   so it never appears in `git for-ai review`. It opens seeded from the current entry, so
+   correcting a record means editing a draft rather than retyping it, and it says plainly
+   that saving *adds* a corrected version while the current one stays readable — because a
+   form that looks like it edits, but appends, teaches the wrong model of the data. There
+   are no author fields: a form submission is recorded as a human's, which is what actually
+   happened. Field rules (a rejected alternative needs both halves; confidence is a 0–1
+   number) refuse the save with a sentence naming the fix, rather than letting a half-record
+   reach the ledger; they live in `lib/annotate.ts` and are unit-tested there.
 3. **Session trace viewer** — spans as a readable narrative list (tool, one-line rendering of
    the key attribute — command/file — timestamp), collapsible raw attributes per span.
 4. **Attention queue** — v1 minimal, computed from data already available: changes with

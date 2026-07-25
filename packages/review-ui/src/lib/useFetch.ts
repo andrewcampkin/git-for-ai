@@ -9,7 +9,13 @@ export type Fetched<T> =
   | { state: "error"; error: string }
   | { state: "ok"; data: T };
 
-export function useFetch<T>(url: string): Fetched<T> {
+/**
+ * `reloadKey` re-runs the request when it changes — the one case being a write that just
+ * landed (the annotate form), where the page must re-read rather than show what it fetched
+ * before the change existed. Bumping a counter is deliberate over a cache-busting query
+ * parameter: the URL stays the honest address of the resource.
+ */
+export function useFetch<T>(url: string, reloadKey = 0): Fetched<T> {
   const [result, setResult] = useState<Fetched<T>>({ state: "loading" });
 
   useEffect(() => {
@@ -46,7 +52,7 @@ export function useFetch<T>(url: string): Fetched<T> {
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, reloadKey]);
 
   return result;
 }

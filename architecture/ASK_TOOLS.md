@@ -167,6 +167,16 @@ not the guessing the owner rejected: it is rendering *the record we already retr
 completely, instead of truncating it to its summary line. It lifts every ledger-sourced
 answer, not just commit-shaped ones, and it works on a stale index.
 
+## 6.1 Open question, recorded 2026-07-25: does `ask` become a conversation?
+
+The owner raised this while the loop was being built: should `ask` turn into a
+semi-persistent question-and-answer feature rather than a one-shot? Nothing is decided and
+nothing here assumes it. Noted so the option is not lost, with the design questions it
+raises — thread storage (derived, so `.git-for-ai/`, not a ref), whether an answer is ever
+worth promoting into an annotation, staleness of cited sources across a long thread, and
+what a thread means on three surfaces with three lifetimes (CLI process, browser panel, MCP
+session). Full framing: ROADMAP.md Tier 1.
+
 ## 7. Hygiene, tracked separately
 
 The index is 3 commits stale and `ask` warns about it correctly. Auto-reindexing inside

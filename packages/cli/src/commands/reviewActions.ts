@@ -209,6 +209,11 @@ async function invoke(
         ...(asStringArray(body["rejected"]) !== undefined
           ? { rejected: asStringArray(body["rejected"])! }
           : {}),
+        // `tested` is the field the change page shows as "nothing recorded" in its
+        // prove-it block, so it is the one a person most often opens the form to fill.
+        ...(asStringArray(body["tested"]) !== undefined
+          ? { tested: asStringArray(body["tested"])! }
+          : {}),
         ...(asNumber(body["confidence"]) !== undefined
           ? { confidence: asNumber(body["confidence"])! }
           : {}),

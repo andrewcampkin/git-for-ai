@@ -7,11 +7,12 @@
 // renders labeled ("not captured"), never guessed. PLAN_2026-07-18 §2.2: "the prove-it
 // pixel: claim next to evidence".
 
-import type { ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 import type { LedgerEntry, ShowData, ShowLedgerRow } from "../types";
 import { fmtWhen, isNoteworthyProvenance, sessionLineFromShow } from "../lib/format";
 import { useFetch } from "../lib/useFetch";
+import { AnnotateForm } from "./AnnotateForm";
 import { DiffPane } from "./DiffPane";
 import { BadgePill, FlagPills, ProvenancePill } from "./Pills";
 
@@ -221,12 +222,21 @@ function RecordDetails({ data, effective }: { data: ShowData; effective: LedgerE
 export function ChangeDetail({
   target,
   showDiff = false,
+  canAnnotate = false,
 }: {
   target: string;
   /** `/api/meta`'s diff capability — the pane must not render where it would 404. */
   showDiff?: boolean;
+  /**
+   * Whether this window may write. Needs BOTH a server offering actions and the launch
+   * token — in the browser neither holds, so the form never appears there.
+   */
+  canAnnotate?: boolean;
 }) {
-  const result = useFetch<ShowData>(`/api/change/${target}`);
+  // Bumped after a save so the page re-reads the change it just wrote to.
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+  const result = useFetch<ShowData>(`/api/change/${target}`, reloadKey);
 
   if (result.state === "loading") {
     return <p className="loading">Loading change {target}…</p>;
@@ -283,6 +293,17 @@ export function ChangeDetail({
 
         <RecordDetails data={data} effective={effective} />
         <SupersededEntries rows={superseded} />
+
+        {/* Writing is offered where the gap is visible: you read a change, find the
+            reasoning thin or missing, and say what actually happened. Anchored to the
+            change when one exists, so a later rewrite of the commit keeps the record. */}
+        {canAnnotate && (
+          <AnnotateForm
+            target={data.changeId !== null ? `c/${data.changeId}` : (data.commit?.sha ?? target)}
+            existing={effective}
+            onSaved={reload}
+          />
+        )}
       </section>
 
       {/* The evidence the ledger cannot fake: the code this change actually made. */}
