@@ -251,6 +251,17 @@ genuinely slow (e.g. `reindex --full` on a huge repo walking every commit), the 
 that one call (`git log --format=... -z` in one shell-out rather than N), not to introduce a
 second git implementation.
 
+**That prediction came true, and the fix was exactly the predicted one (2026-07-25).** The
+"few dozen shell-outs per command" estimate held for single-commit commands and broke badly
+for whole-history ones: `report`/`/api/overview` resolved identity per commit, and each
+lookup re-read the entire change-map with one `cat-file` per change. On this repo — 41
+commits, ~40 changes — that was thousands of spawns and **123 seconds**. No git operation
+was slow; the process count was. The batched readers (`catFileBatch` over `git cat-file
+--batch`, plus `readChangeMapSnapshot` / `readLedgerNotesForCommits` / `readSessionRecords`
+built on it) brought the same work to ~1.2s with byte-identical results. The rule to carry
+forward: **a read that touches N commits must cost O(1) git processes, not O(N)** — still no
+second git implementation, just fewer conversations with the one we have.
+
 ---
 
 ## 5. Core concepts and vocabulary

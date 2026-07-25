@@ -215,7 +215,7 @@ describe("readCommitDiff (real commits: root, modify, rename, delete, binary, me
     expect(diff.against).toBe(diff.parents[0]);
     // The honest part: a merge's diff is NOT empty, and the framing is stated.
     expect(diff.files.map((f) => f.path)).toContain("topic.txt");
-    expect(diff.warnings.join(" ")).toMatch(/first parent/);
+    expect(diff.warnings.join(" ")).toMatch(/^Merge commit — showing what it brought in/);
   });
 
   it("honors the context-lines knob", async () => {
@@ -255,6 +255,6 @@ describe("readCommitDiff (real commits: root, modify, rename, delete, binary, me
     expect(file.truncated).toBe(true);
     expect(file.hunks.reduce((n, h) => n + h.lines.length, 0)).toBeLessThan(3000);
     expect(diff.truncated).toBe(true);
-    expect(diff.warnings.join(" ")).toMatch(/truncated/);
+    expect(diff.warnings.join(" ")).toMatch(/some file diffs are shortened/);
   });
 });

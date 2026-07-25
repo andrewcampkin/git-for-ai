@@ -15,7 +15,7 @@ import {
 import {
   runGit,
   lsTree,
-  catFile,
+  catFileBatch,
   hashObject,
   mktree,
   commitTree,
@@ -79,22 +79,96 @@ export async function readChangeMapEntry(
   return changeMapEntrySchema.parse(JSON.parse(result.stdout));
 }
 
-/** Read every entry in the change-map. Empty array if the ref doesn't exist yet. */
+/**
+ * Read every entry in the change-map. Empty array if the ref doesn't exist yet.
+ *
+ * All shards are fetched in ONE `cat-file --batch` (see catFileBatch's header): a repo with
+ * N changes used to cost N git spawns here, and this function is called on every identity
+ * lookup, which is how a whole-history read turned quadratic.
+ */
 export async function readAllChangeMapEntries(ctx: GitContext = {}): Promise<ChangeMapEntry[]> {
   const mapCommit = await readChangeMapCommit(ctx);
   if (mapCommit === null) {
     return [];
   }
   const treeEntries = await lsTree(mapCommit, { ...ctx, recursive: true });
+  const shardShas = treeEntries
+    .filter((treeEntry) => treeEntry.type === "blob" && treeEntry.path.endsWith(".json"))
+    .map((treeEntry) => treeEntry.sha);
+  const bodies = await catFileBatch(shardShas, ctx);
+
   const entries: ChangeMapEntry[] = [];
-  for (const treeEntry of treeEntries) {
-    if (treeEntry.type !== "blob" || !treeEntry.path.endsWith(".json")) {
-      continue;
+  for (const sha of shardShas) {
+    const body = bodies.get(sha);
+    if (body === null || body === undefined) {
+      // A shard listed in the tree that git cannot produce is real corruption; the old
+      // per-object read threw here, and so does this one.
+      throw new Error(`change-map shard ${sha} is listed in the tree but unreadable`);
     }
-    const body = await catFile(treeEntry.sha, ctx);
     entries.push(changeMapEntrySchema.parse(JSON.parse(body)));
   }
   return entries;
+}
+
+/**
+ * A consistent, in-memory view of the whole change-map, read once.
+ *
+ * Read commands (`log`, `report`, the review server) resolve identity for every commit they
+ * touch. Doing that through {@link findEntryByCommitSha} re-reads the entire map per commit;
+ * a snapshot answers the same questions from memory, turning a quadratic pile of git spawns
+ * into two. It is a READ-ONLY view and, deliberately, a point-in-time one: a caller that
+ * writes (healing, folding) must take a fresh snapshot afterwards.
+ */
+export interface ChangeMapSnapshot {
+  /** Every entry, in tree order. */
+  readonly entries: readonly ChangeMapEntry[];
+  /** The entry whose `head` or `history` contains this commit sha — the R1 question. */
+  entryForCommit(sha: string): ChangeMapEntry | null;
+  /** The entry for a change-id, or null when the map has never seen it. */
+  entryForChangeId(changeId: ChangeId): ChangeMapEntry | null;
+  /** Follow `folded_into` redirects to the surviving entry (cycle- and dangling-safe). */
+  surviving(entry: ChangeMapEntry): ChangeMapEntry;
+}
+
+/** Read the whole change-map into a queryable snapshot (two git invocations, total). */
+export async function readChangeMapSnapshot(ctx: GitContext = {}): Promise<ChangeMapSnapshot> {
+  const entries = await readAllChangeMapEntries(ctx);
+
+  const byChangeId = new Map<string, ChangeMapEntry>();
+  const byCommit = new Map<string, ChangeMapEntry>();
+  for (const entry of entries) {
+    byChangeId.set(entry.change_id, entry);
+    // First writer wins, matching findEntryByCommitSha's "first match in tree order".
+    for (const sha of [entry.head, ...entry.history]) {
+      if (!byCommit.has(sha)) {
+        byCommit.set(sha, entry);
+      }
+    }
+  }
+
+  const surviving = (entry: ChangeMapEntry): ChangeMapEntry => {
+    let current = entry;
+    const seen = new Set<string>([entry.change_id]);
+    while (current.folded_into !== undefined) {
+      if (seen.has(current.folded_into)) {
+        break;
+      }
+      const next = byChangeId.get(current.folded_into);
+      if (next === undefined) {
+        break;
+      }
+      seen.add(next.change_id);
+      current = next;
+    }
+    return current;
+  };
+
+  return {
+    entries,
+    entryForCommit: (sha) => byCommit.get(sha) ?? null,
+    entryForChangeId: (changeId) => byChangeId.get(changeId) ?? null,
+    surviving,
+  };
 }
 
 /**

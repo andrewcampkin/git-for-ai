@@ -215,7 +215,7 @@ describe("runReport (real git fixture: agent change, human change, plain + corru
       summary: "Initial scaffolding",
       hasIntent: false,
       summarySource: "git-subject",
-      badge: { kind: "none", label: "no captured intent" },
+      badge: { kind: "none", label: "no reasoning recorded" },
     });
     expect(plain!.provenance).toBeUndefined();
 
@@ -224,7 +224,7 @@ describe("runReport (real git fixture: agent change, human change, plain + corru
       summary: "commit with a corrupt note",
       hasIntent: false,
       summarySource: "git-subject-note-unreadable",
-      badge: { kind: "none", label: "ledger note unreadable" },
+      badge: { kind: "none", label: "note unreadable" },
     });
     expect(data.warnings).toHaveLength(1);
     expect(data.warnings[0]).toContain(shaCorrupt);
@@ -298,8 +298,8 @@ describe("runReport (real git fixture: agent change, human change, plain + corru
     expect(output).toContain("conf 0.82");
     expect(output).toContain("risk medium");
     expect(output).toContain("undo easy");
-    expect(output).toContain("no captured intent — showing the commit&#39;s own git subject");
-    expect(output).toContain("ledger note unreadable — showing the commit&#39;s own git subject");
+    expect(output).toContain("no reasoning recorded — showing the commit message");
+    expect(output).toContain("note unreadable — showing the commit message");
 
     // Timeline links to the per-change detail section.
     expect(output).toContain(`href="#change-${cidAgent}"`);
@@ -327,7 +327,7 @@ describe("runReport (real git fixture: agent change, human change, plain + corru
     expect(output.startsWith("# Agent activity report —")).toBe(true);
     expect(output).toContain("- Commits: 4");
     expect(output).toContain("Switch session store to signed-cookie tokens");
-    expect(output).toContain("no captured intent — showing the commit's own git subject");
+    expect(output).toContain("no reasoning recorded — showing the commit message");
     expect(output).toContain("Rejected alternatives:");
     expect(output).toContain("Redis session store — adds an infra dependency");
     expect(output).toContain("`pnpm test auth`");

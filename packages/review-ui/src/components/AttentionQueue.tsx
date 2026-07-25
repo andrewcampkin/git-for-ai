@@ -28,7 +28,7 @@ export function AttentionQueue({ data }: { data: ReportData }) {
       <h2 id="attention">Needs your attention</h2>
       {groups.length === 0 && (
         <p className="attention-empty">
-          Nothing flagged in this range — every commit has captured intent, no unreadable
+          Nothing flagged in this range — every commit has recorded reasoning, no unreadable
           notes, no low-confidence or inferred entries.
         </p>
       )}

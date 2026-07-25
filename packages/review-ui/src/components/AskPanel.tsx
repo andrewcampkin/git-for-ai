@@ -25,25 +25,25 @@ const SUGGESTIONS = [
   "What was tested, and how?",
 ];
 
-/** Why there is no prose, in one honest line (mirrors the CLI's wording). */
+/** Why there is no written answer, in one honest line. */
 function skipNote(synthesis: ReviewAskSynthesis): string {
   switch (synthesis.skippedReason) {
     case "no-api-key":
       return (
-        "No API key configured, so there is no synthesized answer — the ranked sources " +
-        "below are the local retrieval result. Set GIT_FOR_AI_ANTHROPIC_KEY before " +
-        "running `git for-ai review` to enable prose answers."
+        "No API key configured, so there's no written answer — the sources found below " +
+        "are shown instead. Set GIT_FOR_AI_ANTHROPIC_KEY before running " +
+        "`git for-ai review` to enable written answers."
       );
     case "no-sources":
-      return "Nothing indexed matches this question.";
+      return "Nothing found that matches this question.";
     case "api-error":
-      return `Synthesis failed (${synthesis.error ?? "unknown error"}) — showing the ranked sources.`;
+      return `Couldn't generate an answer (${synthesis.error ?? "unknown error"}) — showing the sources found instead.`;
     case "refusal":
-      return "The model declined to answer — showing the ranked sources.";
+      return "The model declined to answer — showing the sources found instead.";
     case "empty-response":
-      return "The API returned no text — showing the ranked sources.";
+      return "No answer came back — showing the sources found instead.";
     default:
-      return "No synthesized answer — showing the ranked sources.";
+      return "No answer available — showing the sources found instead.";
   }
 }
 
@@ -75,11 +75,23 @@ function SourceRef({ source }: { source: ReviewAskSource }) {
   return <code className="ask-src-path">{`${source.path ?? "(unknown path)"}${lines}`}</code>;
 }
 
+/** Plain label for a source's kind — "ledger" is our storage word, not the reader's. */
+function sourceKindLabel(kind: ReviewAskSource["kind"]): string {
+  switch (kind) {
+    case "ledger":
+      return "reasoning";
+    case "session":
+      return "session";
+    case "code":
+      return "code";
+  }
+}
+
 function SourceRow({ source }: { source: ReviewAskSource }) {
   return (
     <li id={`ask-src-${source.rank}`} className="ask-source">
       <span className="ask-src-rank">[{source.rank}]</span>
-      <span className="ask-src-kind">{source.kind}</span>
+      <span className="ask-src-kind">{sourceKindLabel(source.kind)}</span>
       <SourceRef source={source} />
       {source.when !== null && <span className="when">{fmtWhen(source.when)}</span>}
       {source.summary.length > 0 && <div className="ask-src-summary">{source.summary}</div>}
@@ -148,8 +160,8 @@ function IndexHint({ meta }: { meta: ReviewMeta | null }) {
   return (
     <p className="ask-note">
       {meta.index.error !== undefined
-        ? `Index state unreadable: ${meta.index.error}`
-        : "The search index has not been built yet — run `git for-ai index` to enable answers."}
+        ? `Couldn't check search status: ${meta.index.error}`
+        : "Search hasn't been set up yet — run `git for-ai reindex` to enable answers."}
     </p>
   );
 }
@@ -193,8 +205,8 @@ export function AskPanel({ meta }: { meta: ReviewMeta | null }) {
         Ask this repository
       </h2>
       <p className="ask-sub">
-        Answers come from captured intent — ledger entries, session traces, and the code
-        itself. Every answer lists its sources.
+        Answers come from recorded reasoning, session records, and the code itself. Every
+        answer lists its sources.
       </p>
       <form className="ask-controls" onSubmit={submit}>
         <input
@@ -226,7 +238,7 @@ export function AskPanel({ meta }: { meta: ReviewMeta | null }) {
         </div>
       )}
       <IndexHint meta={meta} />
-      {result.state === "loading" && <p className="ask-note">Searching the local index…</p>}
+      {result.state === "loading" && <p className="ask-note">Searching…</p>}
       {result.state === "error" && <div className="error-box">Ask failed: {result.error}</div>}
       {result.state === "ok" && <Answer data={result.data} />}
     </section>

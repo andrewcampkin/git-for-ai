@@ -66,7 +66,7 @@ export function Timeline({ rows }: { rows: ReportTimelineRow[] }) {
             <option value="agent">agent</option>
             <option value="human">human</option>
             <option value="mixed">mixed</option>
-            <option value="none">no captured intent</option>
+            <option value="none">no reasoning recorded</option>
           </select>
         </label>
         <label>

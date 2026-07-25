@@ -48,8 +48,8 @@ export interface AttentionGroup {
 const GROUPS: { kind: AttentionKind; title: string; why: string }[] = [
   {
     kind: "note-unreadable",
-    title: "Unreadable ledger notes",
-    why: "A ledger note exists but could not be parsed — the record is damaged, not missing.",
+    title: "Unreadable notes",
+    why: "A note exists but could not be read — the record is damaged, not missing.",
   },
   {
     kind: "low-confidence",
@@ -63,7 +63,7 @@ const GROUPS: { kind: AttentionKind; title: string; why: string }[] = [
   },
   {
     kind: "no-intent",
-    title: "Commits with no captured intent",
+    title: "Commits with no recorded reasoning",
     why: "Plain git commits — nothing recorded beyond the commit message itself.",
   },
 ];
@@ -83,14 +83,14 @@ export function computeAttention(data: ReportData): AttentionItem[] {
     if (row.summarySource === "git-subject-note-unreadable") {
       items.push({
         kind: "note-unreadable",
-        title: `ledger note unreadable on ${row.shortSha}`,
+        title: `note unreadable on ${row.shortSha}`,
         detail: row.subject,
         href: `#/change/${row.sha}`,
       });
     } else if (!row.hasIntent) {
       items.push({
         kind: "no-intent",
-        title: `no captured intent on ${row.shortSha}`,
+        title: `no reasoning recorded on ${row.shortSha}`,
         detail: row.subject,
         href: `#/change/${row.sha}`,
       });

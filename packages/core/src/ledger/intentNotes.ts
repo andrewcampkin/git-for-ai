@@ -50,7 +50,7 @@ import {
   type LedgerNote,
 } from "@git-for-ai/schemas";
 
-import { notesAppend, notesShow, runGit, type RunGitOptions } from "../git/index.js";
+import { catFileBatch, notesAppend, notesShow, runGit, type RunGitOptions } from "../git/index.js";
 import { canonicalJsonStringify } from "./effective.js";
 
 /** The notes ref the semantic commit ledger lives under (ARCHITECTURE.md §8.1). */
@@ -282,6 +282,69 @@ export async function readLedgerNoteWithFormat(
 export async function readLedgerNote(sha: string, opts: LedgerNoteOptions = {}): Promise<LedgerNote | null> {
   const result = await readLedgerNoteWithFormat(sha, opts);
   return result === null ? null : result.note;
+}
+
+/**
+ * Read the ledger notes for MANY commits in two git invocations (`notes list` plus one
+ * batched object read), instead of one `notes show` per commit.
+ *
+ * A commit with no note is absent from the returned map — the same "no captured intent"
+ * signal {@link readLedgerNote} gives as null. A note that exists but is malformed is
+ * reported per commit via {@link LedgerNoteFormatError} rather than thrown, because a
+ * whole-history read must not be sunk by one bad note (callers surface it as a warning,
+ * exactly as they do for the single-commit path).
+ */
+export async function readLedgerNotesForCommits(
+  shas: readonly string[],
+  opts: LedgerNoteOptions = {},
+): Promise<Map<string, LedgerNoteReadResult | LedgerNoteFormatError>> {
+  const { ref = INTENT_NOTES_REF } = opts;
+  const runOptions = toRunGitOptions(opts);
+  const out = new Map<string, LedgerNoteReadResult | LedgerNoteFormatError>();
+  const wanted = new Set(shas);
+  if (wanted.size === 0) {
+    return out;
+  }
+
+  // `git notes list` prints `<note-blob-sha> SP <annotated-object-sha>` per line. A missing
+  // notes ref is "no notes at all", not an error.
+  const listed = await runGit(["notes", `--ref=${ref}`, "list"], {
+    ...runOptions,
+    allowFailure: true,
+  });
+  if (listed.exitCode !== 0 || listed.stdout.length === 0) {
+    return out;
+  }
+
+  const noteBlobByCommit = new Map<string, string>();
+  for (const line of listed.stdout.split("\n")) {
+    const [noteSha, commitSha] = line.trim().split(" ");
+    if (noteSha === undefined || commitSha === undefined || !wanted.has(commitSha)) {
+      continue;
+    }
+    noteBlobByCommit.set(commitSha, noteSha);
+  }
+
+  const bodies = await catFileBatch([...noteBlobByCommit.values()], runOptions);
+  for (const [commitSha, noteSha] of noteBlobByCommit) {
+    const raw = bodies.get(noteSha);
+    if (raw === null || raw === undefined) {
+      continue;
+    }
+    try {
+      // `notes show` strips the trailing newline git normalizes onto note bodies; the raw
+      // object carries it, so strip it here too or every note would parse differently
+      // depending on which reader was used.
+      out.set(commitSha, parseLedgerNoteBody(raw.replace(/\n+$/, ""), { ref, sha: commitSha }));
+    } catch (error) {
+      if (error instanceof LedgerNoteFormatError) {
+        out.set(commitSha, error);
+      } else {
+        throw error;
+      }
+    }
+  }
+  return out;
 }
 
 /**

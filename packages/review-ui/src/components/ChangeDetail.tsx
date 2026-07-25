@@ -68,7 +68,7 @@ function Evidence({ data, entry }: { data: ShowData; entry: LedgerEntry }) {
             ))}
           </ul>
         ) : (
-          <span className="absent">no verification evidence captured</span>
+          <span className="absent">nothing recorded</span>
         )}
       </div>
       <div className="evidence-block">
@@ -79,7 +79,7 @@ function Evidence({ data, entry }: { data: ShowData; entry: LedgerEntry }) {
             {session.record?.summary !== undefined && (
               <div className="commit-line">{session.record.summary}</div>
             )}
-            <a href={`#/session/${session.ref}`}>view the full trace →</a>
+            <a href={`#/session/${session.ref}`}>view session details →</a>
           </>
         ) : (
           <span className="absent">{sessionLineFromShow(session)}</span>
@@ -110,7 +110,7 @@ function EffectiveEntry({ data, entry }: { data: ShowData; entry: LedgerEntry })
           {reasoning?.intent !== undefined ? (
             reasoning.intent
           ) : (
-            <span className="absent">not captured</span>
+            <span className="absent">not recorded</span>
           )}
         </Fact>
         {reasoning?.directive !== undefined && <Fact label="Directive">{reasoning.directive}</Fact>}
@@ -164,8 +164,8 @@ function SupersededEntries({ rows }: { rows: ShowLedgerRow[] }) {
   return (
     <details className="superseded">
       <summary>
-        {rows.length} superseded entr{rows.length === 1 ? "y" : "ies"} (retained — the
-        ledger is append-only)
+        {rows.length} superseded entr{rows.length === 1 ? "y" : "ies"} (earlier versions,
+        kept rather than deleted)
       </summary>
       {rows.map((row, index) => (
         <div className="superseded-entry" key={index}>
@@ -199,7 +199,7 @@ function RecordDetails({ data, effective }: { data: ShowData; effective: LedgerE
           </Fact>
         )}
         {data.changeMap !== null && (
-          <Fact label="Change-map">
+          <Fact label="History">
             origin <code>{data.changeMap.origin}</code> · {data.changeMap.history.length}{" "}
             revision{data.changeMap.history.length === 1 ? "" : "s"} · head{" "}
             <span className="sha" title={data.changeMap.head}>
@@ -210,7 +210,7 @@ function RecordDetails({ data, effective }: { data: ShowData; effective: LedgerE
         )}
         {data.redirectedFrom !== undefined && (
           <Fact label="Redirected">
-            from absorbed change <code>c/{data.redirectedFrom}</code>
+            previously tracked as change <code>c/{data.redirectedFrom}</code>
           </Fact>
         )}
       </dl>
@@ -267,8 +267,7 @@ export function ChangeDetail({
         )}
         {data.changeId === null && (
           <p className="absent">
-            No identity: no change-map entry and no Change-Id trailer. Shown from git
-            metadata only.
+            No history recorded for this change — showing information from git only.
           </p>
         )}
 
@@ -277,8 +276,8 @@ export function ChangeDetail({
         ) : (
           <p className="change-summary absent">
             {data.changeId !== null
-              ? "This change has identity but no captured intent yet."
-              : "No captured intent."}
+              ? "No reasoning recorded for this change yet."
+              : "No reasoning recorded."}
           </p>
         )}
 

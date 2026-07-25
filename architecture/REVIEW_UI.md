@@ -88,6 +88,21 @@ server what it offers rather than sniffing the client.
 Visual language: same information design as `report` (it is that page made live); dark/light
 via `prefers-color-scheme`.
 
+**Voice (owner direction, 2026-07-25 — a full copy pass was needed to correct this).** The
+page had accumulated the vocabulary of the people building it: storage terms (ledger,
+change-map, spans, "captured intent"), design rationale ("never inferred or fabricated"),
+deployment detail (that a read-only local server on 127.0.0.1 serves it), and what other
+audiences use instead (`--json`, MCP). None of that helps the person reading it. On-screen
+text is now product language only — plain empty states ("No reasoning recorded"), plain
+notices ("Merge commit — showing what it brought in"), no explanation of why the tool
+behaves as it does. Honesty about missing data is unchanged and non-negotiable; only the
+essay defending it is gone. See CLAUDE.md hard rule 10.
+
+**Bounded by default.** `/api/overview` walks the most recent 300 commits unless `?n=`
+says otherwise — a page must open promptly on a repo with 50,000 commits. `git for-ai
+report`, which is generating a document rather than painting a screen, still defaults to
+all of history.
+
 ## 5. Build/packaging
 
 `review-ui` builds via turbo like every package; its `dist/` is resolved by the CLI at

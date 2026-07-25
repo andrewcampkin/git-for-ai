@@ -16,10 +16,11 @@ export {
   readChangeMapCommit,
   readChangeMapEntry,
   readAllChangeMapEntries,
+  readChangeMapSnapshot,
   findEntryByCommitSha,
   upsertChangeMapEntries,
 } from "./changeMap.js";
-export type { GitContext, UpsertChangeMapOptions } from "./changeMap.js";
+export type { GitContext, UpsertChangeMapOptions, ChangeMapSnapshot } from "./changeMap.js";
 
 export { assignChangeId } from "./assign.js";
 export type { AssignChangeIdResult } from "./assign.js";

@@ -52,6 +52,21 @@ code is the way it is — use it before re-deriving old decisions.
 9. **Audience split** (owner direction): the review page is for HUMANS only — design it
    opinionated. Agents consume `--json` output and the MCP tools; those surfaces carry
    everything and must stay complete/stable.
+10. **The UI speaks product, not process** (owner, 2026-07-25 — a whole copy pass was
+    needed to undo this). On-screen text must never contain our internal vocabulary
+    (ledger, change-map, spans, "captured intent"), our design rationale ("never inferred
+    or fabricated"), our plumbing (that a local read-only server on 127.0.0.1 is what
+    serves the page), or what OTHER audiences use instead (`--json`, MCP). The user is
+    someone reviewing what agents did to their repo; write only what helps them do that.
+    Honest empty states still stay honest — "No reasoning recorded" is required, the essay
+    defending why we say so is not. Rationale belongs in code comments and these docs.
+11. **Whole-history reads batch their git calls.** A git spawn is ~25–30ms on Windows, so
+    per-commit reads are what make a page hang: `report` once took 123s over 41 commits
+    because each commit re-read the entire change-map one `cat-file` at a time. Use
+    `readChangeMapSnapshot`, `readLedgerNotesForCommits`, `readSessionRecords`, and
+    `catFileBatch` on any path that touches many commits, and keep new bulk readers
+    equivalence-tested against the single-item reader they replace
+    (`core/src/git/batchReads.test.ts`).
 
 ## How multi-agent work runs here (the pattern that built this)
 

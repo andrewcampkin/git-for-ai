@@ -5,7 +5,7 @@
 export { runGit, GitError } from "./run.js";
 export type { RunGitOptions, GitResult } from "./run.js";
 
-export { readHead, readCommitMessage, catFile, listRefs, revParse, lsTree } from "./read.js";
+export { readHead, readCommitMessage, catFile, catFileBatch, listRefs, revParse, lsTree } from "./read.js";
 export type { RefInfo, TreeEntry } from "./read.js";
 
 export { notesShow, notesAppend, notesMerge } from "./notes.js";

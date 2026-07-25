@@ -50,6 +50,74 @@ export async function catFile(sha: string, opts?: RunGitOptions): Promise<string
 }
 
 /**
+ * Read MANY git objects in ONE `git cat-file --batch` process, keyed by the sha asked for.
+ * Missing objects map to null rather than throwing — a batch read is a lookup, not an
+ * assertion that everything exists.
+ *
+ * Why this exists: on Windows a git spawn costs ~25–30ms, so a read that touches N objects
+ * one at a time is N × that before git does any work. Reading the change-map per commit
+ * this way made `report` over 41 commits take 123 seconds; batching is what makes the
+ * review page open instantly.
+ *
+ * Scope limit, deliberate: git's batch protocol frames each object by BYTE length, and
+ * this parser re-encodes the decoded stdout to find those boundaries — correct for UTF-8
+ * text objects (our JSON change-map shards, ledger notes, commit messages), which is all
+ * we use it for. Do not reach for it to read arbitrary binary blobs; use {@link catFile}.
+ */
+export async function catFileBatch(
+  shas: readonly string[],
+  opts?: RunGitOptions,
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const wanted = [...new Set(shas)];
+  if (wanted.length === 0) {
+    return out;
+  }
+
+  const result = await runGit(["cat-file", "--batch"], {
+    ...opts,
+    input: `${wanted.join("\n")}\n`,
+    stripFinalNewline: false,
+  });
+  const buffer = Buffer.from(result.stdout, "utf8");
+
+  let position = 0;
+  let index = 0;
+  while (position < buffer.length && index < wanted.length) {
+    const newline = buffer.indexOf(0x0a, position);
+    if (newline === -1) {
+      break;
+    }
+    const header = buffer.toString("utf8", position, newline);
+    position = newline + 1;
+
+    // `<sha> SP <type> SP <size>` for a hit; `<name> SP missing` for a miss.
+    const parts = header.split(" ");
+    const requested = wanted[index]!;
+    index += 1;
+    if (parts.length < 3 || parts[1] === "missing") {
+      out.set(requested, null);
+      continue;
+    }
+    const size = Number.parseInt(parts[2]!, 10);
+    if (!Number.isFinite(size)) {
+      out.set(requested, null);
+      continue;
+    }
+    out.set(requested, buffer.toString("utf8", position, position + size));
+    position += size + 1; // git terminates each object's contents with a newline
+  }
+
+  // Anything git never answered for is reported absent rather than silently dropped.
+  for (const sha of wanted) {
+    if (!out.has(sha)) {
+      out.set(sha, null);
+    }
+  }
+  return out;
+}
+
+/**
  * List refs matching an optional glob-ish pattern (anything `git for-each-ref` accepts,
  * e.g. `refs/heads/*`, `refs/notes/git-for-ai/*`). Omit `pattern` to list every ref.
  */

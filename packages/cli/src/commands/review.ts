@@ -245,6 +245,13 @@ export function resolveUiDist(): string {
   return dist;
 }
 
+/**
+ * How many commits `/api/overview` walks when the caller doesn't say. A page must open
+ * promptly on a repo with 50,000 commits; `?n=` raises it, and `git for-ai report` (which
+ * is generating a document, not painting a screen) still defaults to all of history.
+ */
+const DEFAULT_OVERVIEW_COMMITS = 300;
+
 /** Content types for the small, fixed set of asset kinds a Vite build emits. */
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -557,7 +564,9 @@ async function handleApi(
         ...(ctx.cwd !== undefined ? { cwd: ctx.cwd } : {}),
         ...(since !== null ? { since } : {}),
         ...(until !== null ? { until } : {}),
-        ...(maxCount !== undefined ? { maxCount } : {}),
+        // A page bounds itself: without an explicit `n`, serve the most recent slice rather
+        // than every commit a repo has ever had. The CLI's `report` keeps walking it all.
+        maxCount: maxCount ?? DEFAULT_OVERVIEW_COMMITS,
         ...(rev !== null && rev.length > 0 ? { rev } : {}),
         format: "md",
       });
@@ -567,7 +576,7 @@ async function handleApi(
       // never degrade into "this branch has no history", which would read as a fact.
       if (rev !== null && rev.length > 0) {
         sendJson(res, 400, {
-          error: `cannot walk rev ${rev}: ${error instanceof Error ? error.message : String(error)}`,
+          error: `Couldn't show history for "${rev}": ${error instanceof Error ? error.message : String(error)}`,
         });
         return;
       }

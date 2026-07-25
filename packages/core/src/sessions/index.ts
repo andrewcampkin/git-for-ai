@@ -39,6 +39,7 @@ export {
   readSessionsCommit,
   writeSessionRecord,
   readSessionRecord,
+  readSessionRecords,
   mergeSessionsFrom,
 } from "./store.js";
 export type {

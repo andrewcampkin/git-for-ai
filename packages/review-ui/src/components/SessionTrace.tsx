@@ -4,7 +4,7 @@
 // label with its reason, exactly like report/show.
 
 import type { ReviewSessionData, Span } from "../types";
-import { fmtWhen, spanHeadline } from "../lib/format";
+import { fmtWhen, spanHeadline, spanKindLabel } from "../lib/format";
 import { useFetch } from "../lib/useFetch";
 
 function SpanRow({ span }: { span: Span }) {
@@ -15,7 +15,7 @@ function SpanRow({ span }: { span: Span }) {
   return (
     <div className={`span-row${span.parent_id !== undefined ? " nested" : ""}`}>
       <div className="span-line">
-        <span className="pill pill-kind">{span.kind}</span>
+        <span className="pill pill-kind">{spanKindLabel(span.kind)}</span>
         {span.name !== undefined && <strong>{span.name}</strong>}
         {headline !== null && <span className="headline">{headline}</span>}
         {span.start !== undefined && <span className="when">{fmtWhen(span.start)}</span>}
@@ -43,7 +43,7 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
   const result = useFetch<ReviewSessionData>(`/api/session/${sessionRef}`);
 
   if (result.state === "loading") {
-    return <p className="loading">Loading session trace…</p>;
+    return <p className="loading">Loading session…</p>;
   }
   if (result.state === "error") {
     return (
@@ -51,7 +51,7 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
         <a className="back-link" href="#/">
           ← back to the overview
         </a>
-        <div className="error-box">Could not load the session trace: {result.error}</div>
+        <div className="error-box">Could not load the session: {result.error}</div>
       </>
     );
   }
@@ -64,7 +64,7 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
           ← back to the overview
         </a>
         <div className="error-box">
-          session trace unavailable — {data.reason ?? "unknown reason"}
+          No session record available — {data.reason ?? "unknown reason"}
         </div>
       </>
     );
@@ -86,10 +86,10 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
         <p className="commit-line">
           captured {fmtWhen(record.captured_at)} · {record.agent.tool} {record.agent.version}{" "}
           · commits {record.commit_range.since.slice(0, 7)}..
-          {record.commit_range.until.slice(0, 7)} · redaction{" "}
+          {record.commit_range.until.slice(0, 7)} ·{" "}
           {record.redaction.applied
-            ? `applied (${record.redaction.redacted_count} redacted)`
-            : "not applied"}
+            ? `${record.redaction.redacted_count} item${record.redaction.redacted_count === 1 ? "" : "s"} redacted`
+            : "nothing redacted"}
         </p>
         {record.summary !== undefined && <p>{record.summary}</p>}
         <details className="record-details">
@@ -100,9 +100,9 @@ export function SessionTrace({ sessionRef }: { sessionRef: string }) {
         </details>
       </section>
       <h2>
-        What it did — {record.spans.length} span{record.spans.length === 1 ? "" : "s"}
+        What it did — {record.spans.length} step{record.spans.length === 1 ? "" : "s"}
       </h2>
-      {record.spans.length === 0 && <p className="empty">This session recorded no spans.</p>}
+      {record.spans.length === 0 && <p className="empty">This session recorded no steps.</p>}
       {record.spans.map((span) => (
         <SpanRow key={span.span_id} span={span} />
       ))}

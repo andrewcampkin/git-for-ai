@@ -445,8 +445,7 @@ export async function readCommitDiff(
   if (isMerge) {
     args.push("diff", `--unified=${unified}`, "-M", "--no-color", "--no-ext-diff", parents[0]!, sha);
     warnings.push(
-      `merge commit: the diff is shown against the first parent (${parents[0]!.slice(0, 7)}); ` +
-        `changes brought in by the other parent(s) are not repeated here`,
+      `Merge commit — showing what it brought in, compared with ${parents[0]!.slice(0, 7)}.`,
     );
   } else {
     args.push(
@@ -465,8 +464,7 @@ export async function readCommitDiff(
 
   if (parsed.truncated) {
     warnings.push(
-      `diff truncated: this commit exceeds the ${MAX_TOTAL_LINES.toLocaleString("en-US")}-line ` +
-        `render budget; the +/- counts are complete but some file bodies are clipped`,
+      "Very large commit — some file diffs are shortened. The change counts are complete.",
     );
   }
 

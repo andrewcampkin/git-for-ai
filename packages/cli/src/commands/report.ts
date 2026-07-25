@@ -23,18 +23,21 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 
-import type { LedgerEntry, Provenance } from "@git-for-ai/schemas";
+import type { LedgerEntry, Provenance, SessionRecord } from "@git-for-ai/schemas";
 import {
   runGit,
   readCommitMessage,
   parseChangeIdTrailer,
-  findEntryByCommitSha,
   resolveChangeId,
+  readChangeMapSnapshot,
   readLedgerEntries,
+  readLedgerNotesForCommits,
   resolveEffectiveEntry,
   readSessionRecord,
+  readSessionRecords,
   LedgerNoteFormatError,
   canonicalJsonStringify,
+  type ChangeMapSnapshot,
   type GitContext,
 } from "@git-for-ai/core";
 
@@ -288,30 +291,57 @@ async function readRepoName(ctx: GitContext): Promise<string> {
   return "repository";
 }
 
+interface ResolvedIdentity {
+  changeId: string;
+  history: string[];
+  head: string;
+}
+
 /**
  * Resolve a walked commit's change-id, if it has any evidence of identity — the exact
  * non-minting pattern from ./log.ts / ./show.ts: commits with neither a change-map row nor
  * a Change-Id trailer return null WITHOUT calling resolveChangeId, whose R4/R5 branches
  * would mint inferred/orphan map rows as a side effect of a read.
+ *
+ * Performance shape (this used to dominate the whole command): the common case — the
+ * commit HAS a change-map row — is answered entirely from `snapshot`, an in-memory view of
+ * the map read once per report. Only the rare trailer-recovery case falls through to
+ * `resolveChangeId`, which is a WRITE (lazy healing) and therefore also invalidates the
+ * snapshot; the caller refreshes it when we say so.
  */
 async function resolveIdentityIfPresent(
   sha: string,
   ctx: GitContext,
-): Promise<{ changeId: string; history: string[]; head: string } | null> {
-  const mapped = await findEntryByCommitSha(sha, ctx);
-  if (mapped === null) {
-    const message = await readCommitMessage(sha, ctx);
-    if (parseChangeIdTrailer(message) === null) {
-      return null;
-    }
+  snapshot: ChangeMapSnapshot,
+): Promise<{ identity: ResolvedIdentity | null; healed: boolean }> {
+  const mapped = snapshot.entryForCommit(sha);
+  if (mapped !== null) {
+    // R1, from memory: the map is authoritative, and folds are followed in the snapshot.
+    const surviving = snapshot.surviving(mapped);
+    return {
+      identity: {
+        changeId: surviving.change_id,
+        history: surviving.history,
+        head: surviving.head,
+      },
+      healed: false,
+    };
   }
-  // Map row (R1) or trailer (R2/R3 lazy healing): the full resolver is authoritative,
-  // follows folded_into redirects, and writes back trailer-recovered identity.
+
+  const message = await readCommitMessage(sha, ctx);
+  if (parseChangeIdTrailer(message) === null) {
+    return { identity: null, healed: false };
+  }
+  // Trailer without a map row (R2/R3): the full resolver is authoritative and writes back
+  // the recovered identity.
   const resolution = await resolveChangeId(sha, ctx);
   return {
-    changeId: resolution.changeId,
-    history: resolution.entry.history,
-    head: resolution.entry.head,
+    identity: {
+      changeId: resolution.changeId,
+      history: resolution.entry.history,
+      head: resolution.entry.head,
+    },
+    healed: true,
   };
 }
 
@@ -348,12 +378,39 @@ async function readNotesCached(
   return read;
 }
 
+/**
+ * Fill the note cache for many commits in one batched read (two git invocations for the
+ * whole history instead of one `notes show` per commit). Commits with no note are cached
+ * as "no entries" so the fallback single read is never taken for them either.
+ */
+async function primeNoteCache(
+  shas: string[],
+  ctx: GitContext,
+  cache: Map<string, NoteRead>,
+): Promise<void> {
+  const missing = [...new Set(shas)].filter((sha) => !cache.has(sha));
+  if (missing.length === 0) {
+    return;
+  }
+  const notes = await readLedgerNotesForCommits(missing, ctx);
+  for (const sha of missing) {
+    const result = notes.get(sha);
+    if (result === undefined) {
+      cache.set(sha, { entries: [], unreadable: false });
+    } else if (result instanceof LedgerNoteFormatError) {
+      cache.set(sha, { entries: [], unreadable: true });
+    } else {
+      cache.set(sha, { entries: result.note.entries, unreadable: false });
+    }
+  }
+}
+
 /** Derive the attribution badge from a ledger entry (or its honest absence). */
 function toBadge(entry: LedgerEntry | null, noteUnreadable: boolean): ReportBadge {
   if (entry === null) {
     return {
       kind: "none",
-      label: noteUnreadable ? "ledger note unreadable" : "no captured intent",
+      label: noteUnreadable ? "note unreadable" : "no reasoning recorded",
     };
   }
   const parts = [entry.author.type, entry.author.tool, entry.author.model].filter(
@@ -390,12 +447,15 @@ function toFlags(entry: LedgerEntry | null): ReportFlags {
 async function readSessionInfo(
   ref: string | null | undefined,
   ctx: GitContext,
+  prefetched?: Map<string, SessionRecord>,
 ): Promise<ReportSessionInfo> {
   if (ref === undefined || ref === null) {
     return { ref: null, status: "none" };
   }
   try {
-    const record = await readSessionRecord(ref, ctx);
+    // The batch read above already has every resolvable record; anything absent from it is
+    // genuinely missing, so no per-record git call is needed to find that out.
+    const record = prefetched !== undefined ? (prefetched.get(ref) ?? null) : await readSessionRecord(ref, ctx);
     if (record === null) {
       return {
         ref,
@@ -449,8 +509,22 @@ async function assembleReport(options: ReportOptions, ctx: GitContext): Promise<
   const groups = new Map<string, ChangeGroup>();
   const timeline: ReportTimelineRow[] = [];
 
+  // Two bulk reads up front replace two git subprocesses PER COMMIT. Before this, a report
+  // over 41 commits spent ~2 minutes in process spawns alone.
+  let snapshot = await readChangeMapSnapshot(ctx);
+  await primeNoteCache(
+    commits.map((commit) => commit.sha),
+    ctx,
+    noteCache,
+  );
+
   for (const commit of commits) {
-    const identity = await resolveIdentityIfPresent(commit.sha, ctx);
+    const resolved = await resolveIdentityIfPresent(commit.sha, ctx, snapshot);
+    const identity = resolved.identity;
+    if (resolved.healed) {
+      // Trailer recovery wrote to the map; the snapshot is now one revision behind.
+      snapshot = await readChangeMapSnapshot(ctx);
+    }
     const note = await readNotesCached(commit.sha, ctx, noteCache);
     if (note.unreadable) {
       noteWarn(commit.sha);
@@ -497,7 +571,23 @@ async function assembleReport(options: ReportOptions, ctx: GitContext): Promise<
   }
 
   // Per-change detail sections, in timeline order (each change's newest in-range commit).
+  // The notes for every revision these sections touch are fetched in one more batch.
+  await primeNoteCache(
+    [...groups.values()].flatMap((group) => [
+      ...group.history,
+      ...(group.head !== null ? [group.head] : []),
+      ...group.commits.map((commit) => commit.sha),
+    ]),
+    ctx,
+    noteCache,
+  );
+
   const changes: ReportChangeSection[] = [];
+  const assembled: {
+    group: ChangeGroup;
+    entries: ReportLedgerRow[];
+    effective: LedgerEntry | null;
+  }[] = [];
   for (const group of groups.values()) {
     // Read the intent note on every commit this change has ever been, plus its in-range
     // members (notes stay anchored to the revision they were written against — ./show.ts).
@@ -531,6 +621,18 @@ async function assembleReport(options: ReportOptions, ctx: GitContext): Promise<
       effective: entry === effective,
     }));
 
+    assembled.push({ group, entries, effective });
+  }
+
+  // Every session these changes reference, in one batched read rather than one per change.
+  const sessionRecords = await readSessionRecords(
+    assembled
+      .map((item) => item.effective?.session_ref)
+      .filter((ref): ref is string => ref !== undefined && ref !== null),
+    ctx,
+  );
+
+  for (const { group, entries, effective } of assembled) {
     changes.push({
       changeId: group.changeId,
       commits: group.commits.map((commit) => ({
@@ -542,7 +644,7 @@ async function assembleReport(options: ReportOptions, ctx: GitContext): Promise<
       entries,
       effective,
       supersededCount: entries.filter((row) => !row.effective).length,
-      session: await readSessionInfo(effective?.session_ref, ctx),
+      session: await readSessionInfo(effective?.session_ref, ctx, sessionRecords),
     });
   }
 
@@ -611,9 +713,9 @@ function sourceTag(row: ReportTimelineRow): string | null {
     case "ledger":
       return null;
     case "git-subject":
-      return "no captured intent — showing the commit's own git subject";
+      return "no reasoning recorded — showing the commit message";
     case "git-subject-note-unreadable":
-      return "ledger note unreadable — showing the commit's own git subject";
+      return "note unreadable — showing the commit message";
   }
 }
 
@@ -688,7 +790,7 @@ function renderMarkdown(data: ReportData): string {
   lines.push(`- Changes: ${totals.changes}`);
   lines.push(
     `- Attribution: ${totals.agentCommits} agent · ${totals.humanCommits} human · ` +
-      `${totals.mixedCommits} mixed · ${totals.noIntentCommits} no captured intent`,
+      `${totals.mixedCommits} mixed · ${totals.noIntentCommits} without recorded reasoning`,
   );
   lines.push(`- Sessions captured: ${totals.sessionsCaptured}`);
   lines.push(
@@ -730,7 +832,7 @@ function renderMarkdown(data: ReportData): string {
     lines.push("");
     const effective = change.effective;
     if (effective === null) {
-      lines.push("_This change has identity but no captured intent yet._");
+      lines.push("_No reasoning recorded for this change yet._");
     } else {
       lines.push(`**${effective.summary}**`);
       lines.push("");
@@ -1060,7 +1162,7 @@ function htmlChangeSection(change: ReportChangeSection): string {
 
   if (effective === null) {
     parts.push(
-      `    <p class="change-summary absent">This change has identity but no captured intent yet.</p>`,
+      `    <p class="change-summary absent">No reasoning recorded for this change yet.</p>`,
     );
   } else {
     parts.push(`    <p class="change-summary">${esc(effective.summary)}</p>`);

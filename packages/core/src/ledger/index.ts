@@ -12,6 +12,7 @@ export {
   readLedgerNote,
   readLedgerNoteWithFormat,
   readLedgerEntries,
+  readLedgerNotesForCommits,
   parseLedgerNoteBody,
   serializeLedgerNote,
 } from "./intentNotes.js";

@@ -22,6 +22,7 @@ import { sessionRecordSchema, type SessionRecord } from "@git-for-ai/schemas";
 import {
   runGit,
   lsTree,
+  catFileBatch,
   hashObject,
   mktree,
   commitTree,
@@ -234,6 +235,50 @@ export async function mergeSessionsFrom(
   });
   await updateRef(SESSIONS_REF, merged, { ...ctx, oldSha: local });
   return { action: "merged", commit: merged };
+}
+
+/**
+ * Read MANY session records in two git invocations instead of two PER RECORD — the same
+ * batching {@link readLedgerNotesForCommits} does for notes, and for the same reason: a
+ * whole-history read touches one session per change, and process spawns dominated it.
+ *
+ * Refs that are malformed, absent, or unreadable simply have no entry in the returned map;
+ * callers already render that as "session unavailable" with a reason. A blob that exists
+ * but fails schema validation still throws — silent mis-reading is never the answer.
+ */
+export async function readSessionRecords(
+  sessionRefs: readonly string[],
+  ctx: GitContext = {},
+): Promise<Map<string, SessionRecord>> {
+  const out = new Map<string, SessionRecord>();
+  const hashes = new Map<string, string>();
+  for (const ref of new Set(sessionRefs)) {
+    const match = /^sha256:([0-9a-f]{64})$/.exec(ref);
+    if (match !== null) {
+      hashes.set(ref, match[1]!);
+    }
+  }
+  if (hashes.size === 0) {
+    return out;
+  }
+
+  const commit = await readSessionsCommit(ctx);
+  if (commit === null) {
+    return out;
+  }
+
+  const revForRef = new Map<string, string>();
+  for (const [ref, hash] of hashes) {
+    revForRef.set(ref, `${commit}:${sessionShardPath(hash)}`);
+  }
+  const bodies = await catFileBatch([...revForRef.values()], ctx);
+  for (const [ref, rev] of revForRef) {
+    const body = bodies.get(rev);
+    if (body !== null && body !== undefined) {
+      out.set(ref, sessionRecordSchema.parse(JSON.parse(body)));
+    }
+  }
+  return out;
 }
 
 /**

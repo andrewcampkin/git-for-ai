@@ -32,7 +32,7 @@ describe("computeAttention", () => {
           hasIntent: false,
           summarySource: "git-subject",
           subject: "plain commit",
-          badge: { kind: "none", label: "no captured intent" },
+          badge: { kind: "none", label: "no reasoning recorded" },
         }),
         makeRow({
           sha: "2".repeat(40),
@@ -40,7 +40,7 @@ describe("computeAttention", () => {
           hasIntent: false,
           summarySource: "git-subject-note-unreadable",
           subject: "corrupt note commit",
-          badge: { kind: "none", label: "ledger note unreadable" },
+          badge: { kind: "none", label: "note unreadable" },
         }),
       ],
     });
@@ -48,13 +48,13 @@ describe("computeAttention", () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
       kind: "no-intent",
-      title: "no captured intent on 1111111",
+      title: "no reasoning recorded on 1111111",
       detail: "plain commit",
       href: `#/change/${"1".repeat(40)}`,
     });
     expect(items[1]).toMatchObject({
       kind: "note-unreadable",
-      title: "ledger note unreadable on 2222222",
+      title: "note unreadable on 2222222",
       detail: "corrupt note commit",
     });
   });
@@ -123,7 +123,7 @@ describe("computeAttention", () => {
     });
   });
 
-  it("skips changes with identity but no captured intent (already flagged per-commit)", () => {
+  it("skips changes with identity but no recorded reasoning (already flagged per-commit)", () => {
     const data = makeReportData({
       changes: [
         {
@@ -157,7 +157,7 @@ describe("groupAttention (v2 inbox)", () => {
     ];
     const groups = groupAttention(items);
     expect(groups.map((g) => g.kind)).toEqual(["note-unreadable", "low-confidence", "no-intent"]);
-    expect(groups[0]!.title).toBe("Unreadable ledger notes");
+    expect(groups[0]!.title).toBe("Unreadable notes");
     expect(groups[2]!.items.map((i) => i.title)).toEqual(["a", "c"]);
   });
 

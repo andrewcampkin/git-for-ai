@@ -14,7 +14,7 @@
 export { runGit, GitError } from "./git/index.js";
 export type { RunGitOptions, GitResult } from "./git/index.js";
 
-export { readHead, readCommitMessage, catFile, listRefs, revParse, lsTree } from "./git/index.js";
+export { readHead, readCommitMessage, catFile, catFileBatch, listRefs, revParse, lsTree } from "./git/index.js";
 export type { RefInfo, TreeEntry } from "./git/index.js";
 
 export { notesShow, notesAppend, notesMerge } from "./git/index.js";
@@ -40,6 +40,7 @@ export {
   readChangeMapCommit,
   readChangeMapEntry,
   readAllChangeMapEntries,
+  readChangeMapSnapshot,
   findEntryByCommitSha,
   upsertChangeMapEntries,
   assignChangeId,
@@ -52,6 +53,7 @@ export {
 export type {
   GitContext,
   UpsertChangeMapOptions,
+  ChangeMapSnapshot,
   AssignChangeIdResult,
   ResolutionBranch,
   ResolveChangeIdOptions,
@@ -70,6 +72,7 @@ export {
   readLedgerNote,
   readLedgerNoteWithFormat,
   readLedgerEntries,
+  readLedgerNotesForCommits,
   parseLedgerNoteBody,
   serializeLedgerNote,
   resolveEffectiveEntry,
@@ -100,6 +103,7 @@ export {
   readSessionsCommit,
   writeSessionRecord,
   readSessionRecord,
+  readSessionRecords,
   mergeSessionsFrom,
   STATE_FILE_RELPATH,
   readSessionCaptureState,

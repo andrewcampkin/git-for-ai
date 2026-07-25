@@ -75,9 +75,15 @@ What plausibly WOULD fix it, in leverage order:
   for the offline-by-default promise, not measured quality. Build a small eval set of real
   questions against this repo's known-correct answers; compare quantized vs fp32 vs
   voyage-code-3. This decides whether the default stays honest or needs revisiting.
+- **Read performance beyond `report` (2026-07-25).** `report` / `/api/overview` were fixed
+  (123s → ~1.2s on this repo) by batching: `catFileBatch` + `readChangeMapSnapshot` /
+  `readLedgerNotesForCommits` / `readSessionRecords`, all equivalence-tested. The same
+  per-item pattern still exists elsewhere and should get the same treatment when it starts
+  to hurt: `log --intent` and `doctor` resolve identity per commit, and enrichment /
+  `findLaterTouches` remain O(all changes) per call. The measuring stick is now explicit
+  (ARCHITECTURE §4.1): a read touching N commits should cost O(1) git processes.
 - Small flagged debts: `inputType` knob on the embeddings factory (query path currently works
-  around it); enrichment/`findLaterTouches` are O(all changes) per call (fine solo, cache
-  before teams); `reconcile --by-content` (patch-similarity re-link) still fails loudly as
+  around it); `reconcile --by-content` (patch-similarity re-link) still fails loudly as
   unimplemented; legacy-format ledger notes (doctor counts them) migrate only on next write —
   optionally add a `doctor --fix` mass-migrate for repos that want it done.
 

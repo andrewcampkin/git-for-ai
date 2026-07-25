@@ -14,6 +14,7 @@ import {
   sessionLineFromShow,
   sourceTag,
   spanHeadline,
+  spanKindLabel,
 } from "../src/lib/format";
 
 describe("fmtWhen", () => {
@@ -61,10 +62,10 @@ describe("sourceTag (honest degradation labels, verbatim from report.ts)", () =>
   it("labels each summary source", () => {
     expect(sourceTag("ledger")).toBeNull();
     expect(sourceTag("git-subject")).toBe(
-      "no captured intent — showing the commit's own git subject",
+      "no reasoning recorded — showing the commit message",
     );
     expect(sourceTag("git-subject-note-unreadable")).toBe(
-      "ledger note unreadable — showing the commit's own git subject",
+      "note unreadable — showing the commit message",
     );
   });
 });
@@ -84,7 +85,7 @@ describe("sessionLine", () => {
     expect(sessionLine({ ref: null, status: "none" })).toBe("no session captured");
     expect(
       sessionLine({ ref: "sha256:ab", status: "unavailable", reason: "ref missing" }),
-    ).toBe("session trace unavailable — ref missing");
+    ).toBe("no session record available — ref missing");
     expect(
       sessionLine({
         ref: "sha256:ab",
@@ -95,7 +96,7 @@ describe("sessionLine", () => {
         spanCount: 2,
         capturedAt: "2026-07-17T09:22:41Z",
       }),
-    ).toBe("claude-code 2.x (claude-opus-4-8) · 2 spans · captured 2026-07-17 09:22");
+    ).toBe("claude-code 2.x (claude-opus-4-8) · 2 steps · captured 2026-07-17 09:22");
   });
 });
 
@@ -104,7 +105,7 @@ describe("sessionLineFromShow", () => {
     expect(sessionLineFromShow({ ref: null, status: "none" })).toBe("no session captured");
     expect(
       sessionLineFromShow({ ref: "sha256:ab", status: "unavailable", reason: "gone" }),
-    ).toBe("session trace unavailable — gone");
+    ).toBe("no session record available — gone");
     expect(
       sessionLineFromShow({
         ref: "sha256:ab",
@@ -120,7 +121,7 @@ describe("sessionLineFromShow", () => {
           spans: [{ span_id: "s1", kind: "agent.plan" }],
         },
       }),
-    ).toBe("claude-code 2.x (claude-opus-4-8) · 1 span · captured 2026-07-17 09:22");
+    ).toBe("claude-code 2.x (claude-opus-4-8) · 1 step · captured 2026-07-17 09:22");
   });
 });
 
@@ -159,5 +160,18 @@ describe("spanHeadline", () => {
 
   it("returns null when nothing headline-worthy exists — never invents a description", () => {
     expect(spanHeadline({ span_id: "s5", kind: "agent.step" })).toBeNull();
+  });
+});
+
+describe("spanKindLabel", () => {
+  it("renders each known kind in plain words", () => {
+    expect(spanKindLabel("agent.plan")).toBe("plan");
+    expect(spanKindLabel("gen_ai.completion")).toBe("response");
+    expect(spanKindLabel("gen_ai.tool.execution")).toBe("tool use");
+    expect(spanKindLabel("agent.step")).toBe("step");
+  });
+
+  it("passes an unrecognized kind through as-is, never guessing", () => {
+    expect(spanKindLabel("something.new")).toBe("something.new");
   });
 });

@@ -61,9 +61,9 @@ export function sourceTag(source: ReportTimelineRow["summarySource"]): string | 
     case "ledger":
       return null;
     case "git-subject":
-      return "no captured intent — showing the commit's own git subject";
+      return "no reasoning recorded — showing the commit message";
     case "git-subject-note-unreadable":
-      return "ledger note unreadable — showing the commit's own git subject";
+      return "note unreadable — showing the commit message";
   }
 }
 
@@ -88,13 +88,13 @@ export function sessionLine(session: ReportSessionInfo): string {
     case "none":
       return "no session captured";
     case "unavailable":
-      return `session trace unavailable — ${session.reason ?? "unknown reason"}`;
+      return `no session record available — ${session.reason ?? "unknown reason"}`;
     case "available": {
       const agent = [session.agentTool, session.agentVersion]
         .filter((part): part is string => part !== undefined)
         .join(" ");
       const model = session.agentModel !== undefined ? ` (${session.agentModel})` : "";
-      const spans = `${session.spanCount ?? 0} span${session.spanCount === 1 ? "" : "s"}`;
+      const spans = `${session.spanCount ?? 0} step${session.spanCount === 1 ? "" : "s"}`;
       const captured =
         session.capturedAt !== undefined ? ` · captured ${fmtWhen(session.capturedAt)}` : "";
       return `${agent}${model} · ${spans}${captured}`;
@@ -108,7 +108,7 @@ export function sessionLineFromShow(session: ShowSessionInfo): string {
     return "no session captured";
   }
   if (session.status === "unavailable" || session.record === undefined) {
-    return `session trace unavailable — ${session.reason ?? "unknown reason"}`;
+    return `no session record available — ${session.reason ?? "unknown reason"}`;
   }
   const record = session.record;
   return sessionLine({
@@ -149,4 +149,20 @@ export function spanHeadline(span: Span): string | null {
     }
   }
   return null;
+}
+
+/** Plain-language label for a span's kind (raw values are our internal telemetry shape). */
+export function spanKindLabel(kind: string): string {
+  switch (kind) {
+    case "agent.plan":
+      return "plan";
+    case "gen_ai.completion":
+      return "response";
+    case "gen_ai.tool.execution":
+      return "tool use";
+    case "agent.step":
+      return "step";
+    default:
+      return kind;
+  }
 }

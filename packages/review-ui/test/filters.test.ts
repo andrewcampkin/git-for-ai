@@ -32,7 +32,7 @@ const noIntentRow = makeRow({
   summary: "plain git subject",
   hasIntent: false,
   summarySource: "git-subject",
-  badge: { kind: "none", label: "no captured intent" },
+  badge: { kind: "none", label: "no reasoning recorded" },
   flags: {},
 });
 // deliberately degraded date — must never match a date-bounded filter

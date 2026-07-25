@@ -74,7 +74,7 @@ function MetaLine({ meta }: { meta: ReviewMeta }) {
         <span className="absent">no commits yet</span>
       )}
       <span>
-        capture {meta.initialized ? (meta.captureEnabled ? "on" : "off") : "off (not initialized)"}
+        session recording {meta.initialized ? (meta.captureEnabled ? "on" : "off") : "not set up"}
       </span>
     </p>
   );
@@ -105,7 +105,7 @@ function Digest({ data }: { data: ReportData }) {
       )}
       {totals.noIntentCommits > 0 && (
         <span className="digest-item digest-warn">
-          <strong>{totals.noIntentCommits}</strong> without captured intent
+          <strong>{totals.noIntentCommits}</strong> without recorded reasoning
         </span>
       )}
       <span className="digest-item">
@@ -176,9 +176,8 @@ export function App() {
           <AskPanel meta={meta.state === "ok" ? meta.data : null} />
           {rev !== null && (
             <p className="absent scope-note">
-              The timeline below is scoped to <strong>{rev}</strong>. Answers above still
-              come from the semantic index, which reflects the revision it was last built
-              at — not this branch.
+              The timeline below is scoped to <strong>{rev}</strong>. Answers above may not
+              reflect this branch — they're based on the last time search was updated.
             </p>
           )}
           {overview.state === "loading" && <p className="loading">Reading the repository…</p>}
@@ -196,14 +195,6 @@ export function App() {
         />
       )}
       {route.view === "session" && <SessionTrace sessionRef={route.ref} key={route.ref} />}
-
-      <footer>
-        Served locally by <code>git for-ai review</code> (127.0.0.1 only, read-only).
-        Missing data is labeled, never inferred or fabricated: commits without a ledger
-        entry show their own git subject, marked "no captured intent"; unresolvable session
-        traces are reported as unavailable. Agents don't read this page — they use the
-        CLI's <code>--json</code> output, which carries every identifier this page omits.
-      </footer>
     </div>
   );
 }

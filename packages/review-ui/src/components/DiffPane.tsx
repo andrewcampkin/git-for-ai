@@ -71,9 +71,8 @@ function FilePane({
           ))}
           {file.truncated && (
             <p className="absent">
-              This file's diff was clipped at the render budget — the counts above are
-              complete. See it in full with{" "}
-              <code>git show {file.path}</code>.
+              Large file — showing the first part of this diff. The change counts above
+              are complete. See it in full with <code>git show {file.path}</code>.
             </p>
           )}
         </div>
