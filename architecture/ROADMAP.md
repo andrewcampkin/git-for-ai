@@ -155,8 +155,9 @@ What plausibly WOULD fix it, in leverage order:
   diffs, repo picker, action panel), lives in [`DESKTOP.md`](./DESKTOP.md). Progress:
   squash-merge fold (step 1), the Electron shell (step 4a), the read-only branch/diff API
   (step 2), the branch + diff UI (step 3) and the token-gated action endpoints + panel
-  (step 4b) are done. Remaining: the annotate form and attention-item guided repair (the
-  two verbs served without UI), then step 5 packaging/installers.
+  (step 4b) are done. The annotate form and attention-item guided repair
+  landed 2026-07-25, so **steps 1–4 are complete**. Remaining: step 5 packaging/installers
+  — gated on the product-name decision, since the installer name and app id bake it in.
 - **Shared-index server** ⭐ — the ONLY server this project will ever need (ref sync is
   server-free; validated against real GitHub 2026-07-18). Job: run the embedding pipeline
   once for a team and expose `/ask`, `/blame` — Fastify + Postgres/pgvector (plays to the

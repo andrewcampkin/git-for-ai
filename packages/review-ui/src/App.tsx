@@ -121,7 +121,7 @@ function Digest({ data }: { data: ReportData }) {
   );
 }
 
-function Overview({ data }: { data: ReportData }) {
+function Overview({ data, canRepair }: { data: ReportData; canRepair: boolean }) {
   return (
     <>
       <Digest data={data} />
@@ -135,7 +135,7 @@ function Overview({ data }: { data: ReportData }) {
           </ul>
         </section>
       )}
-      <AttentionQueue data={data} />
+      <AttentionQueue data={data} canRepair={canRepair} />
       <Timeline rows={data.timeline} />
     </>
   );
@@ -190,7 +190,9 @@ export function App() {
           {overview.state === "error" && (
             <div className="error-box">Could not load the overview: {overview.error}</div>
           )}
-          {overview.state === "ok" && <Overview data={overview.data} />}
+          {overview.state === "ok" && (
+            <Overview data={overview.data} canRepair={showActions} />
+          )}
           {showActions && <ActionsPanel />}
         </>
       )}

@@ -6,52 +6,22 @@
 // person actually waits on (a reindex is minutes on a large repo) are worthless as a
 // spinner: the progress lines are the same ones the CLI prints.
 //
+// The checkup is NOT here: it moved to the attention inbox (DESKTOP.md §3 item 4), where
+// what it finds is actionable next to the rest of what needs a person. Two buttons for one
+// action, in two places, would be worse than one in the right place.
+//
 // Pushing is deliberately two clicks. It is the one action that sends this repository's
 // recorded reasoning to a remote, and the CLI has always asked first; a GUI that quietly
 // dropped that question would be a less careful tool, not a more convenient one.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { DoctorData } from "../types";
 import { JOB_POLL_MS, readJob, runAction, type ActionJob } from "../lib/actions";
 
-/** Result shapes we render specially; anything else falls back to a plain summary. */
-interface DoctorResultShape {
-  data: DoctorData;
-}
 interface ReindexResultShape {
   chunksEmbedded?: number;
   chunksTotal?: number;
   warnings?: string[];
-}
-
-function isDoctorResult(action: string, result: unknown): result is DoctorResultShape {
-  return action === "doctor" && typeof result === "object" && result !== null && "data" in result;
-}
-
-function DoctorSummary({ data }: { data: DoctorData }) {
-  const problems = data.checks.filter((check) => check.status !== "ok");
-  if (problems.length === 0) {
-    return <p className="action-ok">All {data.checks.length} checks passed.</p>;
-  }
-  return (
-    <ul className="action-findings">
-      {problems.map((check) => (
-        <li key={check.name} className={`finding-${check.status}`}>
-          <strong>{check.name}</strong> — {check.message}
-          {check.remediation.length > 0 && (
-            <ul>
-              {check.remediation.map((step, index) => (
-                <li key={index}>
-                  <code>{step}</code>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 function JobView({ job }: { job: ActionJob }) {
@@ -69,9 +39,6 @@ function JobView({ job }: { job: ActionJob }) {
         <pre className="action-progress">{lastLines.join("\n")}</pre>
       )}
       {job.error !== undefined && <div className="error-box">{job.error}</div>}
-      {job.status === "done" && isDoctorResult(job.action, job.result) && (
-        <DoctorSummary data={job.result.data} />
-      )}
       {job.status === "done" && job.action === "reindex" && (
         <p className="action-ok">
           Search is up to date
@@ -133,9 +100,6 @@ export function ActionsPanel() {
     <section className="actions" aria-labelledby="actions-heading">
       <h2 id="actions-heading">Maintenance</h2>
       <div className="action-buttons">
-        <button type="button" disabled={busy} onClick={() => start("doctor")}>
-          Run a checkup
-        </button>
         <button type="button" disabled={busy} onClick={() => start("reindex")}>
           Update search
         </button>

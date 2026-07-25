@@ -182,6 +182,26 @@ describe("doctor (real git fixture)", () => {
     expect(identity.message).toContain("divergent heads");
     expect(identity.remediation.join("\n")).toContain("git for-ai reconcile");
     expect(identity.remediation.join("\n")).toContain("relink");
+
+    // The same advice as data, so a GUI can offer a button without parsing the prose
+    // above (DESKTOP.md §3 item 4, guided repair). Doctor already knows which changes
+    // each repair is about; making the UI work that out from a sentence would be exactly
+    // the guessing this project avoids.
+    const repairs = identity.repairs ?? [];
+    expect(repairs.map((repair) => `${repair.action}${repair.detach ? " --detach" : ""}`)).toEqual([
+      "relink --detach", // inferred: a change may have claimed a commit that isn't its
+      "reconcile", // trailer-recovery: heal the map from the commits themselves
+      "relink", // divergent heads: re-point the survivor
+    ]);
+    const detachRepair = repairs.find((repair) => repair.detach)!;
+    expect(detachRepair.changeIds).toEqual([CHANGE_ID]);
+    expect(detachRepair.needsCommit).toBe(true);
+    // Reconcile takes no argument a person has to supply — that is why it gets one button.
+    expect(repairs.find((repair) => repair.action === "reconcile")!.needsCommit).toBe(false);
+    // Every repair says what it does in a sentence a reader can act on.
+    for (const repair of repairs) {
+      expect(repair.what.length).toBeGreaterThan(20);
+    }
   });
 
   it("flags change heads no branch/tag reaches (DESKTOP.md G1: squash-then-delete)", async () => {
@@ -209,6 +229,14 @@ describe("doctor (real git fixture)", () => {
     expect(identity.message).toContain("no branch/tag reaches");
     expect(identity.remediation.join("\n")).toContain("c/beefbeef");
     expect(identity.remediation.join("\n")).toContain("relink");
+
+    // The structured repair names the change at risk, and asks for the commit rather
+    // than guessing which one is right — that judgement is the human's.
+    const repair = (identity.repairs ?? []).find((r) => r.action === "relink" && !r.detach)!;
+    // Both at-risk changes are named: the one this test mapped by hand, and the one the
+    // post-commit hook minted for the same doomed commit.
+    expect(repair.changeIds).toContain("beefbeefbeefbeefbeefbeefbeefbeef");
+    expect(repair.needsCommit).toBe(true);
   });
 
   it("flags unreadable notes and dangling session refs; healthy refs stay quiet", async () => {

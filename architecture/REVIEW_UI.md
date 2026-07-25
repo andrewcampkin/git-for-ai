@@ -112,6 +112,14 @@ vocabulary). A read that failed says so rather than disappearing.
 4. **Attention queue** — v1 minimal, computed from data already available: changes with
    `origin: inferred`/`orphan-recovery`, no-intent commits, unreadable-note warnings,
    low-confidence (< 0.5) entries. Grows real `doctor` integration when M14 lands.
+   **Doctor integration + guided repair landed 2026-07-25** (DESKTOP.md §5 step 4): where
+   the window may write, the inbox also offers a checkup, lists what it found in plain
+   language, and offers the repair for findings that have one — showing the exact command
+   before it runs. The offer is driven by structured `repairs` doctor now publishes on each
+   check, not by parsing its prose. Arguments doctor cannot know (which commit is right)
+   are asked for, never guessed; after a repair the checkup re-runs so the finding list is
+   the evidence. Browser mode shows none of it: the gate is the same capability-flag AND
+   launch-token pair the maintenance panel uses.
 5. **Ask panel** — visibly present but disabled with an honest "arrives with M12" note.
 
 Visual language: same information design as `report` (it is that page made live); dark/light

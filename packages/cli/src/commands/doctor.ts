@@ -62,6 +62,31 @@ export interface DoctorOptions {
 
 export type DoctorStatus = "ok" | "warn" | "error";
 
+/**
+ * A repair a GUI can actually offer for a finding (DESKTOP.md §3 item 4, "guided repair").
+ *
+ * `remediation` above is prose for a person reading a terminal; this is the SAME advice as
+ * data, so the desktop app can put a button on it without parsing English. Doctor is the
+ * code that already worked out which repair applies and to which changes — having the UI
+ * re-derive that from a sentence would be exactly the guessing this project avoids. A
+ * finding with no mechanical repair simply carries none.
+ */
+export interface DoctorRepair {
+  /** Action endpoint verb (`/api/actions/<action>`) — the CLI command of the same name. */
+  action: "reconcile" | "relink";
+  /** One sentence, in a reader's words, about what running it does. */
+  what: string;
+  /** relink only: the `--detach` form (drop a commit from a change it was wrongly given). */
+  detach: boolean;
+  /**
+   * True when a person must name a commit before this can run. Doctor never guesses which
+   * commit is right — that is the judgement a human is here to make.
+   */
+  needsCommit: boolean;
+  /** Changes this finding is about, when doctor identified them (may be empty). */
+  changeIds: string[];
+}
+
 export interface DoctorCheck {
   /** Short row label (`hooks`, `index`, ...). */
   name: string;
@@ -70,6 +95,8 @@ export interface DoctorCheck {
   message: string;
   /** Concrete next steps (rendered indented under the row). */
   remediation: string[];
+  /** Machine-readable form of the same advice, where a repair exists. */
+  repairs?: DoctorRepair[];
 }
 
 export interface DoctorData {
@@ -103,6 +130,9 @@ const warn = (name: string, message: string, ...remediation: string[]): DoctorCh
   message,
   remediation,
 });
+/** Attach structured repairs to a check (kept separate so the constructors stay terse). */
+const withRepairs = (check: DoctorCheck, repairs: DoctorRepair[]): DoctorCheck =>
+  repairs.length > 0 ? { ...check, repairs } : check;
 const fail = (name: string, message: string, ...remediation: string[]): DoctorCheck => ({
   name,
   status: "error",
@@ -469,6 +499,7 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
 
   const problems: string[] = [];
   const remediation: string[] = [];
+  const repairs: DoctorRepair[] = [];
   if (inferred.length > 0) {
     // The D1 audit: R4 continuation inference is the resolver's weakest evidence.
     problems.push(`${plural(inferred.length, "change")} with origin \`inferred\``);
@@ -478,6 +509,15 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
         .map((e) => `c/${e.change_id.slice(0, 8)}`)
         .join(", ")}${inferred.length > 3 ? ", …" : ""}); mis-attributions heal with \`git for-ai relink --detach <commit>\``,
     );
+    repairs.push({
+      action: "relink",
+      what:
+        "If one of these changes claimed a commit that isn't really part of it, detach " +
+        "that commit so it gets its own identity back.",
+      detach: true,
+      needsCommit: true,
+      changeIds: inferred.map((e) => e.change_id),
+    });
   }
   if (orphan.length > 0) {
     problems.push(`${plural(orphan.length, "change")} from orphan-recovery`);
@@ -488,10 +528,26 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
   if (trailer.length > 0) {
     problems.push(`${plural(trailer.length, "commit")} recovered via trailer (cherry-pick suspected)`);
     remediation.push("run `git for-ai reconcile` to heal the change-map eagerly");
+    repairs.push({
+      action: "reconcile",
+      what:
+        "Rebuild the links between commits and changes from what the commits themselves " +
+        "record. Nothing is deleted; missing links are filled in.",
+      detach: false,
+      needsCommit: false,
+      changeIds: trailer.map((e) => e.change_id),
+    });
   }
   if (divergent.length > 0) {
     problems.push(`${plural(divergent.length, "change")} with divergent heads`);
     remediation.push("divergent heads: re-point the survivor with `git for-ai relink <change-id> <commit>`");
+    repairs.push({
+      action: "relink",
+      what: "Point the change at the commit that survived, so its history has one end again.",
+      detach: false,
+      needsCommit: true,
+      changeIds: divergent.map((e) => e.change_id),
+    });
   }
   if (unreachable.length > 0) {
     problems.push(
@@ -503,12 +559,21 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
         .map((e) => `c/${e.change_id.slice(0, 8)}`)
         .join(", ")}${unreachable.length > 3 ? ", …" : ""}) — re-point with \`git for-ai relink <change-id> <commit>\`, or tag the head to keep it`,
     );
+    repairs.push({
+      action: "relink",
+      what:
+        "Point the change at a commit that is still on a branch, so its record isn't lost " +
+        "the next time git cleans up.",
+      detach: false,
+      needsCommit: true,
+      changeIds: unreachable.map((e) => e.change_id),
+    });
   }
 
   if (problems.length === 0) {
     return ok("identity", `${plural(entries.length, "change")} tracked, no anomalies`);
   }
-  return warn("identity", problems.join("; "), ...remediation);
+  return withRepairs(warn("identity", problems.join("; "), ...remediation), repairs);
 }
 
 interface LedgerAudit {

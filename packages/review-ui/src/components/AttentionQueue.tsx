@@ -7,6 +7,7 @@ import { useMemo } from "react";
 
 import type { ReportData } from "../types";
 import { computeAttention, groupAttention, type AttentionItem } from "../lib/attention";
+import { RepairPanel } from "./RepairPanel";
 
 /** Items shown before the group folds the remainder behind "show more". */
 const VISIBLE_PER_GROUP = 3;
@@ -20,7 +21,18 @@ function Item({ item }: { item: AttentionItem }) {
   );
 }
 
-export function AttentionQueue({ data }: { data: ReportData }) {
+export function AttentionQueue({
+  data,
+  canRepair = false,
+}: {
+  data: ReportData;
+  /**
+   * Whether this window may run repairs. The checkup lives here rather than in the
+   * maintenance panel (DESKTOP.md §3 item 4): what it finds belongs in the list of things
+   * needing a person, not in a drawer elsewhere on the page.
+   */
+  canRepair?: boolean;
+}) {
   const groups = useMemo(() => groupAttention(computeAttention(data)), [data]);
 
   return (
@@ -32,6 +44,7 @@ export function AttentionQueue({ data }: { data: ReportData }) {
           notes, no low-confidence or inferred entries.
         </p>
       )}
+      {canRepair && <RepairPanel />}
       {groups.map((group) => {
         const visible = group.items.slice(0, VISIBLE_PER_GROUP);
         const folded = group.items.slice(VISIBLE_PER_GROUP);

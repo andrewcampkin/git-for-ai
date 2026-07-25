@@ -105,10 +105,9 @@ New, in priority order:
 
 **Order amended 2026-07-19 at the owner's explicit direction: the Electron shell shipped
 first** (step 4's shell half), so the app exists now; steps 2–3 landed next (2026-07-25),
-inside it, followed by step 4's action endpoints, panel, and annotate form. What remains:
-**guided repair on attention items** (the relink/reconcile verbs, served but still without
-UI), then step 5 packaging — which needs the product-name decision (§6 Q3) first, since the
-installer name and app id bake it in.
+inside it, followed by step 4 in full (action endpoints, panel, annotate form, guided
+repair). **Steps 1–4 are done.** What remains is step 5 packaging — which needs the
+product-name decision (§6 Q3) first, since the installer name and app id bake it in.
 
 1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
    (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
@@ -187,8 +186,29 @@ installer name and app id bake it in.
    the fix. The endpoint gained `tested` passthrough in the same change: it is the field
    the change page most prominently shows as "nothing recorded", so it is the one people
    open the form to fill.
-   **Still without UI: relink and reconcile** — those belong on attention items (§3 item
-   4's "guided repair"), which is the next increment.
+   ✅ **Guided repair DONE 2026-07-25**, completing step 4. The checkup moved OUT of the
+   maintenance panel and INTO the attention inbox, as §3 item 4 always specified ("doctor
+   rendered as the attention inbox's 'run a checkup' source") — what a checkup finds
+   belongs beside the other things needing a person, and two buttons for one action in two
+   places is worse than one in the right place. The panel keeps update-search and
+   fetch/send.
+   The repair flow is deliberately three steps, not one button: run a checkup; read what
+   it found in plain language; repair **having seen the exact command**. These verbs
+   rewrite identity records, so the command is shown before it runs and is copy-pasteable
+   for anyone who would rather do it in a terminal.
+   The load-bearing decision is on the CLI side: `DoctorCheck` gained an optional
+   `repairs: DoctorRepair[]` — the same advice as data (action, one-sentence what, whether
+   a commit is needed, and the change-ids the finding is about). Doctor already did the
+   analysis; making the UI re-derive which fix applies by parsing doctor's English would
+   have been exactly the guessing this project avoids. A finding with no mechanical repair
+   carries none, and still shows its prose remediation rather than being hidden.
+   **What is never guessed:** which commit is the right one. `relink` asks; only
+   `reconcile` (no arguments) is a single button. After a repair lands the checkup re-runs
+   itself, because a fresh finding list is the evidence and a stale one beside a "Done."
+   would be a small lie.
+   Verified end to end against a throwaway repo with a real unreachable head: 3 findings →
+   1 offering a fix → `git for-ai relink <id> HEAD` previewed → run → checkup re-ran → 2
+   findings, the identity one gone.
 5. **Packaging**: electron-builder, Windows installer, then the owner uses it in anger.
    (Config checked in at `packages/desktop/electron-builder.yml` with placeholder appId;
    no installer built yet.)
