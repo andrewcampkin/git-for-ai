@@ -19,6 +19,12 @@ silently (exit guard since added); the retry run burned 41 CPU-minutes producing
 progress before being killed. A repo 10–100× larger is hours of compute and
 worse odds. This tier gates use on large repos.
 
+**Status update 2026-07-25:** the gating item (GPU execution, #1 below) shipped the same
+week — a full reindex of this repo is now **78 seconds**, down from ~30 minutes. The flag in
+this heading is kept because it was recorded as a large-repo judgement, not a
+wall-time one, and the remaining items (#2–#4) are what a 10–100× larger repo would still
+run into. On this machine, for this repo, indexing is no longer the bottleneck it was.
+
 **Where the time actually goes — and the honest Rust assessment.** The owner asked whether
 rewriting the CLI in Rust (the original design language) would help. Profiling says the
 bottleneck is NOT JavaScript: >95% of reindex wall time is transformer inference inside
@@ -31,13 +37,16 @@ embedding throughput or fix the native OOM, which lives in ORT's allocator, not 
 profiling ever shows JS-side dominance (chunking at huge scale is the one candidate).
 
 What plausibly WOULD fix it, in leverage order:
-1. **GPU execution provider — CHOSEN PATH (owner, 2026-07-19), in progress.** DirectML on
-   the owner's RTX 3060 (12GB — the model needs <1GB): migrate to the maintained
+1. ~~**GPU execution provider — CHOSEN PATH (owner, 2026-07-19).**~~ **SHIPPED 2026-07-19**
+   (`2c37dc6`): a full reindex of this repo went from ~30 minutes to **78 seconds**.
+   DirectML on the owner's RTX 3060 (12GB — the model needs <1GB), via the maintained
    transformers.js successor for a modern onnxruntime with the DML execution provider,
    fp16 weights on GPU (int8 quantization doesn't accelerate; precision folds into the
-   model fingerprint so vectors never mix), automatic CPU fallback, plus the watchdog /
-   session-bounding hardening below. Everything stays on-device: no keys, no code leaving,
-   the offline-by-default promise made fast instead of merely principled.
+   model fingerprint so vectors never mix), automatic CPU fallback, plus per-batch
+   checkpointing so a long run always leaves durable progress. Everything stays on-device:
+   no keys, no code leaving, the offline-by-default promise made fast instead of merely
+   principled. **This was the tier's gating item** — the "too slow for large repos" flag above
+   is now about the items below, not about wall time on this machine.
 2. **Smaller/faster model** — the planned retrieval-quality eval (Tier 1) should compare
    the current 768-dim model against small fast ones (e.g. 384-dim) AND measure speed;
    if quality holds, 2–4× for free.
