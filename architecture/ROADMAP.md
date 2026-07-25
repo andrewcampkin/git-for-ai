@@ -57,6 +57,14 @@ What plausibly WOULD fix it, in leverage order:
 
 ## Tier 1 — hardening and finish-work (before any new surface)
 
+- **`ask` gets tools — NOW ACTIVE (owner, 2026-07-25), specced, not yet built.** A live
+  failure ("tell me what changed in the last commit" → an honest refusal) exposed that
+  synthesis only ever sees retrieved text, so commit-shaped questions are unanswerable no
+  matter how good retrieval gets. The owner rejected the pre-classify-and-stuff-context
+  fix in favour of letting `ask` use the tool's own features — the same ones `git for-ai
+  mcp` already exposes to other agents. Full diagnosis, design, and constraints:
+  [`ASK_TOOLS.md`](./ASK_TOOLS.md).
+
 - **Publish the npm package**. Currently npm-linked only. GATE (owner, 2026-07-19): do
   nothing until a second machine or a first outside user exists — link is adequate for one
   dev box. Also owner-decided: **"git-for-ai" is the internal name only; the public
