@@ -3,28 +3,46 @@
 This guide is for a developer who wants git-for-ai on their own repositories. For every flag
 and exit code, see [`../architecture/CLI_REFERENCE.md`](../architecture/CLI_REFERENCE.md).
 
-## What you need
+## What to install globally
 
-- Node.js 22.5 or later, git, and pnpm 9 (`corepack enable` gives you pnpm from Node).
-- Claude Code, if you want agent sessions captured. Everything else works without it.
+- **git.**
+- **Node.js 22.5 or later** (`node:sqlite` is used). Any installer or nvm works.
+- **pnpm 9**, from Node's own corepack. Run `corepack enable` once; it writes `pnpm` shims
+  next to the `node` executable, so pnpm is available wherever node is.
+- **Claude Code**, if you want agent sessions captured. Everything else works without it.
 - Optionally an Anthropic API key for synthesised answers from `ask` and `blame --why`.
 
-## Install from source
+## Build and put `git for-ai` on PATH
 
 ```sh
 git clone https://github.com/andrewcampkin/git-for-ai.git
 cd git-for-ai
-corepack enable
 pnpm install
 pnpm build
-cd packages/cli && pnpm link --global
+cd packages/cli
+npm link
 git for-ai --version
 ```
 
-`pnpm link --global` puts a `git-for-ai` executable on `PATH`; git then runs it as the
-subcommand `git for-ai`. The git hooks call the same executable, so if it ever drops off
-`PATH` (for example after switching Node versions with nvm) the hooks silently do nothing
-and `git for-ai doctor` tells you so.
+`npm link` writes `git-for-ai` shims (a shell script plus `.cmd` and `.ps1` wrappers on
+Windows) into npm's global bin directory, which is already on `PATH` alongside `node`. Git
+finds any `git-<name>` executable on `PATH` and runs it as the subcommand `git <name>`, and
+the git hooks call the same executable. (`pnpm setup` followed by `pnpm link --global` does
+the same through pnpm's own global directory; it needs a new shell afterwards.)
+
+Two things to know about that link:
+
+- **It belongs to one Node version.** With nvm, each Node version has its own global bin
+  directory, so switching versions drops both `pnpm` and `git-for-ai` off `PATH`. Run
+  `corepack enable` and `npm link` again after a switch. `git for-ai doctor` reports the
+  missing executable as its `dispatcher` check, and until it is fixed the hooks silently do
+  nothing.
+- **It switches capture on everywhere.** The moment `git-for-ai` is on `PATH`, the hooks in
+  every repository you have run `init` in start working, including Claude Code session
+  capture. Link it when you are ready for that; `npm unlink -g git-for-ai` turns it off again.
+
+To run the CLI without linking, use `node packages/cli/dist/bin.js <command>` from the
+checkout.
 
 ## Opt a repository in
 

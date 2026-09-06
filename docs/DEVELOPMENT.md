@@ -8,10 +8,10 @@ the human side: layout, build, test, and how the repo uses itself.
 
 ## Prerequisites
 
+- git.
 - Node.js 22.5 or later (`.nvmrc` pins a major). `node:sqlite` is the SQLite driver; nothing
   native is compiled.
-- pnpm 9 through corepack: `corepack enable`.
-- git.
+- pnpm 9 through corepack: `corepack enable` (once per Node version).
 - Windows is the primary development platform. Everything runs on macOS and Linux with the
   CPU embedder; the DirectML GPU path is Windows-only.
 
@@ -80,7 +80,9 @@ GitHub remote, so a clone followed by `git for-ai sync --fetch` gives you the fu
 how the code came to be, and `git for-ai ask "..."` answers from it.
 
 If the executable is not on `PATH` (for example after a Node version switch), the hooks are
-no-ops and `doctor` reports it. Relink with `pnpm link --global` from `packages/cli`.
+no-ops and `doctor` reports it. Relink with `npm link` from `packages/cli`
+([`GETTING_STARTED.md`](GETTING_STARTED.md) has the details), and unlink with
+`npm unlink -g git-for-ai` while you want commits to go unrecorded.
 
 ## Environment notes
 

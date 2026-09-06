@@ -60,18 +60,30 @@ an Electron shell with a repo picker, one-click init, and a maintenance panel. S
 
 ## Install
 
-There is no published package yet; install from source. You need Node.js 22.5 or later
-(`node:sqlite` is used), git, and pnpm 9 (via Node's corepack).
+There is no published package yet; install from source.
+
+Install globally, once per machine:
+
+- **git**
+- **Node.js 22.5 or later** (`node:sqlite` is used). Any installer or nvm.
+- **pnpm 9**, from Node's own corepack: `corepack enable`
+
+Then build the checkout and link the CLI onto your `PATH`:
 
 ```sh
 git clone https://github.com/andrewcampkin/git-for-ai.git
 cd git-for-ai
-corepack enable
 pnpm install
 pnpm build
-cd packages/cli && pnpm link --global    # puts `git-for-ai` on PATH; git finds it as `git for-ai`
-git for-ai --version
+cd packages/cli && npm link      # writes git-for-ai shims into npm's global bin dir
+git for-ai --version             # git finds git-for-ai on PATH and runs it as a subcommand
 ```
+
+The global bin dir belongs to the active Node version, so after switching Node versions
+with nvm run `corepack enable` and `npm link` again; until you do, `git for-ai doctor`
+reports the executable as missing and the hooks silently do nothing. Once `git-for-ai` is
+on `PATH`, the hooks in every repository you have run `init` in start working, including
+Claude Code session capture, so link it when you are ready to capture.
 
 The first `reindex` downloads the embedding model (about 160 MB) into a per-user cache
 (`%LOCALAPPDATA%\git-for-ai\models` on Windows; `GIT_FOR_AI_MODEL_CACHE` overrides).

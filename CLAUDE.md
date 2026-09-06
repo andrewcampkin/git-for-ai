@@ -21,8 +21,10 @@ questions about why past code is the way it is — use it before re-deriving old
   is the effective gate.
 - Piped commands mask build failures (`build | tail` exits 0 via the pipe). Run the gating
   command unpiped before claiming green.
-- pnpm comes from corepack (`corepack enable`). If `git-for-ai` is not on PATH the hooks
-  silently no-op; `git for-ai doctor` says so.
+- pnpm comes from corepack (`corepack enable`); `git-for-ai` gets onto PATH with `npm link`
+  from `packages/cli`. Both belong to the active Node version, so an nvm switch drops them.
+  If `git-for-ai` is not on PATH the hooks silently no-op; `git for-ai doctor` says so. The
+  built CLI always runs as `node packages/cli/dist/bin.js`.
 
 ## Hard rules (each one encoded in tests where possible)
 
