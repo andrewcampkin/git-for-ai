@@ -1,7 +1,6 @@
 # Developing git-for-ai
 
-This guide is for a developer working on git-for-ai itself, in their own fork. The project
-does not accept contributions (see [`../CONTRIBUTING.md`](../CONTRIBUTING.md)); the intended
+This guide is for a developer working on git-for-ai itself, in their own fork; the intended
 way to change it is to fork it and point your own AI agent at the fork. Everything an agent
 needs to know to work here safely is in [`../CLAUDE.md`](../CLAUDE.md), and this file covers
 the human side: layout, build, test, and how the repo uses itself.
