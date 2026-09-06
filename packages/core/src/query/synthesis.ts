@@ -1,5 +1,5 @@
-// Milestone 11 — answer synthesis over retrieved sources, via the Anthropic API
-// (CLI_PLAN.md M11 honest-scope note: retrieval is fully local; turning sources into
+// Answer synthesis over retrieved sources, via the Anthropic API
+// (retrieval is fully local; turning sources into
 // prose is a generation task, done with Claude — the same way Claude Code itself works
 // — ONLY when ANTHROPIC_API_KEY is configured. No key → clean ranked-raw-sources
 // fallback; this module NEVER throws for missing keys or API failures).
@@ -8,10 +8,9 @@
 // 1. Plain `fetch`, no SDK: @anthropic-ai/sdk is not a dependency of core, and the repo
 //    already establishes the thin-fetch idiom for exactly this situation
 //    (embeddings/voyageEmbedder.ts — "deliberately no SDK dependency"; ARCHITECTURE.md
-//    §11.3). fetchImpl is injectable, which is also the sanctioned M11 test seam
+//    §11.3). fetchImpl is injectable, which is also the sanctioned test seam
 //    ("synthesis step tests can mock the Anthropic client").
-// 2. Default model: `claude-sonnet-5` (owner decision, 2026-07-25, superseding the
-//    original `claude-haiku-4-5` choice). The task changed under the model: synthesis is
+// 2. Default model: `claude-sonnet-5`. The task changed under the model: synthesis is
 //    no longer a one-shot summarize-with-citations over pre-retrieved text, it is an
 //    agentic loop that must DECIDE which repository read answers the question and then
 //    reason over a raw diff. Tool selection is the part a fast/cheap tier gets wrong, and
@@ -28,7 +27,7 @@
 //    unchanged inside the tool loop — which the loop does, appending assistant content
 //    verbatim.
 // 3. Citations: the model is instructed to cite sources inline as [n]; citedSources is
-//    parsed back out of the answer text (markers stay in the prose so M12 can render
+//    parsed back out of the answer text (markers stay in the prose so the CLI can render
 //    them next to its numbered source list, exactly like §9.1's example).
 // 4. Every failure mode degrades to `synthesized: false` + skippedReason — a query
 //    command must keep working offline and keep working when the API hiccups. That now
@@ -37,7 +36,7 @@
 
 import type { EnrichedSource, SynthesisResult, SynthesisToolCall } from "./types.js";
 
-/** Default synthesis model — see judgment call #2 (owner decision, 2026-07-25). */
+/** Default synthesis model — see judgment call #2. */
 export const DEFAULT_SYNTHESIS_MODEL = "claude-sonnet-5";
 
 /** Environment variable overriding the default model (per-call option wins over both). */
@@ -63,7 +62,7 @@ export const DEFAULT_MAX_TOOL_ITERATIONS = 6;
 /**
  * A repository read the answering model may perform for itself (ASK_TOOLS.md §4). Core
  * defines the shape and owns the loop; the CLI injects implementations, because the
- * commands these wrap live there and `core` never imports the CLI (hard rule 6).
+ * commands these wrap live there and `core` never imports the CLI (the package-boundary rule).
  */
 export interface SynthesisTool {
   /** Tool name as declared to the API (snake_case, stable — it appears in provenance). */

@@ -1,7 +1,5 @@
-// Electron main process — the desktop shell from architecture/DESKTOP.md §4, build-order
-// step 4 pulled forward at the owner's explicit direction (shell first; the API-groundwork
-// steps land later, inside this app). The shape is exactly the one the architecture
-// anticipated: this plain-Node process starts the SAME local server `git for-ai review`
+// Electron main process — the desktop shell from architecture/DESKTOP.md §4. The shape is
+// exactly the one the architecture anticipated: this plain-Node process starts the SAME local server `git for-ai review`
 // uses (`startReviewServer` — 127.0.0.1, random port, read-only GETs) and the renderer
 // loads the served SPA. One SPA codebase; no logic duplicated here.
 //
@@ -17,10 +15,10 @@
 //
 // Judgment calls:
 //   1. Single window, single server (v1). DESKTOP.md leaves window-per-repo as an open
-//      owner question (§6.2) — switching repos re-points this window and restarts the
+//      question (§6.2) — switching repos re-points this window and restarts the
 //      server for the new repo. Server instances are cheap, but only one runs at a time
-//      here; per-repo instances arrive with whichever multi-window answer the owner gives.
-//   2. No orphaned processes (owner rule): the server runs in-process, and before-quit
+//      here.
+//   2. No orphaned processes: the server runs in-process, and before-quit
 //      closes it explicitly (closeAllConnections first, so keep-alive sockets from the SPA
 //      can't stall `server.close()`), so a clean quit is also an observable one ("review
 //      server closed" in the log).

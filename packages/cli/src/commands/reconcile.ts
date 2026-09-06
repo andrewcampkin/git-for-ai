@@ -16,8 +16,7 @@
 // note.
 //
 // --by-content (best-effort re-link of orphaned intent via patch similarity) is specified
-// but deliberately NOT implemented yet — it fails loudly rather than pretending
-// (PLAN_2026-07-18.md W3 revisits it with doctor).
+// but deliberately NOT implemented — it fails loudly rather than pretending.
 
 import {
   findEntryByCommitSha,

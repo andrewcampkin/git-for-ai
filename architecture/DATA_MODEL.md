@@ -30,7 +30,7 @@ body is an append-only entry log (see §2.4 on why append-only).
 
 ### 2.1 Note body wire format
 
-**Current format (`ledger-note@2`, JSONL — the 2026-07-18 W3 decision):** the note body is one
+**Current format (`ledger-note@2`, JSONL):** the note body is one
 line per entry, each line a *canonical* JSON object (keys sorted at every level, no insignificant
 whitespace — the same canonicalization as §3.1):
 
@@ -83,7 +83,7 @@ time an entry is appended to it (never via a mass rewrite; reads never write).
 | `type` | enum | yes | `agent` \| `human` \| `mixed`. |
 | `tool` | string | no | e.g. `claude-code`. Absent for pure-human. |
 | `model` | string | no | e.g. `claude-opus-4-8`. |
-| `human` | string | no | The human on the keyboard (email/handle), e.g. `andrewcampkin@gmail.com`. |
+| `human` | string | no | The human on the keyboard (email/handle), e.g. `dev@example.com`. |
 
 ### 2.4 Why `entries` is an append-only array
 
@@ -128,7 +128,7 @@ that most improve `ask`/`blame` answers and should be populated whenever the ses
       "revision": "b7c3e2a1d9f8c0b4a6e5d7f9081a2b3c4d5e6f70",
       "created_at": "2026-07-17T09:22:41Z",
       "author": { "type": "agent", "tool": "claude-code", "model": "claude-opus-4-8",
-                  "human": "andrewcampkin@gmail.com" },
+                  "human": "dev@example.com" },
       "scope": [
         { "path": "src/auth/session.rs", "range": [40, 118], "blob": "af19c2b7e0d1f2a3b4c5d6e7f8091a2b3c4d5e6f" }
       ],
@@ -271,7 +271,7 @@ When two clones both modified the same change file:
 2. **`head`** — if one side's `head` is a git-descendant of the other's, take the descendant. If
    neither descends from the other, record **both** under `divergent_heads` and leave `head` at the
    lexicographically-lower SHA as a deterministic placeholder; `doctor` surfaces the divergence and
-   `reconcile`/`relink` resolves it (v1.1 UX).
+   `reconcile`/`relink` resolves it.
 3. **`absorbed` / `folded_into`** — union; a change absorbed on either side stays absorbed.
 4. **`trailer_seen`** — logical OR.
 
@@ -309,7 +309,7 @@ schema = "git-for-ai/config@1"
 provider = "jina-v2-code"      # jina-v2-code | nomic-embed-code | voyage-code-3
 dim = 768
 offline = true                 # false only for API providers
-voyage_consent = false         # must be explicitly set true to enable voyage (§14.14 of ARCHITECTURE)
+voyage_consent = false         # must be explicitly set true to enable voyage (ARCHITECTURE §13)
 
 [capture]
 enabled = true                 # set by `init`; the per-repo opt-in switch

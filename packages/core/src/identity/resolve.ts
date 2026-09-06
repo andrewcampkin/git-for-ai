@@ -17,8 +17,7 @@
 // the recovered mapping is written back so the next lookup hits the authoritative fast
 // path (R1).
 //
-// ── Why R4 compares SIBLINGS, not parent and child (changed 2026-07-18, D1 in
-// PLAN_2026-07-18.md) ──
+// ── Why R4 compares SIBLINGS, not parent and child ──
 // The original implementation followed §7.3's flowchart literally: "exactly one parent
 // with a known change-id AND tree-similarity over threshold → infer continuation". That
 // signal is wrong on both axes, proven by live dogfood data (two unrelated commits glued

@@ -9,7 +9,7 @@
 //                    target, matching git's own semantics), absorbing the others; absorbed
 //                    entries get `folded_into` so their ledger entries remain reachable.
 //
-// The actual folding of ledger ENTRIES is Milestone 4's job — this module's responsibility
+// The actual folding of ledger ENTRIES is the ledger module's job — this module's responsibility
 // is the change-map's head/history/absorbed/folded_into bookkeeping (plus the plain
 // `git notes copy` for the surviving note, which §7.4 assigns to the rewrite transition).
 //

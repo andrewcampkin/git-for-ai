@@ -1,10 +1,10 @@
-// Test-only helpers for the M11 query-engine suite (same pattern as git/testFixtures.ts:
+// Test-only helpers for the query-engine suite (same pattern as git/testFixtures.ts:
 // a plain module with no test-runner imports, usable from any *.test.ts file).
 //
 // The centerpiece is BagOfWordsEmbedder: a DETERMINISTIC fake embedder whose vectors
 // actually encode token overlap (hashed bag-of-words, L2-normalized), so ranking tests
 // can assert "the semantically relevant chunk wins" against a REAL SqliteVectorStore
-// with synthetic vectors — without ever loading the real model (M11 test constraint;
+// with synthetic vectors — without ever loading the real model (a test constraint;
 // the transformers model must never run here).
 
 import { createHash } from "node:crypto";

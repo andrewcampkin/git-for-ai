@@ -142,7 +142,7 @@ export const LEDGER_NOTE_JSONL_SCHEMA = "git-for-ai/ledger-note@2" as const;
  *   - `@1` (legacy): the whole note body is ONE pretty-printed JSON envelope;
  *   - `@2` (current): the note body is JSONL — one canonical-JSON
  *     {@link ledgerNoteLineSchema} line per entry — so `cat_sort_uniq` notes-merge is
- *     conflict-free by construction (ARCHITECTURE.md §12.2; PLAN_2026-07-18.md W3).
+ *     conflict-free by construction (ARCHITECTURE.md §12.2).
  * Readers accept both; writers emit only `@2`.
  */
 export const ledgerNoteSchema = z

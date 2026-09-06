@@ -1,4 +1,4 @@
-// M11 end-to-end `ask` tests — the milestone's definition of done: a fixture repo with
+// End-to-end `ask` tests: a fixture repo with
 // real ledger entries (plus a session record), an index built with SYNTHETIC vectors
 // (deterministic fake embedder — the real model is never loaded), and a query targeting
 // one entry returning it as the top-ranked source — with AND without an API key.
@@ -71,7 +71,7 @@ beforeAll(async () => {
     ctx,
   );
 
-  // The index M10 would have produced, with synthetic vectors (reindex.ts key/text shapes).
+  // The index `reindex` would have produced, with synthetic vectors (reindex.ts key/text shapes).
   dir = await mkdtemp(join(tmpdir(), "git-for-ai-ask-"));
   store = SqliteVectorStore.open({
     path: join(dir, "index.db"),
@@ -120,10 +120,10 @@ describe("askQuestion", () => {
       { synthesis: { apiKey: "", fetchImpl: fetchImpl as unknown as typeof fetch } },
     );
 
-    // The targeted ledger entry is the top source (M11 definition of done).
+    // The targeted ledger entry is the top source.
     expect(result.sources[0]!.chunk.key).toBe(`ledger:${changeId}`);
 
-    // Enrichment carries the FULL records — M12 renders §9.1 without re-fetching.
+    // Enrichment carries the FULL records — the CLI renders §9.1 without re-fetching.
     const top = result.sources[0]!;
     expect(top.ledgerEntry?.summary).toBe("Move session state to signed cookies");
     expect(top.ledgerEntry?.reasoning?.rejected?.[0]?.option).toBe("Redis session store");

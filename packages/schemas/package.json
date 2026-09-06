@@ -2,6 +2,7 @@
   "name": "@git-for-ai/schemas",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Zod schemas + inferred TypeScript types for the git-for-ai record formats (ledger entry, session record, change-map entry, repo config). See architecture/DATA_MODEL.md for the spec this implements.",
   "type": "module",
   "main": "./dist/index.js",

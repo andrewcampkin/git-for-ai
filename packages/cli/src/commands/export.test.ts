@@ -1,6 +1,6 @@
 // Integration tests for `git for-ai export` against REAL fixture repos (never mocked):
 // the Agent Trace wire-format export (ARCHITECTURE.md §3.1) and the pr-comment markdown
-// (PLAN_2026-07-18.md §2.2 item 3). Export is a read — one test pins the non-minting
+// export. Export is a read — one test pins the non-minting
 // guarantee.
 
 import { readFile } from "node:fs/promises";

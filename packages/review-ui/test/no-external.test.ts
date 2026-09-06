@@ -1,4 +1,4 @@
-// REVIEW_UI.md §2 rule 3: the built SPA is fully self-contained — zero external requests
+// REVIEW_UI.md §2 self-contained rule: the built SPA is fully self-contained — zero external requests
 // (no CDNs, fonts, telemetry). Enforced the same way report.test.ts asserts no external
 // src/href on the report page, here against the actual Vite build output.
 //

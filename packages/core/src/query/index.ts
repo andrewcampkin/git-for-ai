@@ -1,4 +1,4 @@
-// Milestone 11 — query engine barrel (hybrid retrieval + synthesis).
+// Query engine barrel (hybrid retrieval + synthesis).
 // Public surface re-exported from ../index.ts; see engine.ts for the two entry points.
 
 export {

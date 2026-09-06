@@ -1,5 +1,5 @@
 // The default, offline, in-process embedder — architecture/ARCHITECTURE.md §11.3,
-// GPU path per architecture/ROADMAP.md Tier 0 item 1 (owner-chosen, 2026-07-19).
+// GPU path per architecture/ROADMAP.md Tier 0 item 1.
 //
 // Runs an open-weight code embedding model as ONNX entirely inside the Node process via
 // @huggingface/transformers (transformers.js v3 — the maintained successor of

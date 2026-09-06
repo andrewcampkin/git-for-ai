@@ -1,6 +1,7 @@
 {
   "name": "git-for-ai-monorepo",
   "private": true,
+  "license": "MIT",
   "version": "0.0.0",
   "description": "AI-augmented source control: intent alongside diffs, layered on Git. Monorepo root (not published).",
   "type": "module",

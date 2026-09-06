@@ -1,5 +1,5 @@
-// REAL-MODEL embedder test (CLI_PLAN.md M9 risk register: "budget real time for this
-// step; don't assume 'just works' without running it once for real").
+// REAL-MODEL embedder test: the one place the real model is loaded, so it is run once
+// for real rather than assumed to work.
 //
 // This downloads the actual jina-embeddings-v2-base-code ONNX weights on first run
 // (~100+ MB, cached under the transformers.js cache dir afterwards) and runs real
@@ -8,7 +8,7 @@
 //
 //     GIT_FOR_AI_REAL_EMBEDDER=1 pnpm vitest run src/embeddings/transformersEmbedder.real.test.ts
 //
-// It was executed for real during M9 development on this machine — see the M9 report.
+// It was executed for real during development on this machine.
 
 import { describe, expect, it } from "vitest";
 

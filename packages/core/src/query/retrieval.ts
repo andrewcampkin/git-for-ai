@@ -1,8 +1,8 @@
-// Milestone 11 — hybrid retrieval (architecture/ARCHITECTURE.md §11.4, CLI_PLAN.md M11).
+// Hybrid retrieval (architecture/ARCHITECTURE.md §11.4).
 //
 // The index always blends keyword and vector search (§11.4: "we always blend ... rather
 // than betting the query layer on embeddings alone"). This module runs both halves of
-// M9's `SqliteVectorStore` — `queryVector` (vec0 KNN) and `queryKeyword` (FTS5 bm25) —
+// the embedding pipeline's `SqliteVectorStore` — `queryVector` (vec0 KNN) and `queryKeyword` (FTS5 bm25) —
 // and merges them with RECIPROCAL-RANK FUSION.
 //
 // ── Why RRF (judgment call) ──
@@ -25,10 +25,10 @@
 // ── Query embedding ──
 // The query is embedded with the SAME model that built the index (fingerprint checked
 // by the store on open). For the Voyage path, the query must be embedded with
-// input_type "query" (voyageEmbedder.ts judgment call #4) — the M9 factory has no
+// input_type "query" (voyageEmbedder.ts judgment call #4) — the embedder factory has no
 // input-type knob (reported as a suggested embeddings/ change), so
 // `createQueryEmbedderFromConfig` below constructs the Voyage embedder directly with
-// inputType "query" and defers everything else to the M9 factory.
+// inputType "query" and defers everything else to the embedder factory.
 
 import type { RepoConfig } from "@git-for-ai/schemas";
 
@@ -213,7 +213,7 @@ export function toRetrievalPosition(position: BlamePosition): RetrievalPosition 
 }
 
 /**
- * Build the QUERY-side embedder for the configured provider. Identical to M9's
+ * Build the QUERY-side embedder for the configured provider. Identical to the indexing side's
  * `createEmbedderFromConfig` except that the Voyage path embeds with input_type
  * "query" (asymmetric retrieval models embed queries and documents differently).
  * The offline transformers path has no query/document asymmetry — delegated as-is.

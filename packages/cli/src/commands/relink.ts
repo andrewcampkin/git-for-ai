@@ -1,5 +1,5 @@
 // `git for-ai relink` — the manual identity escape hatch (CLI_REFERENCE `relink`;
-// ARCHITECTURE.md §7.4's split case; PLAN_2026-07-18.md D2 repair).
+// ARCHITECTURE.md §7.4's split case; misattribution repair).
 //
 // Two forms:
 //   relink <change-id> <commit>   Re-point a change's head to <commit> (append to
@@ -89,7 +89,7 @@ async function rewriteNoteChangeId(
     change_id: newChangeId,
     entries: note.entries.map((entry) => ({ ...entry, change_id: newChangeId })),
   };
-  // Every write path emits the JSONL wire format (PLAN_2026-07-18.md W3) — this rewrite
+  // Every write path emits the JSONL wire format — this rewrite
   // also opportunistically migrates a legacy-envelope note.
   await runGit(["notes", `--ref=${INTENT_NOTES_REF}`, "add", "-f", "-F", "-", sha], {
     ...ctx,

@@ -6,7 +6,7 @@
 //     else:                           cid = random_32_hex()  # fresh opaque id (§7.7)
 //     change_map.upsert(change_id=cid, head=new_sha, append_history=new_sha, origin="post-commit")
 //
-// (§7.2's `ledger.ensure_stub` step belongs to Milestone 4's ledger module and is not
+// (§7.2's `ledger.ensure_stub` step belongs to the ledger module and is not
 // performed here.)
 
 import type { ChangeId, ChangeMapEntry } from "@git-for-ai/schemas";

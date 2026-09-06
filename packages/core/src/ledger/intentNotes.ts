@@ -6,14 +6,14 @@
 // edit of an existing entry (DATA_MODEL.md §2.4). This module enforces that invariant —
 // every write copies the existing entries untouched and adds exactly one new entry.
 //
-// ── On-disk format (the PLAN_2026-07-18.md W3 decision, owner-approved) ──
+// ── On-disk format ──
 //
 // Two encodings exist; readers accept BOTH, writers emit ONLY the second:
 //
 //   @1 (legacy)   The whole note body is one pretty-printed `ledgerNoteSchema` JSON
 //                 envelope. Line-oriented `cat_sort_uniq` notes-merge would interleave
 //                 two divergently-appended envelopes into invalid JSON — the exact
-//                 problem CLI_PLAN.md M13's writeup identified.
+//                 problem the JSONL format exists to avoid.
 //
 //   @2 (current)  JSONL: one `ledgerNoteLineSchema` object per line, each serialized
 //                 CANONICALLY (keys sorted, no insignificant whitespace) and carrying
@@ -275,7 +275,7 @@ export async function readLedgerNoteWithFormat(
  * Read and parse the full ledger note envelope for a commit.
  *
  * Returns `null` when the commit has no note under the intent ref — the unambiguous
- * "no captured intent for this commit" signal that `log --intent` (M6) and `show` (M8)
+ * "no captured intent for this commit" signal that `log --intent` and `show`
  * render their degraded case from. A note that exists but is malformed throws
  * {@link LedgerNoteFormatError} instead of being treated as absent.
  */

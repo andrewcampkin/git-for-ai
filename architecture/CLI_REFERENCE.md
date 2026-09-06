@@ -128,7 +128,7 @@ Sources:
 Confidence: high (direct match on an explicit rejected-alternative).
 ```
 
-**Answers can read the repository (2026-07-25, [`ASK_TOOLS.md`](./ASK_TOOLS.md)).**
+**Answers can read the repository ([`ASK_TOOLS.md`](./ASK_TOOLS.md)).**
 When synthesis is enabled, retrieval is the starting point rather than the boundary: the
 answer may also run the same reads these commands expose — a commit's diff, a change's record,
 recent history, or a line's blame — and everything it consulted is listed under the answer, so
@@ -268,21 +268,6 @@ voyage-code-3 is an API provider: enabling it sends code to Voyage AI for embedd
 This turns off offline-by-default for indexing. Type 'i accept' to continue: i accept
 ✓ embedder set to voyage-code-3 (dim 1024). Run `git for-ai reindex --full` to re-embed.
 ```
-
----
-
-## Command-to-idea map
-
-| Command | Primary idea served |
-|---|---|
-| `init`, `doctor`, `config` | Cross-cutting (all) |
-| `capture-session` | 02 (Agent Session Ledger) |
-| `blame --why`, `ask`, `log --intent`, `show` | 04 (Conversational Blame / Repo Q&A) |
-| `reindex` | 03 (Vector-Indexed Repository Brain) |
-| `sync` | 01+02 (git-native sync of ledger/sessions/map) |
-| `reconcile`, `relink` | 01 (identity / rewrite survival) |
-| `export` | 01 (Agent Trace interop) |
-| `check-drift` *(v2)* | 06 (roadmap) |
 
 ---
 

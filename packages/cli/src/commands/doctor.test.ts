@@ -1,5 +1,5 @@
 // Integration tests for `git for-ai doctor` against REAL fixture repos (never mocked),
-// covering the CLI_REFERENCE checks plus the PLAN_2026-07-18.md W3-#11 audits: inferred/
+// covering the CLI_REFERENCE checks plus the identity audits: inferred/
 // orphan-recovery origin rows, dangling session refs, unreadable + legacy-format notes,
 // and the hooks-installed-but-dispatcher-missing class.
 //
@@ -129,7 +129,7 @@ describe("doctor (real git fixture)", () => {
     expect(result.data.errors).toBe(0);
   });
 
-  it("detects hooks-installed-but-dispatcher-missing (the HANDOFF #1 failure class)", async () => {
+  it("detects hooks-installed-but-dispatcher-missing (the silent-no-op failure class)", async () => {
     await runInit({ cwd: repo.dir });
     // An empty PATH: hooks are installed but nothing can dispatch them.
     const result = await runDoctor({ cwd: repo.dir, pathEnv: join(repo.dir, "no-such-dir") });

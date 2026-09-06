@@ -1,10 +1,10 @@
-// Milestone 11 — the query engine's two entry points, shaped for M12's two commands:
+// The query engine's two entry points, shaped for the CLI's two commands:
 //
 //   askQuestion  → `git for-ai ask "<question>"`      (ARCHITECTURE.md §9.1)
 //   explainLine  → `git for-ai blame --why <file>:<line>`
 //
 // Both are pure orchestration over the module's parts (retrieval → enrichment →
-// synthesis) with injected dependencies: the caller (M12, or a test) opens the store
+// synthesis) with injected dependencies: the caller (the CLI, or a test) opens the store
 // and constructs the embedder — mirroring how reindex.ts owns config/store lifecycle —
 // so this module has no filesystem/config knowledge and is trivially testable with a
 // synthetic store + fake embedder.

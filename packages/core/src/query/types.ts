@@ -1,8 +1,8 @@
-// Milestone 11 — query engine result types (architecture/CLI_PLAN.md M11).
+// Query engine result types.
 //
-// These shapes are the contract with M12's two commands (`ask`, `blame --why`) AND with
+// These shapes are the contract with the CLI's two commands (`ask`, `blame --why`) AND with
 // machine consumers (`--json` later), so they are designed to carry everything the
-// ARCHITECTURE.md §9.1 example outputs render, without M12 re-fetching anything:
+// ARCHITECTURE.md §9.1 example outputs render, without the CLI re-fetching anything:
 //
 //   ask (§9.1):        prose answer + "Sources: [1] ledger 9f2c1a7b src/...:40-118
 //                      (agent-captured) / [2] session sha256:1f4e9c claude-code ..." —
@@ -52,7 +52,7 @@ export interface RankedSource {
 }
 
 /**
- * A ranked source enriched with its full git-native records, so M12 renders without
+ * A ranked source enriched with its full git-native records, so the CLI renders without
  * re-fetching (plan requirement). All enrichment fields are null when not applicable
  * (e.g. a code chunk with no associated change) or when the record no longer exists.
  */
@@ -96,7 +96,7 @@ export interface SynthesisToolCall {
 
 /**
  * Outcome of the synthesis step. `synthesized: false` is a NORMAL result (the
- * ranked-raw-sources fallback from CLI_PLAN.md M11's honest-scope note), never an error.
+ * ranked-raw-sources fallback), never an error.
  */
 export interface SynthesisResult {
   /** True iff `answer` holds model-generated prose. */
@@ -127,7 +127,7 @@ export interface SynthesisResult {
   error?: string;
 }
 
-/** Result of `ask` — M12's `git for-ai ask "<question>"`. */
+/** Result of `git for-ai ask "<question>"`. */
 export interface AskResult {
   question: string;
   /** Ranked, enriched sources — rendered as the "Sources:" list (and the whole answer when unsynthesized). */
@@ -152,7 +152,7 @@ export interface RelatedChangeRef {
   summary: string;
 }
 
-/** Result of `blame --why` — M12's `git for-ai blame --why <file>:<line>`. */
+/** Result of `git for-ai blame --why <file>:<line>`. */
 export interface BlameWhyResult {
   position: BlamePosition;
   /** Commit `git blame` attributes the line to; null when the line is uncommitted. */

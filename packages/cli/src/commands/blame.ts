@@ -1,5 +1,5 @@
-// `git for-ai blame --why <file>:<line>` — Milestone 12 (architecture/CLI_PLAN.md),
-// over M11's `explainLine`. Spec: CLI_REFERENCE.md's `blame --why` section and
+// `git for-ai blame --why <file>:<line>` — over
+// core's `explainLine`. Spec: CLI_REFERENCE.md's `blame --why` section and
 // ARCHITECTURE.md §9.1: resolve the line to its owning change, render the recorded
 // intent (WHY / CONSIDERED & REJECTED / SESSION / LATER TOUCHED BY), and degrade
 // honestly — "no captured intent" plus what git actually knows — with exit code 2.

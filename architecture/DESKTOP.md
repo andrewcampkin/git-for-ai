@@ -1,222 +1,130 @@
-# DESKTOP.md — the desktop app: plan and branch/merge groundwork
+# DESKTOP.md — the desktop app
 
-Written 2026-07-19 at the owner's direction to explore the desktop app next. Two owner
-inputs shape this document: (1) a *useful* desktop app must reproduce elements of a git
-client, not just wrap the review page; (2) the branching/merging question that raises was
-worth answering empirically before designing anything. Naming note: **"git-for-ai" is the
-internal/working name only — it will not be the public product name.** Nothing in this doc
-depends on the name; the eventual rename is a find/replace plus binary/package naming
-decided at publish time (ROADMAP Tier 1 amended accordingly).
+A *useful* desktop app must reproduce elements of a git client, not just wrap the review
+page, and that raises the question of how the intent layer behaves across branches and
+merges. §1 answers it from tested behavior; the rest describes the app.
 
-## 1. Does the intent layer survive branching and merging? (tested, not assumed)
+## 1. How the intent layer behaves across branching and merging (tested)
 
-Empirical results from a scratch repo driven through the real CLI + hooks, 2026-07-19:
-
-**What works today, by design (everything is SHA-anchored, branches are irrelevant to it):**
+**By design (everything is SHA-anchored; branches are irrelevant to it):**
 - Commits on any branch get trailers + change-map entries; identities are branch-agnostic.
 - A normal `git merge --no-ff` fires commit-msg/post-commit: the **merge commit gets its own
-  change identity**, and every merged-in commit keeps its existing identity. Verified.
+  change identity**, and every merged-in commit keeps its existing identity.
 - Ledger notes and sessions attach to SHAs — unaffected by which branch a commit is on.
-- Rebase-style squashing was always handled (post-rewrite fold, M3).
+- Rebase-style squashing is handled by the post-rewrite fold (ARCHITECTURE §7.4).
 
-**Confirmed gaps (the desktop plan must respect these; fixes are scoped below):**
-- **G1 — `git merge --squash` produces an *unlinked* squash commit.** ✅ **FIXED
-  2026-07-19** (same day, before any desktop code). Two-phase hook fix, because SQUASH_MSG
-  exists at commit-msg time but is gone by post-commit (both verified): commit-msg detects
-  SQUASH_MSG, injects the *surviving* change's id (oldest squashed commit's change) as the
-  trailer, and writes a pending-fold file; post-commit consumes it (stale-guarded by
-  trailer match) and folds the other squashed changes via the ordinary §7.4 machinery.
-  Verified live: squash + branch delete now yields one continued change with the rest
-  absorbed, and `doctor` reports no anomalies. `doctor`'s identity audit also gained the
-  unreachable-heads check (flags pre-fix history with a `relink` remediation). See
-  internal-hook.ts judgment call #4.
-- **G2 — the semantic index is single-rev (HEAD of the checked-out branch).** Incremental
-  reindex handles branch switches correctly (it diffs old base → new HEAD), but answers from
-  `ask` reflect the indexed rev only. Fine solo; the desktop app must *display which rev the
-  index reflects* and offer one-click reindex. True multi-rev indexing is explicitly v2.
-- **G3 — change-map divergence across machines** still resolves as divergent-kept-local
-  (no 3-way driver yet). Irrelevant on one machine; becomes real when the desktop app syncs
-  two machines. Stays on the roadmap; the app must surface the divergent state honestly.
-- **Design note discovered while testing:** `rev-list --all` includes our own metadata refs'
-  internal commits (change-map/sessions ref history). Any "all branches" or graph view MUST
-  exclude `refs/git-for-ai/*` and `refs/notes/*`.
-
-**Conclusion: branching and normal merging need no design changes. G1 needs a hook fix
-before the desktop app ships anything branch-related, because squash-merge is a common
-button in the very git clients this app sits beside.**
+**Cases the app must respect:**
+- **G1 — `git merge --squash`.** No post-rewrite fires, so the squash commit would mint an
+  unlinked change. The hooks handle it in two phases, because `SQUASH_MSG` exists at
+  commit-msg time but is gone by post-commit: commit-msg detects `SQUASH_MSG`, injects the
+  *surviving* change's id (the oldest squashed commit's change) as the trailer, and writes a
+  pending-fold file; post-commit consumes it (stale-guarded by trailer match) and folds the
+  other squashed changes through the ordinary §7.4 machinery. `doctor`'s identity audit
+  includes an unreachable-heads check with a `relink` remediation for history from before
+  this handling. See internal-hook.ts judgment call #4.
+- **G2 — the semantic index is single-rev** (HEAD of the checked-out branch when `reindex`
+  last ran). Incremental reindex handles branch switches correctly (it diffs old base → new
+  HEAD), but answers from `ask` reflect the indexed rev only. The app displays which rev the
+  index reflects and offers one-click reindex.
+- **G3 — change-map divergence across machines** resolves as divergent-kept-local (no
+  3-way driver). The app surfaces the divergent state honestly rather than hiding it.
+- **Metadata refs are never branches.** `rev-list --all` includes the tool's own refs'
+  internal commits (change-map/sessions ref history). Every branch or graph view reads
+  `refs/heads/` only.
 
 ## 2. What the app is (and is not)
 
 A **repository intelligence app**: the place a human reviews, interrogates, and maintains
 the intent layer across their repos — with enough git-client surface (branches, history,
-diffs) that reviewing doesn't require a second tool alongside it.
+diffs) that reviewing does not require a second tool alongside it.
 
-**Not in v1**: staging, committing, branch creation, merge/rebase *operations*, push/pull of
-code branches. Those exist in every git client and IDE the owner already has; reproducing
-them buys nothing until the intelligence surfaces prove themselves daily-driver worthy.
-(Revisit only if the app becomes the primary tool and the context-switch hurts — that's a
-v2+ question the owner answers with usage.)
+**Not included**: staging, committing, branch creation, merge/rebase *operations*, push/pull
+of code branches. Those exist in every git client and IDE.
 
-## 3. v1 feature set
+## 3. Feature set
 
-Base layer: **everything the review UI already does** (ask hero with cited answers,
-attention inbox, day-grouped timeline, change detail with evidence, session narratives) —
+Base layer: **everything the review UI does** (ask panel with cited answers, attention
+inbox, day-grouped timeline, change detail with evidence and diff, session narratives) —
 reused, not rebuilt.
 
-New, in priority order:
+On top of it:
 1. **Repo picker** — a persistent multi-repo list (add by folder), per-repo landing on the
    overview. Uninitialized repos get an "opt in" screen wrapping `init` with the plain
    privacy explanation.
-2. **Branch awareness** — sidebar of local branches (current highlighted): selecting one
-   scopes the timeline/ask context line to that branch's history (`log --rev` exists;
-   `/api/overview` grows a `rev` param). Merge commits render with a "merged N changes"
-   affordance listing the absorbed/merged-in changes. Metadata refs filtered per §1.
-3. **Diff viewer with intent beside it** — the explicitly-deferred review-UI item, now
-   required: per-file unified/side-by-side diff for a commit (new `/api/diff/:sha`),
-   rendered next to the change's summary/intent/evidence — the claim-next-to-evidence
-   principle extended to the code itself. Syntax highlighting via a bundled highlighter
-   (no external requests, as ever).
-4. **Actions panel** — the maintenance verbs, GUI-shaped with the same guardrails as the
-   CLI: sync (per-ref report, explicit confirm before push), reindex (with the batched
-   progress the CLI already emits), doctor (rendered as the attention inbox's "run a
-   checkup" source), annotate (a human-friendly form for the deliberate write path), and
-   guided repair (relink/reconcile) launched from attention items.
-5. **App shell niceties**: OS window/dock presence, per-repo recent list, keyboard
-   navigation. Auto-update and installers via electron-builder (Windows first).
+2. **Branch awareness** — a chip row under the masthead of local branches (current
+   highlighted): selecting one scopes the timeline to that branch's history (`?rev=` on
+   `/api/overview`, mirrored in the URL so a branch view is reloadable). G2 is surfaced:
+   selecting a branch states that `ask` still answers from the revision the index was built
+   at. Metadata refs are excluded per §1.
+3. **Diff viewer with intent beside it** — per-file diff for a commit (`/api/diff/:sha`),
+   rendered next to the change's summary/intent/evidence: the claim-next-to-evidence
+   principle extended to the code itself. No syntax highlighting; add/delete coloring in
+   mono, with binary/rename/truncation labeled.
+4. **Actions panel and guided repair** — the maintenance verbs, GUI-shaped with the same
+   guardrails as the CLI: fetch/send (per-ref report, explicit confirm before push), update
+   search (reindex, with the batched progress the CLI emits), and a checkup (`doctor`)
+   offered from the attention inbox, where a finding that has a mechanical repair
+   (`relink`/`reconcile`) carries the offer and shows the exact command before it runs. The
+   annotate form lives on the change route, where the gap is visible.
+5. **App shell** — remembered window bounds and last repo, per-repo recent list, standard
+   menu, single-instance lock, graceful in-process server shutdown.
 
 ## 4. Technical shape
 
-- **Electron wrapping the existing local server + SPA** — the shape the architecture always
-  anticipated, made concrete: the main process (plain Node) starts the same server
-  `git for-ai review` uses, bound to 127.0.0.1 on a random port, and the renderer loads it.
-  One SPA codebase (`packages/review-ui`) serves both browser and desktop; desktop-only
-  panes (branches, diff, actions) render when `/api/meta` advertises desktop capabilities.
-- **The read-only rule stays, refined**: `git for-ai review` (browser mode) remains
-  strictly GET/read-only. The desktop-launched server enables a small set of POST action
-  endpoints (`/api/actions/sync|reindex|annotate|relink|reconcile|init`) — each wrapping
-  the identical pure `run*` function its CLI command uses, each requiring a per-launch
-  token the main process injects (so nothing else on localhost can drive writes).
-  REVIEW_UI.md §2 gets amended when this lands, not silently violated.
-- **Multi-repo**: server instances per open repo (they're cheap), managed by main.
-- `packages/desktop` finally becomes real: main-process code + electron-builder config
-  only; it depends on `cli` (server) and `review-ui` (assets), never duplicates logic.
+- **Electron wrapping the existing local server + SPA.** The main process (plain Node)
+  starts the same server `git for-ai review` uses (`startReviewServer`), bound to 127.0.0.1
+  on a random port, and the renderer loads it. One SPA codebase (`packages/review-ui`)
+  serves both browser and desktop; desktop-only panes render when `/api/meta` advertises
+  the capabilities (`mode: "desktop"`, `actions`).
+- **The read-only rule stays, refined.** `git for-ai review` (browser mode) remains strictly
+  GET/read-only. The desktop-launched server enables `POST /api/actions/<verb>` for doctor,
+  reindex, sync, annotate, relink and reconcile — each a thin argument translation over the
+  identical pure `run*` function its CLI command uses, so the GUI cannot drift from the CLI.
+  The guards, all tested (`reviewActions.test.ts`):
+  - the endpoints do not exist without a launch token (browser mode answers 404; every
+    other non-GET is 405);
+  - a fresh random token per server launch, generated by the Electron main process and
+    handed to its own renderer in the URL *fragment* (never sent to a server, wiped from the
+    address bar on read); no endpoint serves it, since `/api/meta` is readable by anything
+    on localhost;
+  - constant-time comparison, required in a header; a cross-origin `Origin` is refused;
+  - one job at a time (409 otherwise): two reindexes would fight over the index and RAM;
+  - jobs, not blocking requests: every action returns a job id immediately and streams
+    progress lines;
+  - pushing needs explicit confirmation in the body, in the same terms the CLI prompt uses.
+- **One window, one server.** Switching repos re-points the window and restarts the server.
+- `packages/desktop` is main-process code + electron-builder config only; it depends on
+  `cli` (server) and `review-ui` (assets) and never duplicates logic. Security posture:
+  `contextIsolation` on, `nodeIntegration` off, sandbox on; the served SPA gets no preload
+  surface; only the local `file://` picker page sees the `pickFolder`/`openRepo`/`init`
+  bridge.
 
-## 5. Build order (each step lands + verifies before the next)
+## 5. Layers, in the order they build on each other
 
-**Order amended 2026-07-19 at the owner's explicit direction: the Electron shell shipped
-first** (step 4's shell half), so the app exists now; steps 2–3 landed next (2026-07-25),
-inside it, followed by step 4 in full (action endpoints, panel, annotate form, guided
-repair). **Steps 1–4 are done.** What remains is step 5 packaging — which needs the
-product-name decision (§6 Q3) first, since the installer name and app id bake it in.
+1. **Squash-merge fold** in `internal-hook` + doctor's unreachable-heads audit (§1 G1).
+   Core/CLI, no UI.
+2. **Read-only API groundwork** in the CLI server: `rev` on `/api/overview`,
+   `/api/branches`, `/api/diff/:sha`, capability flags in `/api/meta`, plus
+   `git for-ai report --rev`. Backed by `packages/cli/src/commands/reviewGit.ts` — plain git
+   reads, no identity minting, so the byte-identical-refs guarantee holds across the whole
+   surface. Judgment calls in that file's header: metadata refs are excluded structurally
+   (`refs/heads/` only); a merge commit's diff is shown against its first parent WITH an
+   explicit warning rather than rendering empty; truncation clips bodies but never the +/-
+   counts; an unresolvable `?rev=` is a 400, never a silently empty timeline. Browser mode
+   benefits too.
+3. **Review-UI additions**: branch chip row + diff pane, usable in the browser.
+4. **Electron shell** (4a): `packages/desktop` main process, window management, repo picker,
+   opt-in screen. **Action endpoints, panel, annotate form and guided repair** (4b): the
+   token-gated write path described in §4, the maintenance panel (checkup moved to the
+   attention inbox; the panel keeps update-search and fetch/send), the annotate form on the
+   change route, and repair offers driven by doctor's structured `repairs`. `relink` asks
+   for the commit; only `reconcile` (no arguments) is a single button; after a repair the
+   checkup re-runs so the fresh finding list is the evidence.
+5. **Packaging**: electron-builder config is checked in (`electron-builder.yml`) with a
+   placeholder appId; no installer is built.
 
-1. **G1 fix**: squash-merge fold in `internal-hook` + doctor's unreachable-heads audit.
-   (Core/CLI, no UI; unblocks honest branch UX.) ✅ DONE 2026-07-19.
-2. **API groundwork** in the CLI server: `rev` param on overview, `/api/branches`,
-   `/api/diff/:sha`, capability flags in `/api/meta`. All still read-only; browser mode
-   benefits too. ✅ **DONE 2026-07-25.** All four landed, plus `git for-ai report --rev`
-   (the same walk, exposed on the CLI where it was equally missing). The two new endpoints
-   are backed by `packages/cli/src/commands/reviewGit.ts` — plain git reads, no identity
-   minting, so the byte-identical-refs guarantee still holds across the whole surface (the
-   review test now sweeps the new endpoints too). Judgment calls recorded in that file's
-   header: metadata refs are excluded *structurally* (`refs/heads/` only, not filtered
-   after the fact); a merge commit's diff is shown against its first parent WITH an explicit
-   warning rather than rendering empty; truncation clips bodies but never the +/- counts;
-   an unresolvable `?rev=` is a 400, never a silently empty timeline. REVIEW_UI.md §3 was
-   amended, as §4 of this document requires.
-3. **Review-UI additions**: branch sidebar + diff pane (usable in the browser immediately —
-   value ships before Electron exists). ✅ **DONE 2026-07-25.**
-   - **Deviation, recorded not silent**: the branch selector ships as a **chip row** under
-     the masthead, not a sidebar. This page is one narrow reading column and most repos
-     have a handful of branches; a permanent sidebar would spend the page's scarcest
-     resource on a control used once a session. Its contract (a rev in, a rev out) is
-     sidebar-ready if the desktop window later grows a multi-pane layout.
-   - Branch scope lives in the URL (`#/?rev=<branch>`), so a branch view is reloadable and
-     the shell can restore it.
-   - G2 is surfaced, not hidden: selecting a branch prints that `ask` still answers from
-     the revision the index was built at.
-   - The diff pane renders under the change's intent on the change route (files foldable,
-     big commits start folded, binary/rename/truncation labeled). **Syntax highlighting is
-     deferred** — the one part of §3's item 3 not built; add/delete coloring in mono is
-     legible and no bundled highlighter earns its weight yet.
-   - Both panes are gated on `/api/meta`'s capability flags, never on host sniffing.
-4. **Electron shell**: `packages/desktop` main process, window management, repo picker,
-   token-gated action endpoints + actions panel.
-   ✅ **Shell half DONE 2026-07-19** (pulled ahead of steps 2–3): `packages/desktop` is a
-   real workspace package — Electron main process wrapping `startReviewServer` (the exact
-   server `git for-ai review` uses, unchanged), repo picker with recents + native folder
-   dialog, uninitialized-repo opt-in screen wired to the pure `runInit`, remembered
-   bounds/last-repo, single-instance lock, graceful in-process server shutdown, locked-down
-   renderer (contextIsolation on, sandbox on, no preload surface for the SPA). Single
-   window v1 — §6 Q2 (window-per-repo) still awaits the owner. The shell now starts its
-   server with `mode: "desktop"`, which only changes the capability flags `/api/meta`
-   advertises.
-   ✅ **Action half DONE 2026-07-25.** `POST /api/actions/<verb>` for doctor, reindex,
-   sync, annotate, relink and reconcile — each a thin argument translation over the same
-   pure `run*` function its CLI command uses, so the GUI cannot drift from the CLI.
-   The guards, all tested rather than trusted (`reviewActions.test.ts`):
-   - **The endpoints do not exist without a launch token.** `git for-ai review` passes
-     none, so browser mode answers 404 for actions and stays exactly as read-only as
-     before; every other non-GET is still 405.
-   - **Fresh random token per server launch**, generated by the Electron main process and
-     handed to its own renderer in the URL *fragment* (never sent to a server, wiped from
-     the address bar on read). No endpoint ever serves it — `/api/meta` is readable by
-     anything on localhost, so a token it returned would protect nothing.
-   - **Checked in constant time, required in a header**, so a cross-origin form cannot
-     drive it; a cross-origin `Origin` is refused outright.
-   - **One job at a time** (409 otherwise) — two reindexes would fight over the index and
-     the machine's RAM.
-   - **Jobs, not blocking requests**: every action returns a job id immediately and
-     streams progress lines (reindex's per-batch output is what makes the wait honest).
-   - **Pushing needs explicit confirmation in the body**; the panel asks first, in the
-     same terms the CLI prompt uses.
-   Panel v1 has buttons for the three verbs a person actually reaches for — checkup,
-   update search, fetch/send.
-   ✅ **Annotate form DONE 2026-07-25.** It lives on the **change route**, not in the
-   maintenance panel, because that is where the gap is visible: you read a change, see
-   "no reasoning recorded for this change yet", and say what happened in place. Gated on
-   the same two halves as the panel (capability flag AND launch token), so browser mode
-   never shows it. It opens seeded from the current entry — correcting a record is editing
-   a draft, not retyping one — and states that saving appends a corrected version while
-   the current one stays readable, since the ledger is append-only and a form that implied
-   otherwise would teach the wrong model. No author fields: a form submission is a human's,
-   and letting a GUI claim an agent wrote something would be a provenance lie with a nice
-   widget. Field rules live in `review-ui/src/lib/annotate.ts` (unit-tested there, the way
-   this package tests logic rather than rendering) and refuse a half-record — a rejected
-   alternative missing its reason, a confidence that is not 0–1 — with a sentence naming
-   the fix. The endpoint gained `tested` passthrough in the same change: it is the field
-   the change page most prominently shows as "nothing recorded", so it is the one people
-   open the form to fill.
-   ✅ **Guided repair DONE 2026-07-25**, completing step 4. The checkup moved OUT of the
-   maintenance panel and INTO the attention inbox, as §3 item 4 always specified ("doctor
-   rendered as the attention inbox's 'run a checkup' source") — what a checkup finds
-   belongs beside the other things needing a person, and two buttons for one action in two
-   places is worse than one in the right place. The panel keeps update-search and
-   fetch/send.
-   The repair flow is deliberately three steps, not one button: run a checkup; read what
-   it found in plain language; repair **having seen the exact command**. These verbs
-   rewrite identity records, so the command is shown before it runs and is copy-pasteable
-   for anyone who would rather do it in a terminal.
-   The load-bearing decision is on the CLI side: `DoctorCheck` gained an optional
-   `repairs: DoctorRepair[]` — the same advice as data (action, one-sentence what, whether
-   a commit is needed, and the change-ids the finding is about). Doctor already did the
-   analysis; making the UI re-derive which fix applies by parsing doctor's English would
-   have been exactly the guessing this project avoids. A finding with no mechanical repair
-   carries none, and still shows its prose remediation rather than being hidden.
-   **What is never guessed:** which commit is the right one. `relink` asks; only
-   `reconcile` (no arguments) is a single button. After a repair lands the checkup re-runs
-   itself, because a fresh finding list is the evidence and a stale one beside a "Done."
-   would be a small lie.
-   Verified end to end against a throwaway repo with a real unreachable head: 3 findings →
-   1 offering a fix → `git for-ai relink <id> HEAD` previewed → run → checkup re-ran → 2
-   findings, the identity one gone.
-5. **Packaging**: electron-builder, Windows installer, then the owner uses it in anger.
-   (Config checked in at `packages/desktop/electron-builder.yml` with placeholder appId;
-   no installer built yet.)
+## 6. Open questions
 
-## 6. Open questions for the owner (not blockers for steps 1–3)
-
-1. How far should "git client" eventually go — is commit/stage-from-the-app a v2 ambition
-   or permanently out?
-2. Single window with a repo switcher, or window-per-repo?
-3. Product naming — wants deciding before any public artifact (installer name, app id),
-   though internals can rename late.
+1. How far "git client" should eventually go — whether commit/stage-from-the-app is ever
+   in scope.
+2. Single window with a repo switcher, or window-per-repo.

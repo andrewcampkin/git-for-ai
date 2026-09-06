@@ -1,7 +1,7 @@
 // Shared flat ESLint config, imported by each package's own eslint.config.js
 // (each package extends this and can add package-specific overrides).
-// Not wired up to actual dependencies yet — see architecture/CLI_PLAN.md for when
-// tooling gets installed and this gets exercised for real.
+// Not wired up to actual dependencies; `pnpm lint` does not run. `tsc -b` via
+// build/typecheck is the effective gate.
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 

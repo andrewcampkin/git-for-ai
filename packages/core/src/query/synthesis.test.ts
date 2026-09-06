@@ -1,6 +1,6 @@
-// M11 synthesis tests — the Anthropic HTTP layer is MOCKED via the injectable
-// fetchImpl (the one place mocking the external dependency is sanctioned, per
-// CLI_PLAN.md M11: the point under test is prompt construction, citation mapping,
+// Synthesis tests — the Anthropic HTTP layer is MOCKED via the injectable
+// fetchImpl (the one place mocking the external dependency is sanctioned:
+// the point under test is prompt construction, citation mapping,
 // and fallback behavior — not Claude's output quality). No network, no API key,
 // no model is ever touched.
 
@@ -484,7 +484,7 @@ describe("synthesizeAnswer with tools", () => {
 
   it("stops at the iteration cap with a labeled outcome, not a truncated answer", async () => {
     // A model that never stops calling tools: the loop must stop, say so, and still
-    // report everything it read on the way (honest degradation, hard rule 5).
+    // report everything it read on the way (the honest-degradation rule).
     const loop = fakeTool("commit_diff", () => "diff…");
     const fetchImpl = sequenceFetch([
       toolUseBody([{ id: "toolu_x", name: "commit_diff", input: { sha: "HEAD" } }]),

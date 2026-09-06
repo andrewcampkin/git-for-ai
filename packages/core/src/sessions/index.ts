@@ -1,5 +1,5 @@
 // Agent session capture — architecture/ARCHITECTURE.md §10 (hook flow), §13 (redaction),
-// DATA_MODEL.md §3 (record shape + content addressing). Milestone 7.
+// DATA_MODEL.md §3 (record shape + content addressing).
 //
 // Layout:
 //   redaction.ts      the §13 fail-closed redaction pass (rules, ignore-globs, size caps)

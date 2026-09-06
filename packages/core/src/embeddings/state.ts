@@ -1,13 +1,13 @@
 // `.git-for-ai/state.json` — index bookkeeping, DATA_MODEL.md §5.1.
 //
-// M5's `init` writes the "nothing indexed yet" form of this file; this module is the
-// read/update side that M9's index layer and M10's reindex use. Kept deliberately tiny.
+// `init` writes the "nothing indexed yet" form of this file; this module is the
+// read/update side that the index layer and `reindex` use. Kept deliberately tiny.
 //
 // ── Judgment calls ──
 // 1. Validation is hand-rolled (not Zod): @git-for-ai/core does not currently depend on
 //    zod directly, and DATA_MODEL.md §5.1's schema has five fields. If a shared
 //    `indexStateSchema` lands in @git-for-ai/schemas later (it arguably belongs there —
-//    flagged in the M9 report), this module shrinks to a call into it.
+//    flagged during the embedding pipeline build), this module shrinks to a call into it.
 // 2. Per DATA_MODEL.md §6, unknown fields are preserved on rewrite: `readIndexState`
 //    keeps every key it parsed, and `updateIndexState` merges over the existing record
 //    rather than regenerating it, so a newer client's fields survive a round-trip.

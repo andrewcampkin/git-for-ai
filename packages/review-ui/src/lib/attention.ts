@@ -1,6 +1,6 @@
 // The v1 attention queue (REVIEW_UI.md §4.4): computed purely from data already available
-// in ReportData — no new server-side assembly. Grows real `doctor` integration when M14
-// lands.
+// in ReportData — no new server-side assembly. Real `doctor` integration arrives with the
+// desktop app's checkup.
 //
 // Judgment call: the spec lists "changes with origin: inferred/orphan-recovery" — but the
 // change-map `origin` field is not part of ReportData (it lives on ChangeMapEntry, which

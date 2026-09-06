@@ -1,9 +1,9 @@
 // `git-for-ai internal-hook <name>` — the dispatch target for the three git hooks that
 // `git for-ai init` installs (see init.ts judgment call #1, where this command's shape was
-// fixed before it existed). This closes the gap HANDOFF.md documented: until this module,
-// real commits got no Change-Id trailer and no automatic change-map entry.
+// fixed before it existed). Without this module, real commits would get no Change-Id
+// trailer and no automatic change-map entry.
 //
-// Dispatch (per ARCHITECTURE.md §7.2/§7.4 and HANDOFF.md known-issue #1):
+// Dispatch (per ARCHITECTURE.md §7.2/§7.4):
 //
 //   commit-msg <msgfile>   Inject a `Change-Id: I<32hex>` trailer into the commit message
 //                          file BEFORE the SHA is finalized (§7.2 — a message-file rewrite,

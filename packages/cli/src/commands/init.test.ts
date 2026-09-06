@@ -1,5 +1,5 @@
 // Integration tests for `git for-ai init` against REAL temporary git repositories
-// (createFixtureRepo — never mocked), per CLI_PLAN.md M5's definition of done:
+// (createFixtureRepo — never mocked):
 // every file/hook/ref-config exists after a run; a second run is a no-op (idempotency,
 // per CLI_REFERENCE.md); pre-existing unrelated hook content is never clobbered.
 

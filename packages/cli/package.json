@@ -2,6 +2,7 @@
   "name": "git-for-ai",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "git-for-ai: intent-aware source control, layered on Git. `git for-ai <command>`.",
   "type": "module",
   "bin": {

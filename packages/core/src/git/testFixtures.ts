@@ -1,6 +1,6 @@
 // Shared test-only helper: a real temporary git repository, created via a real `git init`
-// subprocess (never mocked), for exercising the git access layer — and, later, Milestone 3's
-// identity resolver and Milestone 4's ledger — against actual git behavior.
+// subprocess (never mocked), for exercising the git access layer — and the
+// identity resolver and the ledger — against actual git behavior.
 //
 // This module is intentionally NOT test-runner-specific (no vitest import) so it can be
 // imported from any test file, in this package or a consuming one, without pulling in a
@@ -67,8 +67,7 @@ const FIXTURE_GIT_ENV = {
 
 /**
  * Create a real temporary git repository (`fs.mkdtemp` + real `git init`) for use in tests.
- * This is the shared fixture referenced by Milestone 2's definition of done and reused by
- * Milestone 3 (identity resolution) and Milestone 4 (ledger) — see architecture/CLI_PLAN.md.
+ * This is the shared fixture used by the git, identity and ledger test suites.
  *
  * Nothing about the returned repo is mocked: every method shells out to the real `git` binary
  * exactly like production code does, via {@link runGit}.

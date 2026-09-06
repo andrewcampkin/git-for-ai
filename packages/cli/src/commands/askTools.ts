@@ -1,6 +1,6 @@
 // The toolbox `ask` hands to its own answering model — architecture/ASK_TOOLS.md §4.
 //
-// The point (owner, 2026-07-25): "the ask functionality should be able to use the git
+// The point: "the ask functionality should be able to use the git
 // for-ai features itself, that is partly the point. i dont think we should be preemptively
 // guessing what the ask needs to shove it into context right?" So instead of a keyword
 // classifier that pre-fetches whatever WE guessed the question needed, the model is given
@@ -11,7 +11,7 @@
 // follow, so degradation messages, the non-minting read guarantee, and honest labeling are
 // all inherited rather than re-implemented. Core defines the SynthesisTool interface and
 // owns the loop; these implementations live here because core never imports the CLI
-// (hard rule 6).
+// (the package-boundary rule).
 //
 // ── Judgment calls ──
 // 1. Descriptions are prescriptive about WHEN to call, not just what exists. The failure
@@ -28,8 +28,8 @@
 //    wrapped command is already on a non-minting read path.
 // 5. The caller's already-loaded embedder is threaded into `blame_why`, which opens the
 //    query index for supplementary context. Without it a nested runBlame would load a
-//    SECOND embedding model inside a process that already has one — the RAM rule (hard
-//    rule 7) makes that unacceptable on the owner's machine.
+//    SECOND embedding model inside a process that already has one — the RAM rule
+//    makes that unacceptable.
 
 import type { Embedder, SynthesisTool } from "@git-for-ai/core";
 

@@ -1,4 +1,4 @@
-// Embedder tests (CLI_PLAN.md M9): the Voyage consent gate (never called without the
+// Embedder tests: the Voyage consent gate (never called without the
 // explicit config flag), the fetch-level request/response contract via an injected fetch
 // (the one place a test double is appropriate — an external HTTP API, not git), the
 // config → embedder factory, and the transformers embedder's metadata. The REAL model

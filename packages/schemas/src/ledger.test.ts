@@ -20,7 +20,7 @@ const workedNoteExample = {
         type: "agent",
         tool: "claude-code",
         model: "claude-opus-4-8",
-        human: "andrewcampkin@gmail.com",
+        human: "dev@example.com",
       },
       scope: [
         {
@@ -71,7 +71,7 @@ const architectureSummaryEntry = {
     type: "agent",
     tool: "claude-code",
     model: "claude-opus-4-8",
-    human: "andrewcampkin@gmail.com",
+    human: "dev@example.com",
   },
   scope: [
     {
@@ -138,7 +138,7 @@ describe("ledgerNoteSchema", () => {
   });
 });
 
-describe("ledgerNoteLineSchema (JSONL wire format, PLAN_2026-07-18.md W3)", () => {
+describe("ledgerNoteLineSchema (JSONL wire format)", () => {
   const line = {
     schema: LEDGER_NOTE_JSONL_SCHEMA,
     change_id: workedNoteExample.change_id,
@@ -185,7 +185,7 @@ describe("ledgerEntrySchema", () => {
       change_id: "9f2c1a7b6e4d0f83c5a1b2d3e4f50617",
       revision: "b7c3e2a1d9f8c0b4a6e5d7f9081a2b3c4d5e6f70",
       created_at: "2026-07-17T09:22:41Z",
-      author: { type: "human", human: "andrewcampkin@gmail.com" },
+      author: { type: "human", human: "dev@example.com" },
       scope: [
         {
           path: "README.md",

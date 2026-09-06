@@ -1,6 +1,6 @@
-// Embedding-cache tests (CLI_PLAN.md M9): the blob-hash cache under
+// Embedding-cache tests: the blob-hash cache under
 // `.git-for-ai/embcache/` keyed by REAL git blob SHAs from a real fixture repo (never
-// mocked git), plus the cache-hit contract M9's definition of done requires — a second
+// mocked git), plus the cache-hit contract — a second
 // run over unchanged content embeds nothing.
 
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -116,7 +116,7 @@ describe("EmbeddingCache", () => {
   });
 });
 
-describe("embedChunksWithCache — the M9 cache-hit contract", () => {
+describe("embedChunksWithCache — the cache-hit contract", () => {
   it("first run embeds everything; an unchanged re-run embeds NOTHING", async () => {
     const cache = makeCache("contract");
     const embedder = new CountingEmbedder();

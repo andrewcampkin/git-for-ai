@@ -1,4 +1,4 @@
-// `git for-ai mcp` — the stdio MCP server (architecture/PLAN_2026-07-18.md §2.3): the
+// `git for-ai mcp` — the stdio MCP server: the
 // intent layer exposed as native tools for MCP-capable agents (Claude Code first).
 // Thin by design — every tool wraps the SAME pure run* function its CLI command wraps
 // (runAsk/runBlame/runShow/runLog/runAnnotate/runDoctor), so behavior, degradation

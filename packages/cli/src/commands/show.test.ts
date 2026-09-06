@@ -1,13 +1,13 @@
-// Integration tests for `git for-ai show` (Milestone 8) against a REAL temporary git
+// Integration tests for `git for-ai show` against a REAL temporary git
 // repository — createFixtureRepo from @git-for-ai/core, never mocked — per
-// architecture/CLI_PLAN.md §4's testing strategy.
+// the no-mocked-git testing rule.
 //
-// The session-trace fixture is planted by hand through the M2 plumbing primitives,
+// The session-trace fixture is planted by hand through the git plumbing primitives,
 // following the storage layout pinned by DATA_MODEL.md §3 / ARCHITECTURE.md §8.1:
 // `refs/git-for-ai/sessions` -> commit -> tree sharded by first hash byte, one
 // content-addressed blob per session record, `session_ref` = sha256 of the canonical
-// serialization. This deliberately does NOT go through core's sessions module (Milestone 7
-// runs in parallel) — the layout is pinned by the spec, not by that code.
+// serialization. This deliberately does NOT go through core's sessions module
+// (built in parallel) — the layout is pinned by the spec, not by that code.
 
 import { createHash } from "node:crypto";
 

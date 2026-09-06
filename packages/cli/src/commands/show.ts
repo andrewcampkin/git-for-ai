@@ -1,4 +1,4 @@
-// `git for-ai show <commit|c/change-id>` — Milestone 8 (architecture/CLI_PLAN.md).
+// `git for-ai show <commit|c/change-id>`.
 //
 // The debugging tool that exercises the full read path: dump the commit, its resolved
 // change-id, the change-map entry's key facts, the ledger for the change (effective entry
@@ -18,9 +18,9 @@
 //   - a `session_ref` that cannot be resolved (missing sessions ref, missing blob, invalid
 //     JSON, schema mismatch) renders "session trace unavailable" with the reason.
 //
-// Session storage note: Milestone 7 (session capture) may or may not have landed when this
+// Session storage note: core's session-capture module may or may not have landed when this
 // runs, so the session read here is deliberately self-contained and read-only. It reads the
-// layout pinned by DATA_MODEL.md §3 / ARCHITECTURE.md §8.1 directly through the M2 git
+// layout pinned by DATA_MODEL.md §3 / ARCHITECTURE.md §8.1 directly through the git
 // primitives: `refs/git-for-ai/sessions` points at a tree of content-addressed blobs
 // sharded by first hash byte (`<aa>/<full-hash>`), and "resolution walks the sessions tree
 // to find the matching blob". Everything read is validated against sessionRecordSchema.
@@ -129,7 +129,7 @@ export interface ShowResult {
 /** The ref the content-addressed session traces live under (ARCHITECTURE.md §8.1). */
 const SESSIONS_REF = "refs/git-for-ai/sessions";
 
-/** Rendered when a `session_ref` exists but the trace cannot be read (CLI_PLAN.md M8). */
+/** Rendered when a `session_ref` exists but the trace cannot be read. */
 const SESSION_UNAVAILABLE = "session trace unavailable";
 
 /** Build a GitContext without materializing undefined keys (exactOptionalPropertyTypes). */
@@ -299,7 +299,7 @@ async function readSessionRecord(sessionRef: string, ctx: GitContext): Promise<S
   }
 
   // Resolve the sessions ref to its tree (works whether the ref points at a commit or
-  // directly at a tree). A missing ref is the "M7 hasn't run / never synced" case.
+  // directly at a tree). A missing ref is the "nothing captured yet / never synced" case.
   const tree = await runGit(["rev-parse", "--verify", "--quiet", `${SESSIONS_REF}^{tree}`], {
     ...ctx,
     allowFailure: true,

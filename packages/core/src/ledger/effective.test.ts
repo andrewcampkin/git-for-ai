@@ -16,7 +16,7 @@ function makeEntry(overrides: Partial<LedgerEntry> = {}): LedgerEntry {
     change_id: "9f2c1a7b6e4d0f83c5a1b2d3e4f50617",
     revision: REVISION,
     created_at: "2026-07-17T09:22:41Z",
-    author: { type: "agent", tool: "claude-code", human: "andrewcampkin@gmail.com" },
+    author: { type: "agent", tool: "claude-code", human: "dev@example.com" },
     scope: [],
     summary: "a change",
     provenance: "agent-captured",

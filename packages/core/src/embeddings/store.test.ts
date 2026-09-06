@@ -1,4 +1,4 @@
-// SqliteVectorStore tests (CLI_PLAN.md M9): synthetic vectors against the REAL
+// SqliteVectorStore tests: synthetic vectors against the REAL
 // node:sqlite + sqlite-vec + FTS5 stack (no mocked database) — insert/query round-trips,
 // KNN ordering, the FTS5 keyword mirror, upsert/delete consistency across all three
 // tables, persistence across reopen, and the model-fingerprint gate.
@@ -186,7 +186,7 @@ describe("SqliteVectorStore — persistence and fingerprint gate", () => {
     ).toThrow(IndexFingerprintError);
   });
 
-  it("opens the zero-byte index.db stub that M5's init leaves behind", async () => {
+  it("opens the zero-byte index.db stub that `init` leaves behind", async () => {
     const stubDir = await mkdtemp(join(tmpdir(), "git-for-ai-stub-"));
     try {
       const { writeFile } = await import("node:fs/promises");

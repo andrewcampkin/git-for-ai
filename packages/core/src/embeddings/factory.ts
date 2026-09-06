@@ -1,4 +1,4 @@
-// Config → Embedder dispatch, for M10's reindex and M11's query path.
+// Config → Embedder dispatch, for `reindex` and the query path.
 //
 // Takes the parsed repo config (`.git-for-ai/config.toml`, DATA_MODEL.md §5) and
 // returns the configured provider. The voyage consent gate lives HERE and in the

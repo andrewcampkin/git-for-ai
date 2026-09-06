@@ -1,4 +1,4 @@
-// Milestone 11 — blame-position resolution: <file>:<line> → commit → change identity →
+// Blame-position resolution: <file>:<line> → commit → change identity →
 // ledger entry + session (the data behind ARCHITECTURE.md §9.1's `blame --why` output).
 //
 // ── Judgment calls ──
@@ -10,7 +10,7 @@
 //    engine.ts) — not for the identity answer.
 // 2. Blame runs against the WORKING TREE (no rev argument), matching what a user
 //    pointing at an editor line means. A line that is locally modified/uncommitted
-//    blames to the zero-SHA → `commit: null` → M12 renders the honest degraded case.
+//    blames to the zero-SHA → `commit: null` → the CLI renders the honest degraded case.
 // 3. Identity resolution is read-only (enrich.ts) — blame never mints change-map rows.
 // 4. "LATER TOUCHED BY" (§9.1) = other, non-folded changes whose EFFECTIVE ledger entry
 //    has a scope item on the same path with a newer created_at than the blamed entry.

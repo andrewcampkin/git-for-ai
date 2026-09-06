@@ -1,4 +1,4 @@
-// Chunker tests (CLI_PLAN.md M9): real fixture source strings through the real
+// Chunker tests: real fixture source strings through the real
 // web-tree-sitter WASM grammars — no mocked parser — asserting expected function/class
 // boundaries, node paths, gap segments, windowing, and the plain-text fallback.
 

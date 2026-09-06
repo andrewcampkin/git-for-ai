@@ -1,5 +1,5 @@
 // Integration tests for `git for-ai config get|set` against REAL fixture repos
-// initialized by the REAL runInit (never mocked), per CLI_PLAN.md §4. The Voyage consent
+// initialized by the REAL runInit (never mocked). The Voyage consent
 // flow is exercised through the injectable promptConsent seam — the only part bin.ts
 // owns is the TTY read itself.
 

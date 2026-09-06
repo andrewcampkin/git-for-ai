@@ -1,11 +1,9 @@
 // Public API surface for @git-for-ai/core.
 //
-// Currently exposes the Milestone 2 git access layer (architecture/ARCHITECTURE.md §4.1),
-// the Milestone 3 identity assignment/resolution module (§7), the Milestone 4 ledger
-// read/write module (§6.1, §12.2), the Milestone 7 session-capture module (§10, §13),
-// and the Milestone 9 embedding pipeline + vector store (§11), which the CLI package
-// builds on. Later milestones add: query(question), reindex(), sync({ push | fetch }).
-// See ../../../architecture/CLI_PLAN.md for the milestone-by-milestone build order.
+// Exposes the git access layer (architecture/ARCHITECTURE.md §4.1), the identity
+// assignment/resolution module (§7), the ledger read/write module (§6.1, §12.2), the
+// session-capture module (§10, §13), the embedding pipeline + vector store (§11), and the
+// query engine (§9.1, §11.4), which the CLI package builds on.
 //
 // NOTE: the test-only `createFixtureRepo` helper is deliberately NOT exported here — it is
 // published under the `@git-for-ai/core/testing` subpath (see package.json `exports`) so
@@ -29,7 +27,7 @@ export type {
   UpdateRefOptions,
 } from "./git/index.js";
 
-// Milestone 3 — identity assignment + resolution (ARCHITECTURE.md §7).
+// Identity assignment + resolution (ARCHITECTURE.md §7).
 export {
   mintChangeId,
   normalizeChangeId,
@@ -62,7 +60,7 @@ export type {
   PostRewriteResult,
 } from "./identity/index.js";
 
-// Milestone 4 — ledger intent read/write (ARCHITECTURE.md §6.1, §12.2).
+// Ledger intent read/write (ARCHITECTURE.md §6.1, §12.2).
 // (ledger/index.js also exports an INTENT_NOTES_REF constant identical in value to the
 // identity one re-exported above; it is deliberately not re-exported again here to avoid
 // a name collision at the package root.)
@@ -84,7 +82,7 @@ export type {
   LedgerNoteReadResult,
 } from "./ledger/index.js";
 
-// Milestone 7 — agent session capture (ARCHITECTURE.md §10, §13; DATA_MODEL.md §3).
+// Agent session capture (ARCHITECTURE.md §10, §13; DATA_MODEL.md §3).
 export {
   BUILTIN_RULESET_VERSION,
   BUILTIN_REDACTION_RULES,
@@ -133,7 +131,7 @@ export type {
   HookPayload,
 } from "./sessions/index.js";
 
-// Milestone 9 — embedding pipeline + vector store (ARCHITECTURE.md §11; DATA_MODEL.md §5).
+// Embedding pipeline + vector store (ARCHITECTURE.md §11; DATA_MODEL.md §5).
 export {
   modelFingerprint,
   chunkSourceFile,
@@ -186,8 +184,8 @@ export type {
   IndexStateFields,
 } from "./embeddings/index.js";
 
-// Milestone 11 — query engine: hybrid retrieval + synthesis (ARCHITECTURE.md §9.1,
-// §11.4; CLI_PLAN.md M11). `askQuestion`/`explainLine` are the two entry points M12's
+// Query engine: hybrid retrieval + synthesis (ARCHITECTURE.md §9.1, §11.4).
+// `askQuestion`/`explainLine` are the two entry points the CLI's
 // `ask` and `blame --why` commands wrap; retrieval is fully local, synthesis calls the
 // Anthropic API only when ANTHROPIC_API_KEY is configured (ranked-raw-sources fallback
 // otherwise, never an error).
