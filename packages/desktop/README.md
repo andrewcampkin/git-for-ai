@@ -39,5 +39,4 @@ Troubleshooting: if launch fails with a missing `node_modules/electron/dist/elec
 the binary-download postinstall did not run during `pnpm install` — run `pnpm rebuild
 electron` from `packages/desktop`.
 
-`electron-builder.yml` is checked in for packaging; its appId/productName are placeholders
-and no installer is built.
+`electron-builder.yml` is checked in for packaging; no installer is built.

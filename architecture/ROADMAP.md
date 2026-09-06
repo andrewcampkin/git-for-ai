@@ -53,11 +53,9 @@ into:
 
 ## Hardening
 
-- **Publish the npm package.** The CLI is only linkable from a checkout. "git-for-ai" is a
-  working name; a published package, installer or app id needs a name chosen with the Git
-  trademark policy in mind. Then: version stamping (the MCP server info reads the package
-  version), workspace-dependency bundling, a clean-machine install smoke test, and the Node
-  engines floor (`node:sqlite` requires ≥ 22.5).
+- **Publish the npm package.** The CLI is only linkable from a checkout. Needed: version
+  stamping (the MCP server info reads the package version), workspace-dependency bundling, a
+  clean-machine install smoke test, and the Node engines floor (`node:sqlite` requires ≥ 22.5).
 - **Lint.** `pnpm lint` does not run (no ESLint dependency is wired up). Either wire ESLint 9
   through turbo or delete the scripts.
 - **Retrieval quality evaluation.** The offline embedder was chosen for the offline-by-default
@@ -86,8 +84,7 @@ into:
 ## Surfaces
 
 - **Desktop packaging.** The Electron shell, branch and diff panes, action panel, annotate
-  form and guided repair exist ([`DESKTOP.md`](./DESKTOP.md)). Installers are not built,
-  and wait on the name.
+  form and guided repair exist ([`DESKTOP.md`](./DESKTOP.md)). Installers are not built.
 - **Shared-index server.** The only server this project would need (ref sync is server-free
   through any git remote): run the embedding pipeline once for a team and expose `/ask` and
   `/blame`. Gate: a second machine or second person actually paying the redundant-embedding

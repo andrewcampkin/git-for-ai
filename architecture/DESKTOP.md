@@ -128,4 +128,3 @@ On top of it:
 1. How far "git client" should eventually go — whether commit/stage-from-the-app is ever
    in scope.
 2. Single window with a repo switcher, or window-per-repo.
-3. The public name: the installer name and app id bake it in, so packaging waits on it.

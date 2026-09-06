@@ -1,10 +1,6 @@
 # electron-builder config — checked in ahead of use (DESKTOP.md §5 step 5 is packaging;
 # only `start` from source is exercised). No installer is built yet.
-#
-# NAMING: "git-for-ai" is the internal/working name only (DESKTOP.md preamble). appId and
-# productName are PLACEHOLDERS to be replaced when the public product name is decided —
-# before any public artifact ships.
-appId: dev.git-for-ai.desktop.placeholder
+appId: dev.git-for-ai.desktop
 productName: git-for-ai
 directories:
   output: release
