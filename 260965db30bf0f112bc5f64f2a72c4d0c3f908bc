@@ -1,0 +1,27 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "01340f04b9f35723a8c3fce7cea578b8",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "01340f04b9f35723a8c3fce7cea578b8",
+      "revision": "260965db30bf0f112bc5f64f2a72c4d0c3f908bc",
+      "created_at": "2026-07-18T09:23:06.092Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/core/src/query/synthesis.test.ts",
+          "blob": "1b51a3aa3c5da71202fd91c5a06aca51c94cca7a"
+        }
+      ],
+      "summary": "Fix test typing for the scoped-key assertion (match file's existing mock-call cast idiom)",
+      "session_ref": "sha256:415af24f7bc1124e680431be59373c9ad1f56bf37e296bd3ab5c3a5f0f4a084a",
+      "provenance": "agent-captured"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "a5f4d83466ca87114224ac2882a6f2d4",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "a5f4d83466ca87114224ac2882a6f2d4",
+      "revision": "324e4a5d5ea41efc512926bc798b9968215408f9",
+      "created_at": "2026-07-18T09:01:48.780Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "README.md",
+          "blob": "1286b5a7885f11394a620d187ab443d4ee58f5a1"
+        },
+        {
+          "path": "architecture/CLI_PLAN.md",
+          "blob": "dfa75d011c5418f528dd07d2ebf6a86f0bd4f9ae"
+        },
+        {
+          "path": "architecture/PLAN_2026-07-18.md",
+          "blob": "b85400d810384f11963b1ef89bf7fdcd01ae61a3"
+        },
+        {
+          "path": "architecture/history/HANDOFF_2026-07-17.md",
+          "blob": "aba84cad05815e352c2a8878f4be69f31c804fef"
+        },
+        {
+          "path": "architecture/history/PROJECT_GENESIS.md",
+          "blob": "04ddcfadcf37d644c07172031cde88626661bf42"
+        },
+        {
+          "path": "architecture/history/RESUME_2026-07-18_EOD.md",
+          "blob": "66b30eecac4203feefee6c2e0a845e3a17049025"
+        }
+      ],
+      "summary": "Docs refresh: human-focused README; archive history; update plan status",
+      "session_ref": "sha256:57e20dcde6289968aa3dc9522de8c42123e6f629973eaffd6ce75e453a7620ee",
+      "provenance": "agent-captured"
+    }
+  ]
+}

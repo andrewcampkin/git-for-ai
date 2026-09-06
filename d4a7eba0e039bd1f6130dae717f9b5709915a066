@@ -1,0 +1,95 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "6f022d2a16c1747b5713c36860c9de65",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "6f022d2a16c1747b5713c36860c9de65",
+      "revision": "d4a7eba0e039bd1f6130dae717f9b5709915a066",
+      "created_at": "2026-07-18T04:33:18.029Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/core/package.json",
+          "blob": "8cad4bc42f36cfadaabe572db09e9eab7b254ee2"
+        },
+        {
+          "path": "packages/core/src/embeddings/cache.test.ts",
+          "blob": "a93aa611927c08ffb395c177f5697d917ac988cb"
+        },
+        {
+          "path": "packages/core/src/embeddings/cache.ts",
+          "blob": "0236507d78d0eee29d692ffd5e972097f09fb59b"
+        },
+        {
+          "path": "packages/core/src/embeddings/chunking.test.ts",
+          "blob": "b63a5736e287d0ebf001821e1bd90157699e7463"
+        },
+        {
+          "path": "packages/core/src/embeddings/chunking.ts",
+          "blob": "d8f414448de5e13ef86c71ecce9cc7fe369d14af"
+        },
+        {
+          "path": "packages/core/src/embeddings/embedder.test.ts",
+          "blob": "2de99b421fce75f2bdcc6019a48809508eeda52b"
+        },
+        {
+          "path": "packages/core/src/embeddings/factory.ts",
+          "blob": "ece3a3d9a87eb263aae9cac533cc061ea599aae0"
+        },
+        {
+          "path": "packages/core/src/embeddings/index.ts",
+          "blob": "c6362f0be49a6f6905d9977aa48e5bdc19f1746b"
+        },
+        {
+          "path": "packages/core/src/embeddings/state.test.ts",
+          "blob": "c07092c0bcdc013f1dc60860fc9410a95ba4f0fc"
+        },
+        {
+          "path": "packages/core/src/embeddings/state.ts",
+          "blob": "b70125d209981e8f1feef9dff8ff3a8a7b1edba6"
+        },
+        {
+          "path": "packages/core/src/embeddings/store.test.ts",
+          "blob": "6cb3a89302935a78c707b1ce60c8458f064c8f3a"
+        },
+        {
+          "path": "packages/core/src/embeddings/store.ts",
+          "blob": "d3588289fc41d3918aa2042b92891488fd8e4bd5"
+        },
+        {
+          "path": "packages/core/src/embeddings/transformersEmbedder.real.test.ts",
+          "blob": "29f4602482f7a7cd948d1a9d56fc2d44d3c56f3d"
+        },
+        {
+          "path": "packages/core/src/embeddings/transformersEmbedder.ts",
+          "blob": "f6df819e4489ab966ce58c91ffa49c8d8083b391"
+        },
+        {
+          "path": "packages/core/src/embeddings/types.ts",
+          "blob": "bef1560d82a7d2ae57deb085bf17a5eb8be05168"
+        },
+        {
+          "path": "packages/core/src/embeddings/voyageEmbedder.ts",
+          "blob": "aea211fbc1c32c390d5c221ecc16ce51daa7a5cb"
+        },
+        {
+          "path": "packages/core/src/index.ts",
+          "blob": "9878d83c2f4f39db678d8d81b78756b5959e7d96"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "blob": "7bc8187c4425682030f78e57d355fb3963a7aa5f"
+        }
+      ],
+      "summary": "M9: embeddings - tree-sitter chunking, embedder providers, vector store",
+      "session_ref": "sha256:37afff8d2da77220f75d411a33bc4ec5fe7fe7bd07e3cb679c75374d96955b28",
+      "provenance": "agent-captured"
+    }
+  ]
+}

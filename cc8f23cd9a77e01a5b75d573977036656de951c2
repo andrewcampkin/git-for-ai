@@ -1,0 +1,35 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "b07b56c77c621729cce55f982023ba2a",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "b07b56c77c621729cce55f982023ba2a",
+      "revision": "cc8f23cd9a77e01a5b75d573977036656de951c2",
+      "created_at": "2026-07-17T09:30:25.636Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-sonnet-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "HANDOFF.md",
+          "blob": "2ece3e6ed9759422b116c989b9023b31b50a99bb"
+        },
+        {
+          "path": "README.md",
+          "blob": "0c7d643d73131646c0af1e5925db766a8c90bfe7"
+        },
+        {
+          "path": "architecture/CLI_PLAN.md",
+          "blob": "423e6ef68556826dadc7f4d2d776996156d0d99a"
+        }
+      ],
+      "summary": "Add session handoff doc; mark M1-M8 done in CLI_PLAN.md",
+      "session_ref": "sha256:2ca347888cfcd1a4baf8f9489140e9a726fadd19bf67da7f3c05789a6e27a1e9",
+      "provenance": "agent-captured"
+    }
+  ]
+}

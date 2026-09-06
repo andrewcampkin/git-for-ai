@@ -1,0 +1,52 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "6146d58c73ebfe434d912cad2a4a321b",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "6146d58c73ebfe434d912cad2a4a321b",
+      "revision": "772f670b4f2b845693cae7d69ef068fa9021b3c9",
+      "created_at": "2026-07-17T09:04:06.142Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/core/src/identity/resolve.ts",
+          "blob": "c1e44414a22e0a7d7c06531fb37fc527fa14786a"
+        }
+      ],
+      "summary": "Implement the change-id resolver: identity that survives amend/rebase/squash/cherry-pick",
+      "reasoning": {
+        "intent": "Key intent to a stable logical change instead of a commit SHA, so ledger data survives every history rewrite - the one problem no prior-art tool solved fully.",
+        "constraints": [
+          "change-map ref is authoritative; Change-Id trailer is the portable fallback",
+          "every recovery branch must write back so the next lookup is a fast-path hit",
+          "post-rewrite never fires for cherry-pick - lazy healing on read is mandatory"
+        ],
+        "rejected": [
+          {
+            "option": "content-derived change-ids",
+            "why": "Gerrit's collision lesson: agents mass-produce near-identical commits; random 128-bit is collision-proof by construction"
+          },
+          {
+            "option": "jj-style external database outside git",
+            "why": "doesn't sync via git push/fetch - the exact weakness this project exists to fix"
+          }
+        ],
+        "confidence": 0.85,
+        "scope_risk": "high",
+        "reversibility": "moderate",
+        "tested": [
+          "80 vitest tests against real git, including a real rebase -i --autosquash and both cherry-pick healing flavors"
+        ],
+        "related": []
+      },
+      "session_ref": null,
+      "provenance": "agent-captured"
+    }
+  ]
+}

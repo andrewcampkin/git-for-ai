@@ -1,0 +1,35 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "2fc37062eaf664f93efa4a759836e208",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "2fc37062eaf664f93efa4a759836e208",
+      "revision": "9ef79d61d1c3fc68c5befe5eb2df260b51baf4ff",
+      "created_at": "2026-07-18T04:30:28.370Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "architecture/ARCHITECTURE.md",
+          "blob": "a998d6e934e1d810531d86658003cdae203c0537"
+        },
+        {
+          "path": "packages/core/src/identity/identity.test.ts",
+          "blob": "a7426f48ea675e4fffc10edf35ab7bf9d35e8b2d"
+        },
+        {
+          "path": "packages/core/src/identity/resolve.ts",
+          "blob": "ba734478ba2b1f29ba6a3482ba2ea851f9c7c91d"
+        }
+      ],
+      "summary": "Fix R4: infer missed rewrites from sibling diff overlap, not tree similarity",
+      "session_ref": "sha256:27e763ecea72c73fb54ab78f437953ed272fcc135fd6aa055758ec2a5a822394",
+      "provenance": "agent-captured"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "0fa19560585c4123328d0901a64113f8",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "0fa19560585c4123328d0901a64113f8",
+      "revision": "46553266ebcb10d0092747c2aa2e385deb0d4a83",
+      "created_at": "2026-07-18T10:11:39.215Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "56ad9c659d36521508b957e6d13a9acab5f51e6b"
+        },
+        {
+          "path": "packages/cli/src/commands/ask.test.ts",
+          "blob": "61480ea79c4bf31398b3f4d291e197a8d6206b23"
+        },
+        {
+          "path": "packages/cli/src/commands/ask.ts",
+          "blob": "25daa581d5ea1f303fbbfe8520586d240b169426"
+        },
+        {
+          "path": "packages/cli/src/commands/blame.test.ts",
+          "blob": "510a4d4c943a959da280e4b21e12db2f86fbfcbe"
+        },
+        {
+          "path": "packages/cli/src/commands/blame.ts",
+          "blob": "9de9fd42845e3ae9bad4f3872c3fed549ce5db8e"
+        },
+        {
+          "path": "packages/cli/src/commands/queryDeps.ts",
+          "blob": "178f18743227a6c3fd80435ed233503c00432ce4"
+        },
+        {
+          "path": "packages/cli/src/commands/reindex.ts",
+          "blob": "dabf9c120857e5df1905e5ff2f143373f4be905f"
+        },
+        {
+          "path": "packages/cli/src/commands/review.test.ts",
+          "blob": "7cf65b9f6d1e1149c5b7bd8a93914a8e41a73f06"
+        },
+        {
+          "path": "packages/cli/src/commands/review.ts",
+          "blob": "3b0cd97a764000a7947edb1f895173447395de24"
+        },
+        {
+          "path": "packages/core/package.json",
+          "blob": "c6a6ee0622bfe64f2195edd1b813860fb395bdb5"
+        },
+        {
+          "path": "packages/core/src/index.ts",
+          "blob": "23946d20edb9760ad9584ed066c9692b766658f8"
+        },
+        {
+          "path": "packages/core/src/query/index.ts",
+          "blob": "0da6e6c74e1a72d9b3f8f19865fedf1112f8c88c"
+        },
+        {
+          "path": "packages/core/src/testing.ts",
+          "blob": "50f47d4d9d877abdf486c5e181ffc9a4e4ce890f"
+        },
+        {
+          "path": "packages/review-ui/src/components/AskPanel.tsx",
+          "blob": "82546efa6129b735ed3792cfffe5e01800f07a79"
+        },
+        {
+          "path": "packages/review-ui/src/lib/citations.ts",
+          "blob": "8ea9583bf597a9ed84043a1a472a65993848c467"
+        },
+        {
+          "path": "packages/review-ui/src/styles.css",
+          "blob": "e3880d8526bb6e64763a078b4c8275d01a18ea3f"
+        },
+        {
+          "path": "packages/review-ui/src/types.ts",
+          "blob": "09d5f397bc33e1bd322acc909a7c1e800bfa76ee"
+        },
+        {
+          "path": "packages/review-ui/test/citations.test.ts",
+          "blob": "0dce94398c61c60d90d3960cd8c88293cb599ae2"
+        }
+      ],
+      "summary": "M12: ask and blame --why - the CLI answers its founding question",
+      "session_ref": "sha256:e61f0f00cd70860e08e5efa693bec2622d739c84ef5e0323ecbcd2f7b0b65265",
+      "provenance": "agent-captured"
+    }
+  ]
+}

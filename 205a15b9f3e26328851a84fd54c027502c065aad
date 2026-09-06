@@ -1,0 +1,35 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "fa193b2112be2757b544827fc279f6a2",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "fa193b2112be2757b544827fc279f6a2",
+      "revision": "205a15b9f3e26328851a84fd54c027502c065aad",
+      "created_at": "2026-07-18T08:58:31.785Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "2b063d7d9805be28bccb36b05145206569d86e0a"
+        },
+        {
+          "path": "packages/cli/src/commands/reindex.test.ts",
+          "blob": "99251d87ad8a5dd201d4bee749672282f71d7910"
+        },
+        {
+          "path": "packages/cli/src/commands/reindex.ts",
+          "blob": "ef6cf31496d6793a9439ec9faa06e9b064813a3c"
+        }
+      ],
+      "summary": "M10: reindex over the M9 pipeline; wire reindex + report into the CLI",
+      "session_ref": "sha256:2175ae720231b667dc314908f9ba87332b1e0d33978322954af4ebf12fb7a051",
+      "provenance": "agent-captured"
+    }
+  ]
+}

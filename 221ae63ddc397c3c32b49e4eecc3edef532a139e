@@ -1,0 +1,43 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "cdf35489c1e33293ed53a35e85d9144d",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "cdf35489c1e33293ed53a35e85d9144d",
+      "revision": "221ae63ddc397c3c32b49e4eecc3edef532a139e",
+      "created_at": "2026-07-18T05:01:33.243Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "README.md",
+          "blob": "500a33423dc8d0a85da8ad087ea55d538c44889d"
+        },
+        {
+          "path": "architecture/CLI_PLAN.md",
+          "blob": "36d192f265f7df0c46da14785c946937cdc6669a"
+        },
+        {
+          "path": "architecture/HANDOFF_2026-07-17.md",
+          "blob": "aba84cad05815e352c2a8878f4be69f31c804fef"
+        },
+        {
+          "path": "architecture/MONOREPO_PLAN.md",
+          "blob": "ad756f31dbf24ee5dad18f35b42f3b732156be97"
+        },
+        {
+          "path": "architecture/PLAN_2026-07-18.md",
+          "blob": "84f3508ba3397f3568381790d3c8b5a4e83aafc0"
+        }
+      ],
+      "summary": "Docs: eliminate server ref-relay tier (validated); archive handoff out of root",
+      "session_ref": "sha256:490157fca8bff832f8fbd63c4476908c8bd16327ac6c9e12fe178cb0830d5bbb",
+      "provenance": "agent-captured"
+    }
+  ]
+}

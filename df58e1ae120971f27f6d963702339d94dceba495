@@ -1,0 +1,56 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "702a2df193a4da9dfe42cefb8eac9064",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "702a2df193a4da9dfe42cefb8eac9064",
+      "revision": "df58e1ae120971f27f6d963702339d94dceba495",
+      "created_at": "2026-07-17T09:04:06.674Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/commands/init.ts",
+          "blob": "3b55b44edf67fe24ff7789fc5d8ba51370365e20"
+        },
+        {
+          "path": "packages/cli/src/commands/log.ts",
+          "blob": "a22437702366fef87b60f99901d5f24ad7ce7e24"
+        }
+      ],
+      "summary": "First working CLI: init + log --intent, wired end-to-end",
+      "reasoning": {
+        "intent": "Make the engine invocable: opt-in per-repo setup and the first user-visible payoff (annotated history).",
+        "constraints": [
+          "hooks must never clobber user hook content and never break a commit",
+          "plain git fetch must never auto-follow the intent refs (sync stays explicit)",
+          "no fabricated summaries - honest degradation for pre-git-for-ai history"
+        ],
+        "rejected": [
+          {
+            "option": "refspecs in remote.<name>.fetch",
+            "why": "would make every plain git fetch auto-follow the intent refs, violating the explicit-sync decision"
+          },
+          {
+            "option": "calling resolveChangeId on every logged commit",
+            "why": "its R4/R5 branches would mint orphan map rows for all pre-git-for-ai history on every log run"
+          }
+        ],
+        "confidence": 0.88,
+        "scope_risk": "medium",
+        "reversibility": "easy",
+        "tested": [
+          "27 CLI tests",
+          "end-to-end against the git-for-ai-testbed repo"
+        ]
+      },
+      "session_ref": null,
+      "provenance": "agent-captured"
+    }
+  ]
+}

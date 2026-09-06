@@ -1,0 +1,31 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "6579c7e8065b5702fdee8b57525c494c",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "6579c7e8065b5702fdee8b57525c494c",
+      "revision": "b0bccb670277a9f5342b1a9a4e3369abd7248839",
+      "created_at": "2026-07-18T05:20:32.980Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/commands/report.test.ts",
+          "blob": "1355f0e3667e81c376cde4a07e27386088ca318d"
+        },
+        {
+          "path": "packages/cli/src/commands/report.ts",
+          "blob": "4138ce246c2fe7ae7521edac0fb637aa73f4d932"
+        }
+      ],
+      "summary": "Add `report` command logic: the first human-visible surface",
+      "session_ref": "sha256:b518b0dcbf57c8cc604fb9abf2c457913a50fe92dd2d47f69fc13d08fbc8f0f0",
+      "provenance": "agent-captured"
+    }
+  ]
+}

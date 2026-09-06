@@ -1,0 +1,75 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "01618d0be739d0be591fa206a7f8c1e2",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "01618d0be739d0be591fa206a7f8c1e2",
+      "revision": "9b276215e92dc2681b02b8f7bc416e059acc823a",
+      "created_at": "2026-07-18T09:18:02.884Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/core/src/index.ts",
+          "blob": "34f9e23cd74d03d52a343371ea8be797c926c486"
+        },
+        {
+          "path": "packages/core/src/query/blame.test.ts",
+          "blob": "f15ecff9715d7fcbc97a04a2cf8edb9776f57cf5"
+        },
+        {
+          "path": "packages/core/src/query/blame.ts",
+          "blob": "1fed99f103c5d3ab7a498e2bfe7852a1a5e30ec7"
+        },
+        {
+          "path": "packages/core/src/query/engine.test.ts",
+          "blob": "003631e1a5139bc4d267812763e62aade1c53d5a"
+        },
+        {
+          "path": "packages/core/src/query/engine.ts",
+          "blob": "b4cb3c16710876a285e7275d0473d614484ac2d3"
+        },
+        {
+          "path": "packages/core/src/query/enrich.ts",
+          "blob": "95d8472b6e758ef324c54b65bd73410dd6085b11"
+        },
+        {
+          "path": "packages/core/src/query/index.ts",
+          "blob": "1783e679c30cbe226b3e02e50af3c37e0ef1e727"
+        },
+        {
+          "path": "packages/core/src/query/retrieval.test.ts",
+          "blob": "308c729a1d7143f40d981c4f2ccb26cff673b671"
+        },
+        {
+          "path": "packages/core/src/query/retrieval.ts",
+          "blob": "3561b03ac5fc6172dc6f0353bb659715b2b31c7b"
+        },
+        {
+          "path": "packages/core/src/query/synthesis.test.ts",
+          "blob": "874fd1e5643b93922030f66732a5717f638447c4"
+        },
+        {
+          "path": "packages/core/src/query/synthesis.ts",
+          "blob": "0133841d0b2a2a1a2e1a31ec2907b95eacbef9a0"
+        },
+        {
+          "path": "packages/core/src/query/testSupport.ts",
+          "blob": "27ea2fd0fdba71e372ed772bf48611e764b00de0"
+        },
+        {
+          "path": "packages/core/src/query/types.ts",
+          "blob": "8cfc015098b5931d5c4723ae70da2ebbe3df4129"
+        }
+      ],
+      "summary": "M11: query engine - hybrid retrieval, enrichment, blame, synthesis",
+      "session_ref": "sha256:fe49ccdf290b510cb30c9b439f2896497d19f452fb4da1d756e5c633f11719c9",
+      "provenance": "agent-captured"
+    }
+  ]
+}

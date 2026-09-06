@@ -1,0 +1,31 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "43e30cf4235f3a363a4c3ebd203fdd87",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "43e30cf4235f3a363a4c3ebd203fdd87",
+      "revision": "6cfa3180cf2c7342cfa5f801719c259aabc2f5a7",
+      "created_at": "2026-07-18T09:22:24.482Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/core/src/query/synthesis.test.ts",
+          "blob": "7013605870930396e4e5d9791f28c8b70e75f46b"
+        },
+        {
+          "path": "packages/core/src/query/synthesis.ts",
+          "blob": "2244fae1cd4161d0a9697a037ff11df9c2f0ed62"
+        }
+      ],
+      "summary": "Synthesis: prefer tool-scoped GIT_FOR_AI_ANTHROPIC_KEY over ANTHROPIC_API_KEY",
+      "session_ref": "sha256:33ced3e040489d8d04906506d95b2b466679affe09714b6e1c5198c8faf55b68",
+      "provenance": "agent-captured"
+    }
+  ]
+}

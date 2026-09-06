@@ -1,0 +1,27 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "1a3c93a3ce449d4e21d21985571c5778",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "1a3c93a3ce449d4e21d21985571c5778",
+      "revision": "b83a258bbcc1ad77bab8337b53a3c07e0b8a701b",
+      "created_at": "2026-07-18T04:42:36.977Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "HANDOFF.md",
+          "blob": "aba84cad05815e352c2a8878f4be69f31c804fef"
+        }
+      ],
+      "summary": "Mark HANDOFF.md superseded by PLAN_2026-07-18.md",
+      "session_ref": "sha256:1b84acef8648f540ed0b87e063a100932bf6176ad3f673e4cbcfe6f55ec36c31",
+      "provenance": "agent-captured"
+    }
+  ]
+}

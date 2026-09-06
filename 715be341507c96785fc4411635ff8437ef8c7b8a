@@ -1,0 +1,143 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "3e2deb2d9c44328eb698338bdb6b7edd",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "3e2deb2d9c44328eb698338bdb6b7edd",
+      "revision": "715be341507c96785fc4411635ff8437ef8c7b8a",
+      "created_at": "2026-07-18T09:34:39.327Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/package.json",
+          "blob": "3bee726eb03f0de32bcb8f5cb8661ba92b999cde"
+        },
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "96672b44150e840bbe464c530d290245936c052b"
+        },
+        {
+          "path": "packages/cli/src/commands/review.test.ts",
+          "blob": "e9be91e2ac71751167eb80f21afe8d3e5971ff81"
+        },
+        {
+          "path": "packages/cli/src/commands/review.ts",
+          "blob": "daf9855e9f3e5537051020cb9e56fdbcf4af60ef"
+        },
+        {
+          "path": "packages/review-ui/index.html",
+          "blob": "996d9f0766d08a42cfbecbce5864c3bdb003aa52"
+        },
+        {
+          "path": "packages/review-ui/package.json",
+          "blob": "71bd7fde33c74b10df3f5493ada07b1c9625e6d2"
+        },
+        {
+          "path": "packages/review-ui/src/App.tsx",
+          "blob": "374ee904ed348769dad8897820ce9ee42319f209"
+        },
+        {
+          "path": "packages/review-ui/src/components/AskPanel.tsx",
+          "blob": "7cf1e4dad047f8ee9abedf2a29e6330ae069ba10"
+        },
+        {
+          "path": "packages/review-ui/src/components/AttentionQueue.tsx",
+          "blob": "d696b44cc8917542327cb79be467e6ce5aa5808d"
+        },
+        {
+          "path": "packages/review-ui/src/components/ChangeDetail.tsx",
+          "blob": "ef5bfe0666b0e7ff7a57395b6d1b039b0f4ccbbd"
+        },
+        {
+          "path": "packages/review-ui/src/components/Pills.tsx",
+          "blob": "7381c91fb26efd33dd4dbf248b0ea2f0a0eac1ba"
+        },
+        {
+          "path": "packages/review-ui/src/components/SessionTrace.tsx",
+          "blob": "76be3011c418f82b660cc2193392c8b05e3a267c"
+        },
+        {
+          "path": "packages/review-ui/src/components/Timeline.tsx",
+          "blob": "c9a7755e4b57cf743f2a8ab387e164da2c7a926f"
+        },
+        {
+          "path": "packages/review-ui/src/lib/attention.ts",
+          "blob": "2d1d0971cb20d3d8eec4397433170c469be31e08"
+        },
+        {
+          "path": "packages/review-ui/src/lib/filters.ts",
+          "blob": "935113bfffa83c5a5586cba09960e273fab5bf82"
+        },
+        {
+          "path": "packages/review-ui/src/lib/format.ts",
+          "blob": "9e69b4b3c9b52241e81208828d00d7dab7c3a109"
+        },
+        {
+          "path": "packages/review-ui/src/lib/useFetch.ts",
+          "blob": "96e2fd0c5cc8d4a0065589b735687e0712433a76"
+        },
+        {
+          "path": "packages/review-ui/src/main.tsx",
+          "blob": "98e68c8a3e11476e01563c29f7b28dde2b2c05fa"
+        },
+        {
+          "path": "packages/review-ui/src/styles.css",
+          "blob": "b93de3015b99b3adbe1f0076cce1d900052fed78"
+        },
+        {
+          "path": "packages/review-ui/src/types.ts",
+          "blob": "6beedc4341aa7a5967f56d97589401b66afb7d6e"
+        },
+        {
+          "path": "packages/review-ui/test/attention.test.ts",
+          "blob": "91c8136b393132113dc8fc88b30cfe68945eb955"
+        },
+        {
+          "path": "packages/review-ui/test/filters.test.ts",
+          "blob": "e82777bd893d61000f0b72be86e5f652dff58567"
+        },
+        {
+          "path": "packages/review-ui/test/fixtures.ts",
+          "blob": "028e95980949079a5b0e2f408d1f52c05e40ceca"
+        },
+        {
+          "path": "packages/review-ui/test/format.test.ts",
+          "blob": "ba93d83cd2ebfc757c1966f68e3df5f667c19389"
+        },
+        {
+          "path": "packages/review-ui/test/no-external.test.ts",
+          "blob": "7e4016d120c8dd182af4f665c6f0760ba457f5a5"
+        },
+        {
+          "path": "packages/review-ui/tsconfig.json",
+          "blob": "ddf321b9201a8e257c0eb05c7de2e9ff7b6971be"
+        },
+        {
+          "path": "packages/review-ui/turbo.json",
+          "blob": "f30db9fc980a343bbc4593b6e30d89a50257be39"
+        },
+        {
+          "path": "packages/review-ui/vite.config.ts",
+          "blob": "9d17a0df7786533aad8eb6fb1c2270e4c1a3e853"
+        },
+        {
+          "path": "packages/review-ui/vitest.config.ts",
+          "blob": "7f67457f6864f6d5c9b4f6b6cd8d3390028339fb"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "blob": "e1bf7bd4bb0081dacce16ecb0e75f252a01d7e30"
+        }
+      ],
+      "summary": "Add the review UI: packages/review-ui SPA + `git for-ai review` server",
+      "session_ref": "sha256:2c5d54a86dfb4a4d17ab5305f55daf20394c755d7d34bcd0331393b5b3dc9d1b",
+      "provenance": "agent-captured"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "95e4bff4b6999972863c5722b6df38e3",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "95e4bff4b6999972863c5722b6df38e3",
+      "revision": "e89d5bb2cf89922fc67896ae577cb4950d72f4cd",
+      "created_at": "2026-07-18T04:37:42.789Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "422235ff58aa65d4cf0aefb984b4431a9eb675fe"
+        },
+        {
+          "path": "packages/cli/src/commands/reconcile.ts",
+          "blob": "39866f89c20c9419b343bdddb11350eced9846f8"
+        },
+        {
+          "path": "packages/cli/src/commands/relink-reconcile.test.ts",
+          "blob": "b935804a14d827ba53855c10c29485ee660e5826"
+        },
+        {
+          "path": "packages/cli/src/commands/relink.ts",
+          "blob": "31139522d104100614e5f2f5b2a93e3835a42339"
+        }
+      ],
+      "summary": "Implement relink (with --detach repair mode) and reconcile",
+      "session_ref": "sha256:df736bcdb005ee7b9906c5198f44897243c7e12ab5e688812c244dd90d42a8d0",
+      "provenance": "agent-captured"
+    }
+  ]
+}

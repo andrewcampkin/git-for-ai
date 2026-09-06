@@ -1,0 +1,43 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "144819b3919ce1cfff1ad430b80dd9ea",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "144819b3919ce1cfff1ad430b80dd9ea",
+      "revision": "7a79d6afeaf6224b95ff3e631a10b27a74907f97",
+      "created_at": "2026-07-18T04:25:17.078Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "5c14a631d8b75f813c123276b5bf76182a903c7e"
+        },
+        {
+          "path": "packages/cli/src/commands/annotate.test.ts",
+          "blob": "3ee33ed544428ea245c6e5b1cd135a43affd8ff0"
+        },
+        {
+          "path": "packages/cli/src/commands/annotate.ts",
+          "blob": "92dbc3c685d509260451d5c1f50ce191a942caeb"
+        },
+        {
+          "path": "packages/cli/src/commands/show.test.ts",
+          "blob": "08c93a4b9feaf554e36d86bea5a45e011b8a41f5"
+        },
+        {
+          "path": "packages/cli/src/commands/show.ts",
+          "blob": "de4de24635b6dfea24135a30a81cb2a102aa7640"
+        }
+      ],
+      "summary": "Add `annotate` (deliberate intent write path) and `show --history`",
+      "session_ref": "sha256:878c21b42e30b872fd8f16beb1f190916a543c1b677f2d32a1b2c37472e2c4da",
+      "provenance": "agent-captured"
+    }
+  ]
+}

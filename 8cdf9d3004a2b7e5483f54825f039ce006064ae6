@@ -1,0 +1,43 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "facade3f5e50a2ad7230c8256441a1bb",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "facade3f5e50a2ad7230c8256441a1bb",
+      "revision": "8cdf9d3004a2b7e5483f54825f039ce006064ae6",
+      "created_at": "2026-07-18T04:03:06.893Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "f5bf3bbc7349cf786a7e39e60a11989f80b553a1"
+        },
+        {
+          "path": "packages/cli/src/commands/internal-hook.test.ts",
+          "blob": "f6d44e801cbb9bf1fa92d913d5ead1f1cc05a5d6"
+        },
+        {
+          "path": "packages/cli/src/commands/internal-hook.ts",
+          "blob": "cfb2fdde399b82a08de37a075a7b0579a4256941"
+        },
+        {
+          "path": "packages/cli/vitest.config.ts",
+          "blob": "777c4a95c28e4259d36c256893806070fddfb3fe"
+        },
+        {
+          "path": "packages/core/vitest.config.ts",
+          "blob": "777c4a95c28e4259d36c256893806070fddfb3fe"
+        }
+      ],
+      "summary": "Implement internal-hook dispatcher: real commits now get identity",
+      "session_ref": "sha256:63c429ecd7ea0f39ff54bc770080c70b05a54572d28c34e402e672c7a631b798",
+      "provenance": "agent-captured"
+    }
+  ]
+}

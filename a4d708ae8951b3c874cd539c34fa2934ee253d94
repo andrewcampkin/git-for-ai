@@ -1,0 +1,27 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "becb7c72985e9f33bbb8f46c46aa3c7a",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "becb7c72985e9f33bbb8f46c46aa3c7a",
+      "revision": "a4d708ae8951b3c874cd539c34fa2934ee253d94",
+      "created_at": "2026-07-18T06:24:10.980Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": "architecture/RESUME_2026-07-18_EOD.md",
+          "blob": "66b30eecac4203feefee6c2e0a845e3a17049025"
+        }
+      ],
+      "summary": "Add end-of-day resume note: M10 uncommitted state, dogfood status, next steps",
+      "session_ref": "sha256:947c090ea8887ebb6dba642ec624e262cbf77780164dff4bfa84b720cfb7464f",
+      "provenance": "agent-captured"
+    }
+  ]
+}

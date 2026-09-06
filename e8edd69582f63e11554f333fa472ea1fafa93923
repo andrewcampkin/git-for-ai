@@ -1,0 +1,87 @@
+{
+  "schema": "git-for-ai/ledger-note@1",
+  "change_id": "1b4aba46dc3ec80cf0117d269d92fdfb",
+  "entries": [
+    {
+      "schema": "git-for-ai/ledger-entry@1",
+      "change_id": "1b4aba46dc3ec80cf0117d269d92fdfb",
+      "revision": "e8edd69582f63e11554f333fa472ea1fafa93923",
+      "created_at": "2026-07-17T09:23:14.891Z",
+      "author": {
+        "type": "agent",
+        "tool": "claude-code",
+        "model": "claude-fable-5",
+        "human": "andrewcampkin@gmail.com"
+      },
+      "scope": [
+        {
+          "path": ".claude/settings.json",
+          "blob": "dec99cc6f0cd3df37cef5d3fab3157582a608cb1"
+        },
+        {
+          "path": "packages/cli/src/bin.ts",
+          "blob": "8c70693a9b93769781b605d7610351c2782db314"
+        },
+        {
+          "path": "packages/cli/src/commands/capture-session.test.ts",
+          "blob": "95a8dd0b2b95e478629984f683791758208567db"
+        },
+        {
+          "path": "packages/cli/src/commands/capture-session.ts",
+          "blob": "c97405e51055d4d26349fdff3d799a778c0c9d2c"
+        },
+        {
+          "path": "packages/core/src/index.ts",
+          "blob": "86505475ebe6b759ba56defca71359f0236bb8f8"
+        },
+        {
+          "path": "packages/core/src/sessions/capture.test.ts",
+          "blob": "5f758cd5b509ef49823b2240ef5d0ec3b824ff1c"
+        },
+        {
+          "path": "packages/core/src/sessions/capture.ts",
+          "blob": "248fdb40a1469d8a5136f7bf5970af887c80cbed"
+        },
+        {
+          "path": "packages/core/src/sessions/captureConfig.ts",
+          "blob": "b17fb157d02aac3d84d4894da126e04321efe254"
+        },
+        {
+          "path": "packages/core/src/sessions/index.ts",
+          "blob": "d445a5685ddafc155f0123d322d36798f6fe41e0"
+        },
+        {
+          "path": "packages/core/src/sessions/redaction.test.ts",
+          "blob": "e7c0877b941637c4d328c5b42adc3188ad5df32a"
+        },
+        {
+          "path": "packages/core/src/sessions/redaction.ts",
+          "blob": "b6c5ac86bc185d7a5a3129b4e8c72cb7aa764c4b"
+        },
+        {
+          "path": "packages/core/src/sessions/state.ts",
+          "blob": "6e64bd61b3d55f35e236a7634292d1d99c3b3f73"
+        },
+        {
+          "path": "packages/core/src/sessions/store.test.ts",
+          "blob": "ffc5d2fdb25695b0a7bf8b0760ce178107b70550"
+        },
+        {
+          "path": "packages/core/src/sessions/store.ts",
+          "blob": "62ddea7783bb3cdec3890fc663f0b57e0d98decb"
+        },
+        {
+          "path": "packages/core/src/sessions/transcript.test.ts",
+          "blob": "35d7e95ddba42d3784a0fb54ef8c3dd1ee2f6731"
+        },
+        {
+          "path": "packages/core/src/sessions/transcript.ts",
+          "blob": "3059344b6bd9b48946f9e28af0668bd654f606cd"
+        }
+      ],
+      "summary": "M7: implement session capture - the differentiator",
+      "session_ref": "sha256:7a350f7148c8d48c68661b0f57a860f2ae8dd9a116dac7715ef560de63592938",
+      "provenance": "agent-captured"
+    }
+  ]
+}
