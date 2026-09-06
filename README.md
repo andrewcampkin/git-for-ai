@@ -24,7 +24,8 @@ session ends, leaving behind a one-line commit message. git-for-ai is built on t
 ## Project status
 
 This project was built privately, almost entirely by AI coding agents directed by one person,
-and is published as-is under the MIT licence. **It is not accepting contributions**: pull
+and is published as-is under the MIT licence by [Hurricane Gaming](https://andrewcampkin.github.io/hurricane-gaming/),
+alongside the author's other open-source apps. **It is not accepting contributions**: pull
 requests and feature requests will be closed. If you want to change something, fork it and
 point your own AI agent (Claude Code or whatever you use) at the fork. The repository carries
 what an agent needs to work on it in [`CLAUDE.md`](CLAUDE.md), and its own history is captured
