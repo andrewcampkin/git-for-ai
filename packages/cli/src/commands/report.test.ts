@@ -1,6 +1,6 @@
 // Integration tests for `git for-ai report` against a REAL temporary git repository —
-// createFixtureRepo from @git-for-ai/core, never mocked — per architecture/CLI_PLAN.md §4's
-// testing strategy. The tests exercise the structured ReportData assembly (the load-bearing
+// createFixtureRepo from @git-for-ai/core, never mocked — per the
+// no-mocked-git testing rule. The tests exercise the structured ReportData assembly (the load-bearing
 // logic) and spot-check the rendered HTML/Markdown strings.
 
 import { access, readFile } from "node:fs/promises";

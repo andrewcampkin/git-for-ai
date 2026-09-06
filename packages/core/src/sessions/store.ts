@@ -186,7 +186,7 @@ async function isAncestor(maybeAncestor: string, descendant: string, ctx: GitCon
 }
 
 /**
- * Integrate a fetched remote sessions commit into the local sessions ref (M13 `sync`).
+ * Integrate a fetched remote sessions commit into the local sessions ref (`sync`).
  *
  * Session records are content-addressed (ARCHITECTURE.md §12.2: "Sessions never
  * conflict") — identical content means identical shard path AND identical blob, so a

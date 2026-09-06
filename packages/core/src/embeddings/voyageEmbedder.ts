@@ -9,17 +9,17 @@
 //
 // Implementation is a thin `fetch` — deliberately no SDK dependency (§11.3). The fetch
 // function is injectable so tests can exercise the request/response contract without
-// network access (per CLI_PLAN.md's M11 note, mocking the *external API* — unlike git —
+// network access (mocking the *external API* — unlike git —
 // is the appropriate kind of test double).
 //
 // ── Judgment calls ──
-// 1. dim defaults to 1024 (voyage-code-3's default output dimension, and what M5's init
+// 1. dim defaults to 1024 (voyage-code-3's default output dimension, and what `init`
 //    records for this provider); `output_dimension` is always sent explicitly so the
 //    index dim never silently depends on a remote default changing.
 // 2. maxTokens 32000 per the voyage-code-3 model card (32k context).
 // 3. Batching: at most 128 inputs per request (Voyage's documented per-request limit
 //    for embedding inputs).
-// 4. `input_type` defaults to "document" (indexing side); M11's query path should pass
+// 4. `input_type` defaults to "document" (indexing side); the query path should pass
 //    "query" when embedding questions.
 
 import type { Chunk, Embedder } from "./types.js";
@@ -58,7 +58,7 @@ export interface VoyageEmbedderOptions {
   model?: string;
   /** Output dimension. Default 1024. */
   dim?: number;
-  /** `"document"` (indexing, default) or `"query"` (question embedding, M11). */
+  /** `"document"` (indexing, default) or `"query"` (question embedding). */
   inputType?: "document" | "query";
   /** Injectable fetch for tests. Default: global fetch. */
   fetchImpl?: typeof fetch;

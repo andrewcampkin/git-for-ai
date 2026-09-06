@@ -48,7 +48,7 @@ describe("readIndexState / updateIndexState", () => {
     expect(read).toEqual(written);
   });
 
-  it("parses the exact file M5's init writes", async () => {
+  it("parses the exact file `init` writes", async () => {
     // Byte-for-byte the renderDefaultStateJson() shape from packages/cli init.ts.
     const initState = {
       schema: "git-for-ai/index-state@1",

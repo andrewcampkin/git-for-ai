@@ -38,18 +38,18 @@
 //        git config --add git-for-ai.refspec "+refs/notes/git-for-ai/*:refs/notes/git-for-ai/*"
 //        git config --add git-for-ai.refspec "+refs/git-for-ai/*:refs/git-for-ai/*"
 //
-//    Plain git ignores unknown config keys, so nothing syncs automatically; M13's
+//    Plain git ignores unknown config keys, so nothing syncs automatically;
 //    `git for-ai sync` reads `git-for-ai.refspec` and passes the specs to fetch/push
 //    explicitly. Two patterns cover all three intent refs (intent notes under
 //    refs/notes/git-for-ai/*; sessions and change-map under refs/git-for-ai/*).
 //
 // 3. Embedder metadata table. DATA_MODEL.md §5 pins jina-v2-code at dim 768 and
 //    CLI_REFERENCE pins voyage-code-3 at dim 1024; nomic-embed-code's 3584 comes from the
-//    published model card and can be corrected in one place (EMBEDDERS below) if M9 lands
-//    on a different variant.
+//    published model card and can be corrected in one place (EMBEDDERS below) if the embedder ever moves
+//    to a different variant.
 //
-// 4. sqlite-vec index is a stub. Per CLI_PLAN M5, `index.db` is created as an empty file
-//    (real schema arrives in M9), alongside an empty `embcache/` directory and a
+// 4. sqlite-vec index is a stub: `index.db` is created as an empty file (reindex creates
+//    the real schema), alongside an empty `embcache/` directory and a
 //    `state.json` matching DATA_MODEL.md §5.1 with `last_indexed_commit: null`.
 
 import { mkdir, readFile, writeFile, chmod } from "node:fs/promises";
@@ -228,7 +228,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitResult> {
     join(gitForAiDir, "state.json"),
     renderDefaultStateJson(embedder),
   );
-  // sqlite-vec stub: empty file, real schema comes in M9 (CLI_PLAN M5).
+  // sqlite-vec stub: empty file; reindex creates the real schema.
   const indexDbAction = await writeIfAbsent(join(gitForAiDir, "index.db"), "");
 
   // 5. Exclude the cache via `.git/info/exclude` (never the user's tracked .gitignore).

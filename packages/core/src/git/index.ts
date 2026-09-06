@@ -20,8 +20,8 @@ export type {
   UpdateRefOptions,
 } from "./plumbing.js";
 
-// Test-only helper, exported here (not from the package root) so Milestone 3 (identity) and
-// Milestone 4 (ledger) can import it as `import { createFixtureRepo } from "../git/index.js"`
+// Test-only helper, exported here (not from the package root) so the identity and
+// ledger modules can import it as `import { createFixtureRepo } from "../git/index.js"`
 // without it leaking into @git-for-ai/core's production public API.
 export { createFixtureRepo } from "./testFixtures.js";
 export type { FixtureRepo, CommitOptions, CreateFixtureRepoOptions } from "./testFixtures.js";

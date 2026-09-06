@@ -3,9 +3,9 @@
 //
 // Each command's logic lives in its own module under ./commands/ as a pure exported
 // function (no console I/O inside the logic) — this file only parses flags, calls the
-// function, and renders its structured result. Commands not yet implemented (see
-// architecture/CLI_PLAN.md for the milestone order) are intentionally absent rather than
-// registered as stubs, so `--help` never advertises something that doesn't work.
+// function, and renders its structured result. Unimplemented commands are intentionally
+// absent rather than registered as stubs, so `--help` never advertises something that
+// doesn't work.
 
 import { Command } from "commander";
 
@@ -149,7 +149,7 @@ program
   .option("--json", "machine-readable output")
   .action(async (opts) => {
     if (opts.byContent === true) {
-      throw new Error("--by-content is not implemented yet (planned alongside doctor — see PLAN_2026-07-18.md W3)");
+      throw new Error("--by-content is not implemented yet (not implemented)");
     }
     const result = await runReconcile({
       ...(opts.repo !== undefined ? { cwd: opts.repo } : {}),

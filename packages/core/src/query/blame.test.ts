@@ -1,5 +1,5 @@
-// M11 blame-position tests — real fixture repo, real git blame, real change-map /
-// ledger / session write paths from M3/M4/M7. No embedding model, no vector store:
+// Blame-position tests — real fixture repo, real git blame, real change-map /
+// ledger / session write paths from the identity, ledger and session modules. No embedding model, no vector store:
 // `explainLine` must produce the full §9.1 blame payload from git-native records alone.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -123,7 +123,7 @@ describe("explainLine (no index — git records only)", () => {
     expect(result.resolvedVia).toBe("map");
     expect(result.changeMapEntry?.head).toBe(sha1);
 
-    // The WHY payload M12 renders.
+    // The WHY payload the CLI renders.
     expect(result.entry?.summary).toBe("Move session state to signed cookies");
     expect(result.entry?.provenance).toBe("agent-captured");
     expect(result.entry?.reasoning?.confidence).toBe(0.82);

@@ -1,5 +1,5 @@
 // `git for-ai annotate [<commit|c/change-id>]` — the deliberate intent write path
-// (architecture/PLAN_2026-07-18.md §1.3). Everything the ledger records today is passively
+// (CLI_REFERENCE.md `annotate`). Everything else the ledger records is passively
 // captured from hook events; this command lets an agent (or a human) *say* something on
 // purpose: append a full ledger entry — summary plus the whole DATA_MODEL.md §2.5
 // reasoning vocabulary (intent, constraints, rejected alternatives, confidence,

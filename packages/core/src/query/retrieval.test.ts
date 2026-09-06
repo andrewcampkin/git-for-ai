@@ -1,4 +1,4 @@
-// M11 hybrid retrieval tests — ranking against a REAL SqliteVectorStore built with
+// Hybrid retrieval tests — ranking against a REAL SqliteVectorStore built with
 // SYNTHETIC vectors from the deterministic BagOfWordsEmbedder (the real embedding
 // model is never loaded), plus pure-function tests of the RRF merge and the
 // blame-position boosting.

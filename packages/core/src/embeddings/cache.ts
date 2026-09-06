@@ -1,7 +1,7 @@
 // The blob-hash → embedding cache — architecture/ARCHITECTURE.md §8.2, §11.2.
 //
-// Lives at `.git-for-ai/embcache/` (created empty by M5's init). Purpose: a chunk whose
-// content (git blob) is unchanged is NEVER re-embedded — M9's definition of done — and a
+// Lives at `.git-for-ai/embcache/` (created empty by `init`). Purpose: a chunk whose
+// content (git blob) is unchanged is NEVER re-embedded — the cache contract — and a
 // chunk that reappears unchanged after a rebase is free (§11.2 "incremental,
 // blob-hash-keyed").
 //
@@ -18,7 +18,7 @@
 //    treated as a miss, never an error.
 // 3. Writes are atomic (temp file + rename) so a crashed reindex can't leave a
 //    half-written vector that later reads as valid.
-// 4. `embedChunksWithCache()` is the composition M10 will call: partition chunks into
+// 4. `embedChunksWithCache()` is the composition `reindex` calls: partition chunks into
 //    cache hits and misses, embed only the misses, write them back, and return vectors
 //    in input order plus hit/miss counts for reporting.
 
@@ -121,7 +121,7 @@ export interface EmbedWithCacheResult {
 /**
  * Embed chunks through the cache: serve unchanged chunks from disk, embed only the
  * misses in one batched embedder call, and persist the new vectors. Re-running over
- * unchanged content embeds nothing (M9 definition of done).
+ * unchanged content embeds nothing (the cache contract).
  */
 export async function embedChunksWithCache(
   embedder: Embedder,

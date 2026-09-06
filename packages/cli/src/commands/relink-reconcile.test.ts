@@ -1,5 +1,5 @@
 // Tests for `git for-ai relink` and `reconcile` against REAL fixture repos, including a
-// reproduction of the exact D2 misattribution shape (PLAN_2026-07-18.md §1.2) that
+// reproduction of the misattribution shape that
 // `relink --detach` exists to repair.
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -55,7 +55,7 @@ describe("relink", () => {
     expect(entry?.history).toEqual([shaA, shaB]);
   });
 
-  it("--detach repairs the D2 misattribution shape end-to-end", async () => {
+  it("--detach repairs the misattribution shape end-to-end", async () => {
     // Reproduce the live bug: two unrelated commits glued into one change, the second's
     // ledger entry superseding the first's.
     const shaM7 = await repo.commit("the real change", { files: { "code.ts": "x\n" } });

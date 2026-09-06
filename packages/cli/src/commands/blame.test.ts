@@ -1,5 +1,5 @@
-// Tests for `git for-ai blame --why` (./blame.ts) — M12 — against REAL fixture repos
-// with real `git blame` under the hood (no mocks, CLI_PLAN.md §4). The core scenarios:
+// Tests for `git for-ai blame --why` (./blame.ts) against REAL fixture repos
+// with real `git blame` under the hood (no mocks). The core scenarios:
 // the full §9.1 intent rendering WITHOUT any index (blame's identity answer is
 // git-native), the LATER TOUCHED BY chain, both degraded cases (no captured intent /
 // uncommitted line) with exit code 2, and the opt-in --explain synthesis over an index

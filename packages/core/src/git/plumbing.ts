@@ -1,5 +1,5 @@
-// Low-level object-creation plumbing needed by Milestone 3's change-map implementation
-// (a hand-built tree of shard files under refs/git-for-ai/change-map) and by Milestone 4's
+// Low-level object-creation plumbing needed by the identity resolver's change-map implementation
+// (a hand-built tree of shard files under refs/git-for-ai/change-map) and by the ledger module's
 // notes-based ledger. All of it shells out via runGit — see ./run.ts.
 
 import { runGit, type RunGitOptions } from "./run.js";

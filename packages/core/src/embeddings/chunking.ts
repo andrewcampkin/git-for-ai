@@ -1,7 +1,7 @@
 // Source-code chunking at function/class granularity — architecture/ARCHITECTURE.md §11.1.
 //
-// Parsing is web-tree-sitter (WASM — no native build step, per CLI_PLAN.md M9), with
-// grammars for TypeScript/TSX/JavaScript and Python only, matching M9's deliberate scope.
+// Parsing is web-tree-sitter (WASM — no native build step), with
+// grammars for TypeScript/TSX/JavaScript and Python only.
 //
 // ── Grammar sourcing (judgment call) ──
 // Grammar `.wasm` binaries come from the `tree-sitter-wasms` npm package, which ships
@@ -27,7 +27,7 @@
 //    headers of a method-split class) are emitted as `segment:@L<n>` chunks, so the
 //    FTS/vector index always covers the whole file.
 // 4. Unknown languages / extensionless files degrade to plain-text chunking: one
-//    whole-file chunk (`file`), window-split if oversized. §11.1 scopes M9 to TS/JS/Py;
+//    whole-file chunk (`file`), window-split if oversized. §11.1 scopes structural chunking to TS/JS/Py;
 //    this keeps other files searchable rather than invisible.
 // 5. `maxChunkChars` defaults to 8000 characters (~2k tokens) — comfortably inside the
 //    default model's 8192-token window while keeping chunks retrieval-sized.
@@ -41,7 +41,7 @@ import type { Chunk } from "./types.js";
 
 const require = createRequire(import.meta.url);
 
-/** Languages the M9 chunker parses structurally. Anything else gets plain-text chunking. */
+/** Languages the chunker parses structurally. Anything else gets plain-text chunking. */
 export type ChunkLanguage = "typescript" | "tsx" | "javascript" | "python" | "text";
 
 /** What kind of construct a chunk covers. */

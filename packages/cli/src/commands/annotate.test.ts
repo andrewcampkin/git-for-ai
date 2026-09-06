@@ -1,5 +1,5 @@
 // Tests for `git for-ai annotate` (./annotate.ts) against REAL fixture repos: the
-// deliberate intent write path (PLAN_2026-07-18.md §1.3). Covers both input surfaces
+// deliberate intent write path. Covers both input surfaces
 // (flags, stdin JSON), scope auto-derivation from the commit diff, append-only supersede
 // semantics, c/<change-id> targets, and the loud-failure cases (missing summary, stdin
 // typos, invalid reasoning values).

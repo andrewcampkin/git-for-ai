@@ -17,7 +17,7 @@
 //      even if it guesses the port; and the token never lands in a URL that could be
 //      logged. Requests carrying a cross-origin `Origin` are refused outright.
 //   4. **One job at a time.** Two concurrent reindexes would fight over the index and the
-//      machine's RAM (CLAUDE.md rule 7). A second request while one runs is a 409 naming
+//      machine's RAM (the RAM rule in CLAUDE.md). A second request while one runs is a 409 naming
 //      the job that holds the lock.
 //   5. **Jobs, not blocking calls.** A real reindex takes a minute or more; a request that
 //      hangs that long is indistinguishable from the hang this project just fixed. Every

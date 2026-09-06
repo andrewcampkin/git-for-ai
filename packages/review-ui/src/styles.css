@@ -1,7 +1,7 @@
 /* Review UI v2 — designed for a HUMAN reader (agents consume the CLI's --json instead).
  * Page order: ask hero → digest → attention inbox → day-grouped timeline. Dark/light via
  * prefers-color-scheme only; no toggles, no external fonts, no external anything
- * (REVIEW_UI.md §2 rule 3 — enforced by test/no-external.test.ts). */
+ * (REVIEW_UI.md §2 self-contained rule — enforced by test/no-external.test.ts). */
 
 :root {
   color-scheme: light dark;

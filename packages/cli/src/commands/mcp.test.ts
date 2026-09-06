@@ -1,5 +1,5 @@
 // Tests for `git for-ai mcp` (./mcp.ts) — the stdio MCP server — against a REAL fixture
-// repo (the no-mocks rule, CLI_PLAN.md §4) whose index is built by the REAL runReindex
+// repo (the no-mocks rule) whose index is built by the REAL runReindex
 // pipeline with the deterministic BagOfWordsEmbedder (the real model is NEVER loaded in
 // tests). Two layers:
 //
@@ -12,7 +12,7 @@
 //   2. The exact production server object (createMcpServer) over the SDK's in-memory
 //      transport pair, where the sanctioned in-process seams (embedder + synthesis
 //      fetchImpl mock) cover the synthesized-answer path and the actionable error
-//      mapping (init → reindex) — mocked-fetch synthesis, per the M11/M12 test rules.
+//      mapping (init → reindex) — mocked-fetch synthesis, per the query-engine test rules.
 
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -108,7 +108,7 @@ beforeAll(async () => {
     ctx,
   );
 
-  // The real M10 pipeline builds the index (code + ledger + session, one space).
+  // The real reindex pipeline builds the index (code + ledger + session, one space).
   await runReindex({ cwd: repo.dir, embedder });
 });
 

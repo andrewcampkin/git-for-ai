@@ -1,9 +1,9 @@
-// Integration tests for `git for-ai log --intent` (Milestone 6) against a REAL temporary
+// Integration tests for `git for-ai log --intent` against a REAL temporary
 // git repository — createFixtureRepo from @git-for-ai/core, never mocked — per
-// architecture/CLI_PLAN.md §4's testing strategy.
+// the no-mocked-git testing rule.
 //
 // The scripted history mirrors the CLI_REFERENCE.md example: some commits carry a real
-// change-id + ledger entry (written through the real M3/M4 write paths in setup), others
+// change-id + ledger entry (written through the real identity and ledger write paths in setup), others
 // have nothing — and the output must render real intent summaries for the former and the
 // honest `[no intent: pre-git-for-ai]` degradation (commit subject, em-dash change-id,
 // never a fabricated summary) for the latter.

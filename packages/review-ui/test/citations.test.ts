@@ -1,5 +1,5 @@
 // Tests for lib/citations.ts — the [n]-marker splitter behind the live ask panel's
-// linked citations (M12). Mirrors core synthesis.ts's extractCitations contract.
+// linked citations. Mirrors core synthesis.ts's extractCitations contract.
 
 import { describe, expect, it } from "vitest";
 

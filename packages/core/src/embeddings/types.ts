@@ -52,7 +52,7 @@ export interface Embedder {
  * designed migration is IndexFingerprintError → `git for-ai reindex --full`).
  *
  * Uses the *config provider name* (the `embedder.provider` enum), not the embedder
- * implementation id, matching what `git for-ai init` (M5) already writes.
+ * implementation id, matching what `git for-ai init` already writes.
  *
  * Precision `"q8"` (or absent) maps to the LEGACY bare `<provider>/<dim>` form: int8 was
  * the only precision that ever existed before the GPU migration, so existing CPU-built

@@ -1,4 +1,4 @@
-// Milestone 3's scenario suite — the rewrite-survival scenarios from ARCHITECTURE.md
+// The identity resolver's scenario suite — the rewrite-survival scenarios from ARCHITECTURE.md
 // §7.2–§7.5, scripted against REAL fixture repos (real git, real hooks, no mocks):
 //
 //   - plain first commit -> assigned + recorded in the change-map
@@ -6,7 +6,7 @@
 //     hook input captured from git itself)
 //   - interactive rebase autosquash -> N-old-to-1-new fold, absorbed/folded_into bookkeeping
 //   - cherry-pick with NO hooks fired -> lazy healing via the Change-Id trailer (§7.5) —
-//     per CLI_PLAN.md M3, the single most important test in the codebase.
+//     the single most important test in the codebase.
 
 import { readFile, writeFile, chmod, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -63,7 +63,7 @@ describe("assignChangeId (§7.2)", () => {
   });
 
   it("assigns a plain first commit and records it correctly in the change-map", async () => {
-    // The commit-msg hook (Milestone 5) injects the trailer before the SHA is finalized;
+    // The commit-msg hook injects the trailer before the SHA is finalized;
     // the fixture writes the message the same way the hook would have left it.
     const cid = mintChangeId();
     const sha = await repo.commit(messageWithTrailer("feat: first commit", cid), {
@@ -387,8 +387,8 @@ describe("resolveChangeId fallback branches (§7.3 R4/R5)", () => {
     expect(resolved.entry.history).toContain(amendedSha);
   });
 
-  it("R5 rather than R4 for a trailerless CHILD of a known commit (the D1 misfire, fixed)", async () => {
-    // Regression guard for the live dogfood bug (PLAN_2026-07-18.md §1.2 D1): a normal
+  it("R5 rather than R4 for a trailerless CHILD of a known commit (a fixed misfire)", async () => {
+    // Regression guard for the live dogfood bug: a normal
     // follow-up commit is NEW work, not a continuation of its parent's change — even
     // though under whole-tree similarity it looked >70% identical to the parent.
     const parentSha = await repo.commit("feat: bulk of the work", {

@@ -4,8 +4,7 @@
 // Internals are folded, not deleted: file scope collapses to a count, and change-id /
 // change-map / provenance internals live in a closed "Record details" disclosure —
 // agents get all of it from the CLI's --json, which is the machine contract. Absent data
-// renders labeled ("not captured"), never guessed. PLAN_2026-07-18 §2.2: "the prove-it
-// pixel: claim next to evidence".
+// renders labeled ("not captured"), never guessed: claim next to evidence.
 
 import { useCallback, useState, type ReactNode } from "react";
 

@@ -1,4 +1,4 @@
-// `git for-ai log --intent` — Milestone 6 (architecture/CLI_PLAN.md).
+// `git for-ai log --intent`.
 //
 // `git log` annotated with the effective one-line intent summary per commit, matching the
 // example output in architecture/CLI_REFERENCE.md / ARCHITECTURE.md §9.1:

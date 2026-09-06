@@ -1,5 +1,5 @@
-// `git for-ai reindex [--full] [--since <commit>] [--verify]` — Milestone 10
-// (architecture/CLI_PLAN.md), over the M9 embedding pipeline. Spec: CLI_REFERENCE.md's
+// `git for-ai reindex [--full] [--since <commit>] [--verify]` — over
+// core's embedding pipeline. Spec: CLI_REFERENCE.md's
 // `reindex` section and ARCHITECTURE.md §11 (what gets indexed) / §8.2 (what is derived).
 //
 // Rebuilds the local vector cache (`.git-for-ai/index.db` + `embcache/`) from git-native
@@ -13,7 +13,7 @@
 //
 // Incremental by default: `state.json`'s `last_indexed_commit` is the base; only blobs
 // touched by `git diff <base> HEAD` are re-chunked, and the blob-hash embcache makes any
-// chunk whose content is unchanged free (M9's definition of done: a no-change re-run
+// chunk whose content is unchanged free (the cache contract: a no-change re-run
 // embeds NOTHING). `--full` drops `index.db` and rebuilds from scratch — the required
 // recovery path after a model_fingerprint change (IndexFingerprintError) — while KEEPING
 // `embcache/`, which is why the CLI_REFERENCE transcript shows "312 reused from embcache"
@@ -52,7 +52,7 @@
 //    a small deterministic fallback (agent + span names) keeps the session findable
 //    rather than invisible. A session's owning change-id is recovered by joining
 //    ledger `session_ref`s, when one exists.
-// 7. Transformers model cache location (flagged by the M9 report): transformers.js
+// 7. Transformers model cache location (flagged during the embedding pipeline build): transformers.js
 //    defaults to caching model weights inside node_modules, which a `pnpm install`/prune
 //    can wipe — forcing a ~160 MB re-download. The default embedder is therefore pointed
 //    at a durable per-user cache: `%LOCALAPPDATA%\git-for-ai\models` on Windows,
@@ -72,7 +72,7 @@
 //    The first real-model dogfood proved why: a single all-chunks call gave zero
 //    observable/durable progress for the better part of an hour. Batches are
 //    length-sorted first so the embedder's internal padding wastes less compute.
-// 11a. GPU/precision (ROADMAP Tier 0, owner-chosen 2026-07-19): the default embedder now
+// 11a. GPU/precision (ROADMAP Tier 0): the default embedder now
 //    resolves a device + weight precision (DirectML/fp16 on win32, CPU/int8 elsewhere;
 //    GIT_FOR_AI_DEVICE / GIT_FOR_AI_DTYPE override) and the EFFECTIVE precision folds
 //    into the model fingerprint (`jina-v2-code/768/fp16` vs legacy `jina-v2-code/768`
@@ -284,7 +284,7 @@ class BatchWatchdog {
 
 /**
  * Durable per-user model cache for the transformers.js embedder (judgment call #7).
- * Exported so doctor (M14) can report where the weights live.
+ * Exported so `doctor` can report where the weights live.
  */
 export function defaultModelCacheDir(): string {
   const override = process.env["GIT_FOR_AI_MODEL_CACHE"];
@@ -337,7 +337,7 @@ function parseTomlScalar(raw: string): string | number | boolean | null {
  * Read `.git-for-ai/config.toml` (init's known flat shape), fill defaults for anything
  * missing, and validate the result against repoConfigSchema. A missing file yields pure
  * defaults; a value the schema rejects (e.g. an unknown embedder provider) throws loudly.
- * Exported for the query-side commands (M12 `ask`/`blame --why` via ./queryDeps.ts),
+ * Exported for the query-side commands (`ask`/`blame --why` via ./queryDeps.ts),
  * which must read the SAME config the index was built from.
  */
 export async function readRepoConfig(gitForAiDir: string): Promise<RepoConfig> {

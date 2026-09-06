@@ -169,7 +169,7 @@ describe("log_intent — what has been happening", () => {
 describe("blame_why — why one line looks the way it does", () => {
   it("explains a line from the captured intent, with no index built", async () => {
     // No `reindex` ran in this fixture: blame degrades to git records only rather than
-    // failing, and no embedding model is ever loaded (hard rule 7).
+    // failing, and no embedding model is ever loaded (the RAM rule).
     const output = await call("blame_why", { file: AUTH_FILE, line: 1 });
     expect(output).toContain("Move session state to signed cookies");
     expect(output).toContain("run more than one replica without sticky sessions");

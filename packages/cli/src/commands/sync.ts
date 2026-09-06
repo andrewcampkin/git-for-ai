@@ -1,5 +1,4 @@
-// `git for-ai sync [--push|--fetch] [<remote>]` — Milestone 13 (architecture/CLI_PLAN.md,
-// as amended by PLAN_2026-07-18.md W3). Explicit, manual push/fetch of the three intent
+// `git for-ai sync [--push|--fetch] [<remote>]` — explicit, manual push/fetch of the three intent
 // refs. NEVER automatic, never piggybacked on `git push` (ARCHITECTURE.md §12.1); the
 // vector index is never synced (it is derived — §8.2).
 //
@@ -27,7 +26,7 @@
 //    Staging refs are deleted afterwards; they are outside every push pattern so they
 //    can never leak to a remote.
 // 2. `notes.git-for-ai/intent.mergeStrategy = cat_sort_uniq` is configured (idempotent)
-//    per the M13 spec, so even a user-driven bare `git notes merge` unions correctly.
+//    per the sync design, so even a user-driven bare `git notes merge` unions correctly.
 // 3. Push enumerates the CONCRETE local refs matching the configured patterns and
 //    pushes them explicitly with `--porcelain`, so the report is per-ref and honest
 //    (pushed / up to date / rejected), never a wildcard shrug. Default mode is fetch

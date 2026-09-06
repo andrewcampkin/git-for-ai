@@ -1,6 +1,6 @@
-// Milestone 11 — source enrichment: join retrieval hits back to their git-native
-// records (change-map entry, effective ledger entry, session record) so M12 renders
-// §9.1's outputs without re-fetching anything (CLI_PLAN.md M11 / plan requirement).
+// Source enrichment: join retrieval hits back to their git-native
+// records (change-map entry, effective ledger entry, session record) so the CLI renders
+// §9.1's outputs without re-fetching anything.
 //
 // ── Judgment calls ──
 // 1. Enrichment is READ-ONLY. It never calls resolveChangeId (which self-heals by
@@ -12,7 +12,7 @@
 //    superseded SHA), deduped by canonical JSON, resolved to the effective entry.
 // 3. Unreadable notes (LedgerNoteFormatError) degrade to a warning + null enrichment
 //    rather than failing the whole query — a query command must not die on one bad
-//    note; doctor (M14) owns auditing them.
+//    note; `doctor` owns auditing them.
 // 4. Per-call memoization: one change's records are fetched once no matter how many
 //    sources reference it (ask commonly returns the ledger chunk AND its session chunk).
 

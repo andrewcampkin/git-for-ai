@@ -1,10 +1,10 @@
 // Tests for `git for-ai reindex` (./reindex.ts) against REAL fixture repos (the no-mocks
-// rule, CLI_PLAN.md §4) with a deterministic FAKE embedder injected through
+// rule) with a deterministic FAKE embedder injected through
 // ReindexOptions.embedder — the real transformers.js model is never loaded in tests.
 //
-// Covered, per the M10 task list:
+// Covered, per the reindex requirements:
 //   - all three content kinds (code / ledger / session) landing in one store;
-//   - the incremental no-op re-run embedding NOTHING (M9's definition of done);
+//   - the incremental no-op re-run embedding NOTHING (the cache contract);
 //   - incremental change pickup + stale-key deletion;
 //   - --full drop/rebuild reusing embcache;
 //   - IndexFingerprintError on a model change, recovered by --full;
@@ -208,7 +208,7 @@ describe("runReindex — three content kinds, one space (ARCHITECTURE §11.1)", 
   });
 });
 
-describe("runReindex — incremental (M9 definition of done)", () => {
+describe("runReindex — incremental (the cache contract)", () => {
   it("re-embeds NOTHING on a no-change re-run", async () => {
     const { sha } = await setUpIndexedRepo();
     await storeSession(sha, "Session about math");

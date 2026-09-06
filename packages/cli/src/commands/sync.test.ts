@@ -1,7 +1,7 @@
 // Integration tests for `git for-ai sync` against REAL local bare remotes
-// (createFixtureRepo bare:true — never mocked), per CLI_PLAN.md M13's definition of done:
+// (createFixtureRepo bare:true — never mocked):
 // push from one repo, fetch into a second, round-trip intact; and the divergent-notes
-// scenario proving the JSONL note format (PLAN_2026-07-18.md W3) union-merges cleanly
+// scenario proving the JSONL note format union-merges cleanly
 // under git's real cat_sort_uniq.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

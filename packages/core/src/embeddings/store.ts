@@ -2,7 +2,7 @@
 //
 // Backend: Node's built-in `node:sqlite` (`DatabaseSync`, opened with
 // `{ allowExtension: true }`) plus the prebuilt `sqlite-vec` extension loaded from the
-// npm package. This SUPERSEDES CLI_PLAN.md M9's `better-sqlite3` wording: better-sqlite3
+// npm package. better-sqlite3 is deliberately not used: it
 // cannot build on the reference machine (Node 24.8.0 — no prebuilt binary, broken
 // ClangCL), while node:sqlite needs no native build at all and was spike-verified to
 // load sqlite-vec (vec0 KNN + FTS5 in the same file) on this machine. `node:sqlite`
@@ -20,12 +20,12 @@
 //                    and the raw text.
 // - `chunk_vectors`  vec0 virtual table, rowid-joined to `chunks.id`.
 // - `chunk_fts`      FTS5 mirror of the same text, rowid-joined to `chunks.id` — the
-//                    keyword half of hybrid retrieval (§11.4); M11 consumes both.
+//                    keyword half of hybrid retrieval (§11.4); the query engine consumes both.
 //
 // ── Judgment calls ──
 // 1. §11.4 names the VectorStore interface but never writes it down; the shape below
 //    (upsert/delete by chunk key, KNN query, keyword query, count) is the minimal
-//    surface M10 (reindex) and M11 (hybrid retrieval) need.
+//    surface `reindex` and hybrid retrieval need.
 // 2. Chunk identity `key` is caller-defined; for code the convention is
 //    `<blob_sha>:<node_path>` (§11.2's chunk identity). Upsert replaces by key, so
 //    re-indexing an unchanged file is idempotent.
@@ -33,11 +33,11 @@
 //    SQLite float, which vec0 rejects); rowids READ back as plain numbers. All integer
 //    binds here go through BigInt for uniformity.
 // 4. Fingerprint/schema mismatch on open throws a typed error instead of silently
-//    serving cross-model vectors (§11.3 "never mix"); the caller (M10 `reindex --full`,
-//    M14 `doctor`) decides whether to rebuild.
+//    serving cross-model vectors (§11.3 "never mix"); the caller (`reindex --full`,
+//    `doctor`) decides whether to rebuild.
 // 5. Distance metric is sqlite-vec's default L2. The default embedder L2-normalizes its
 //    output, making L2 ranking equivalent to cosine ranking.
-// 6. `toFtsQuery()` is provided for M11: FTS5 MATCH has its own query syntax that chokes
+// 6. `toFtsQuery()` is provided for the query engine: FTS5 MATCH has its own query syntax that chokes
 //    on raw natural language (apostrophes, hyphens); the helper quotes each token so
 //    arbitrary question text is always a valid query.
 

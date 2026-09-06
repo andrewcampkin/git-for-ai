@@ -1,6 +1,6 @@
 // `git for-ai export --format agent-trace|pr-comment [--out <path>] [<target>]` —
 // CLI_REFERENCE `export` + ARCHITECTURE.md §3.1 (Agent Trace interop) + the
-// PLAN_2026-07-18.md §2.2-item-3 cheap PR surface (`export --format pr-comment` piped to
+// cheap PR surface (`export --format pr-comment` piped to
 // `gh pr comment`).
 //
 // Read-path discipline (same deliberate judgment call as log/show/report/doctor): export

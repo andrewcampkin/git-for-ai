@@ -1,5 +1,5 @@
 // `git for-ai review [--port <n>] [--no-open]` — the local review web app server
-// (architecture/REVIEW_UI.md; PLAN_2026-07-18.md §2.2). Serves the built `review-ui` SPA
+// (architecture/REVIEW_UI.md). Serves the built `review-ui` SPA
 // plus a read-only JSON API over Node's built-in `node:http` — deliberately no server
 // framework (REVIEW_UI.md §1: Fastify stays reserved for the future team server).
 //
@@ -13,7 +13,7 @@
 //      review-ui's own tests). The server itself makes exactly one kind of outbound call,
 //      and only on explicit opt-in: /api/ask's synthesis step calls the Anthropic API
 //      when the user configured GIT_FOR_AI_ANTHROPIC_KEY / ANTHROPIC_API_KEY — the same
-//      key-gated behavior as `git for-ai ask` (CLI_PLAN.md M11 honest-scope note). With
+//      key-gated behavior as `git for-ai ask`. With
 //      no key, /api/ask stays fully local and returns ranked raw sources.
 //   4. No auth — localhost, single user.
 //
@@ -448,7 +448,7 @@ async function readSessionData(ref: string, ctx: GitContext): Promise<ReviewSess
   }
 }
 
-// ── /api/ask (M12): the CLI's ask surface, served to the SPA panel ──
+// ── /api/ask: the CLI's ask surface, served to the SPA panel ──
 //
 // Reuses the exact query deps `git for-ai ask` opens (openQueryDeps + askQuestion).
 // The embedder is cached per server process (the transformers model loads once, not
@@ -840,7 +840,7 @@ async function handleRequest(
       return;
     }
 
-    // REVIEW_UI.md §2 rule 2, as amended by DESKTOP.md §4: every OTHER endpoint is a GET.
+    // REVIEW_UI.md §2 read-only rule, as amended by DESKTOP.md §4: every OTHER endpoint is a GET.
     // Reads never write, and the write path is exactly the one branch above.
     if (req.method !== "GET" && req.method !== "HEAD") {
       res.setHeader("allow", actions === null ? "GET, HEAD" : "GET, HEAD, POST");
@@ -904,7 +904,7 @@ export async function startReviewServer(options: ReviewOptions = {}): Promise<Re
 
   await new Promise<void>((resolvePromise, reject) => {
     server.once("error", reject);
-    // Rule 1 (REVIEW_UI.md §2): bind 127.0.0.1 only.
+    // Localhost-only rule (REVIEW_UI.md §2): bind 127.0.0.1 only.
     server.listen(options.port ?? 0, "127.0.0.1", () => {
       server.removeListener("error", reject);
       resolvePromise();

@@ -31,7 +31,7 @@ export async function notesShow(ref: string, sha: string, opts?: RunGitOptions):
  * creating the note if none exists yet. This is a thin wrapper over
  * `git notes --ref=<ref> append -F - <sha>` (message piped via stdin so arbitrary content —
  * including embedded newlines and the JSON payloads the ledger layer writes — round-trips
- * exactly, with no shell-escaping hazard). Higher layers (Milestone 4) are responsible for
+ * exactly, with no shell-escaping hazard). Higher layers (the ledger module) are responsible for
  * the append-only-JSON-array structure; this function only knows how to append raw text.
  */
 export async function notesAppend(ref: string, sha: string, body: string, opts?: RunGitOptions): Promise<void> {

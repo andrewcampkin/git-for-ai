@@ -1,6 +1,6 @@
-// Shared query-side dependency opener for Milestone 12's `ask` / `blame --why` (and the
+// Shared query-side dependency opener for `ask` / `blame --why` (and the
 // review server's /api/ask): opens the SAME config/store/fingerprint surface that
-// reindex.ts owns on the write side, but builds the QUERY-side embedder via M11's
+// reindex.ts owns on the write side, but builds the QUERY-side embedder via the query engine's
 // `createQueryEmbedderFromConfig` (the Voyage path embeds queries with input_type
 // "query"; the offline transformers path is symmetric and delegated as-is).
 //
@@ -8,7 +8,7 @@
 // 1. "Index built" is judged from `state.json`'s `last_indexed_commit` (DATA_MODEL.md
 //    §5.1), not from `index.db`'s existence — init stubs index.db as an empty file, so
 //    file existence proves nothing. Missing/never-run state is an ACTIONABLE error
-//    naming `git for-ai reindex`, per CLI_PLAN.md M12.
+//    naming `git for-ai reindex`.
 // 2. A fingerprint mismatch (config/model changed since the index was built) is an error
 //    naming `git for-ai reindex --full` — the documented recovery path — whether it is
 //    detected via state.json or via the store's own IndexFingerprintError.

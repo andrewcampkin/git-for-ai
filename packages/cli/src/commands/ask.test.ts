@@ -1,5 +1,5 @@
-// Tests for `git for-ai ask` (./ask.ts) — M12 — against a REAL fixture repo (the
-// no-mocks rule, CLI_PLAN.md §4) whose index is built by the REAL runReindex pipeline
+// Tests for `git for-ai ask` (./ask.ts) against a REAL fixture repo (the
+// no-mocks rule) whose index is built by the REAL runReindex pipeline
 // with the deterministic BagOfWordsEmbedder (token-overlap vectors, so ranking
 // assertions are meaningful; the real model is NEVER loaded in tests). The Anthropic
 // HTTP layer is mocked through the sanctioned fetchImpl seam, and every test pins
@@ -68,7 +68,7 @@ beforeAll(async () => {
     ctx,
   );
 
-  // The real M10 pipeline builds the index (code + ledger + session, one space).
+  // The real reindex pipeline builds the index (code + ledger + session, one space).
   await runReindex({ cwd: repo.dir, embedder });
 });
 

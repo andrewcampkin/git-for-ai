@@ -1,4 +1,4 @@
-// Embedding pipeline + vector store — architecture/ARCHITECTURE.md §11 (Milestone 9).
+// Embedding pipeline + vector store — architecture/ARCHITECTURE.md §11.
 //
 // Four cooperating pieces:
 // - chunking.ts             tree-sitter (WASM) chunker at function/class granularity (§11.1)

@@ -138,7 +138,7 @@ describe("ledgerNoteSchema", () => {
   });
 });
 
-describe("ledgerNoteLineSchema (JSONL wire format, PLAN_2026-07-18.md W3)", () => {
+describe("ledgerNoteLineSchema (JSONL wire format)", () => {
   const line = {
     schema: LEDGER_NOTE_JSONL_SCHEMA,
     change_id: workedNoteExample.change_id,

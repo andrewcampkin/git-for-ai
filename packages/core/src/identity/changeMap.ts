@@ -3,7 +3,7 @@
 // The map lives entirely inside git: `refs/git-for-ai/change-map` points at a commit whose
 // tree holds one JSON shard file per change-id, sharded by the first 2 hex chars of the id
 // (`9f/2c...17.json`) so concurrent edits to different changes never touch the same file.
-// Everything here is built from Milestone 2's plumbing primitives (hash-object / mktree /
+// Everything here is built from the git access layer's plumbing primitives (hash-object / mktree /
 // commit-tree / update-ref / ls-tree) — no working-tree checkout is ever involved.
 
 import {

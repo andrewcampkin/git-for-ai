@@ -1,8 +1,7 @@
-// `git for-ai doctor` — Milestone 14 (architecture/CLI_PLAN.md), the single pane of
-// glass for health (CLI_REFERENCE `doctor`), extended with the audits established in
-// PLAN_2026-07-18.md W3-#11: `origin: inferred` rows (the D1 class), orphan-recovery
-// rows, dangling session refs, and hooks-installed-but-dispatcher-missing (the failure
-// CLASS behind HANDOFF known-issue #1, not just the instance).
+// `git for-ai doctor` — the single pane of glass for health (CLI_REFERENCE `doctor`),
+// including the identity audits: `origin: inferred` rows, orphan-recovery rows, dangling
+// session refs, and hooks-installed-but-dispatcher-missing (the failure class, not just
+// the instance).
 //
 // Hard rules:
 //   - READ-ONLY. Doctor never writes: no resolveChangeId (its R4/R5 branches mint map
@@ -21,7 +20,7 @@
 //    CLI_REFERENCE contract wins, and anything nonzero still reads as unhealthy).
 // 2. An uninitialized repo is a DIAGNOSIS (every row fails with "run `git for-ai
 //    init`"), not a crash — doctor is exactly the command a confused user runs first.
-// 3. Legacy-envelope ledger notes (pre-W3 format) are surfaced as a warning: they read
+// 3. Legacy-envelope ledger notes (pre-JSONL format) are surfaced as a warning: they read
 //    fine, but a divergent sync merge cannot union them until their next (migrating)
 //    append — worth knowing, not worth failing.
 // 4. The dispatcher check scans PATH for a `git-for-ai` executable the hook scripts
@@ -222,7 +221,7 @@ async function checkDispatcher(
 ): Promise<DoctorCheck> {
   const found = findDispatcherOnPath(pathEnv);
   if (found === null) {
-    // The exact failure class from PLAN_2026-07-18 W3-#11: hooks fire `git-for-ai
+    // The failure class: hooks fire `git-for-ai
     // internal-hook ... || true`, so a missing binary silently disables capture.
     const message = hooksInstalled
       ? "hooks are installed but no `git-for-ai` executable is on PATH — hooks silently no-op"
@@ -501,7 +500,7 @@ async function checkIdentity(ctx: GitContext): Promise<DoctorCheck> {
   const remediation: string[] = [];
   const repairs: DoctorRepair[] = [];
   if (inferred.length > 0) {
-    // The D1 audit: R4 continuation inference is the resolver's weakest evidence.
+    // The inferred-origin audit: R4 continuation inference is the resolver's weakest evidence.
     problems.push(`${plural(inferred.length, "change")} with origin \`inferred\``);
     remediation.push(
       `inferred: verify with \`git for-ai show c/<id> --history\` (${inferred

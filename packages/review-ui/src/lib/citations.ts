@@ -1,5 +1,5 @@
 // Split a synthesized answer into text/citation segments so the panel can render the
-// `[n]` markers as links to the numbered source list (M12; mirrors core synthesis.ts's
+// `[n]` markers as links to the numbered source list (mirrors core synthesis.ts's
 // extractCitations contract: markers are 1-based indexes into the sources array).
 // Out-of-range markers are NOT linkified — they stay literal text, because inventing a
 // link target would fabricate a source.

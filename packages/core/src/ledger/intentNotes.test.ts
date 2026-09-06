@@ -1,6 +1,5 @@
 // Integration tests for ledger note read/write against a REAL temporary git repository
-// (createFixtureRepo — never mocked), per CLI_PLAN.md §4's testing strategy and M4's
-// definition of done, updated for the PLAN_2026-07-18.md W3 JSONL reformat: writers emit
+// (createFixtureRepo — never mocked). The JSONL note format: writers emit
 // only JSONL (one canonical-JSON ledger-note line per entry), readers accept BOTH the
 // JSONL format and the legacy single-envelope format, and a legacy note is migrated
 // opportunistically on its next append.
@@ -83,7 +82,7 @@ describe("ledger intent notes (real git fixture)", () => {
     expect(written.entries).toEqual([entry]);
 
     // Inspect the raw note via notesShow directly — not through our own read function —
-    // to confirm what actually landed on disk (M4 definition of done, W3 format).
+    // to confirm what actually landed on disk (JSONL format).
     const raw = await notesShow(INTENT_NOTES_REF, sha, { cwd: repo.dir });
     expect(raw).not.toBeNull();
 

@@ -1,10 +1,10 @@
-// `git for-ai ask "<question>"` — Milestone 12 (architecture/CLI_PLAN.md), over M11's
+// `git for-ai ask "<question>"` — over core's
 // query engine. Spec: CLI_REFERENCE.md's `ask` section and ARCHITECTURE.md §9.1's
 // example output. Hybrid keyword+vector retrieval is fully local; the prose answer is
 // synthesized via the Anthropic API ONLY when a key is configured
 // (GIT_FOR_AI_ANTHROPIC_KEY preferred, then ANTHROPIC_API_KEY — see core's
 // SYNTHESIS_KEY_ENV note); with no key the command renders the ranked raw sources —
-// the CLI_PLAN M11 honest-scope fallback — as a first-class result, not an error.
+// the honest-scope fallback — as a first-class result, not an error.
 //
 // ── Judgment calls ──
 // 1. The default path is exactly `askQuestion` (engine.ts). `--since/--until` need a
@@ -241,7 +241,7 @@ export function confidenceFor(
 ): AskConfidence {
   // A successful tool call is the strongest signal available: the answer was written
   // against a live read of this repository, not a similarity match. Still a retrieval
-  // signal, never a model-reported one (hard rule 5).
+  // signal, never a model-reported one (the honest-degradation rule).
   if (toolCalls.some((call) => call.ok)) {
     return {
       level: "high",

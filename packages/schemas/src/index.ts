@@ -1,7 +1,6 @@
 // Zod schemas + inferred TypeScript types for the git-for-ai record formats
 // (ledger entry, session record, change-map entry, repo config).
-// See ../../../architecture/DATA_MODEL.md for the spec this implements, and
-// ../../../architecture/CLI_PLAN.md Milestone 1 for the build-out plan.
+// See ../../../architecture/DATA_MODEL.md for the spec this implements.
 
 export {
   changeIdSchema,

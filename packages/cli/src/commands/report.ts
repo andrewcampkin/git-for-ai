@@ -1,5 +1,4 @@
-// `git for-ai report` — the first human-visible surface (architecture/PLAN_2026-07-18.md
-// §2.2 item 2): a generated digest of agent activity over a commit range, as a single
+// `git for-ai report` — a generated digest of agent activity over a commit range, as a single
 // self-contained HTML page (default) or plain Markdown. Its job is the "prove it" pixel —
 // the claim (summary/intent) rendered next to its evidence (tested commands, session
 // capture, confidence/risk flags) — so a human can review what their agents did and why.
