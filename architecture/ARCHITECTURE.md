@@ -1,30 +1,20 @@
 # git-for-ai — Technical Architecture
 
-> Status: **Implemented.** Originally the pre-implementation design spec, this document remains
-> the authoritative description of the system's architecture — the built CLI conforms to it, with
-> deviations recorded in the relevant source files' header comments (notably §7.3's R4 branch,
-> redesigned 2026-07-18 to sibling diff overlap, and §12.2's note body, now JSONL per
-> DATA_MODEL §2.1). Future work: [`ROADMAP.md`](./ROADMAP.md). Supporting files:
+> This document is the authoritative description of the system's architecture; the code
+> conforms to it, with judgment calls recorded in the relevant source files' header comments.
+> Known gaps: [`ROADMAP.md`](./ROADMAP.md). Supporting files:
 >
 > - [`DATA_MODEL.md`](./DATA_MODEL.md) — exhaustive field-by-field schema definitions and worked
 >   examples for every record type.
 > - [`CLI_REFERENCE.md`](./CLI_REFERENCE.md) — full command reference: every flag, exit code, and
 >   example output.
-> - [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md) — how this engine sits inside a monorepo alongside a
->   desktop app, a hosting/server component, and (future) a website.
+> - [`REVIEW_UI.md`](./REVIEW_UI.md), [`DESKTOP.md`](./DESKTOP.md), [`ASK_TOOLS.md`](./ASK_TOOLS.md)
+>   — the review page, the desktop shell, and the tool loop behind `ask`.
 >
-> Grounding documents (read for context, not restated here): [`../research/landscape.md`](./history/research/landscape.md)
-> (prior art) and [`../ideas/00-overview.md`](./history/ideas/00-overview.md) plus `./history/ideas/01`–`06`
-> (the scoped ideas this synthesizes).
->
-> **Revision note:** this document was originally drafted with Rust as the implementation
-> language. The project owner has no Rust experience and deep, current .NET/SQL Server/Postgres
-> expertise plus a React/Node background — so the language was changed to **TypeScript/Node.js**
-> to keep the codebase actually readable and maintainable by its one maintainer. Everything about
-> the *design* below (data model, storage layout in git, the identity/rewrite-survival algorithm,
-> the CLI surface, privacy model) is language-agnostic and unchanged. Only §4.1 (git access
-> strategy) and §11.3 (embedding provider) were language-specific and have been rewritten for
-> Node.js; they're the only two sections where "how do I actually build this" materially changed.
+> The implementation language is TypeScript/Node.js. Everything about the design (data model,
+> storage layout in git, the identity/rewrite-survival algorithm, the CLI surface, privacy
+> model) is language-agnostic; §4.1 (git access strategy) and §11.3 (embedding provider) are the
+> two sections where the language shapes the answer.
 
 ---
 
@@ -34,19 +24,16 @@
 from AI coding-agent sessions — on top of Git, *alongside* the diff-based commits Git already
 produces. It never replaces Git, never forks it, and works fully offline by default.
 
-The MVP is one system built from four cooperating pieces (ideas 01–04):
+It is one system built from four cooperating pieces:
 
-1. **Semantic Commit Ledger** (01) — a small structured "why" record per logical change, stored in
+1. **Semantic Commit Ledger** — a small structured "why" record per logical change, stored in
    git notes, keyed to a **stable change-id** that survives history rewrites.
-2. **Agent Session Ledger** (02) — full, normalized agent session traces (OpenTelemetry-GenAI
+2. **Agent Session Ledger** — full, normalized agent session traces (OpenTelemetry-GenAI
    shaped), content-addressed as git objects, pointed to from ledger entries.
-3. **Vector-Indexed Repository Brain** (03) — a local, rebuildable vector cache over code + intent
+3. **Vector-Indexed Repository Brain** — a local, rebuildable vector cache over code + intent
    + session summaries, so history is searchable by *meaning*.
-4. **Conversational Blame / Repo Q&A** (04) — the thin user-facing layer: `blame --why`, `ask`,
-   `log --intent`, doing retrieval-augmented synthesis over 01–03.
-
-Ideas 05 (Intent Knowledge Graph) and 06 (Semantic Diff & Drift Detector) are **v2 roadmap** and
-are described at roadmap level in [§14](#14-roadmap), not fully designed here.
+4. **Conversational Blame / Repo Q&A** — the thin user-facing layer: `blame --why`, `ask`,
+   `log --intent`, doing retrieval-augmented synthesis over the first three.
 
 ### The one-sentence differentiator
 
@@ -71,8 +58,8 @@ exists in isolation; the loop does not. That gap is the product.
   after-the-fact commit message. Degrade gracefully to a human summary (or nothing) when absent.
 - **Git-native sync.** Intent, sessions, and identity all sync through ordinary `git push`/`fetch`
   of dedicated refs — no new server, no new protocol, no external service.
-- **Personal-use first, open-sourceable later.** Single-user local-first is the MVP target; the
-  data model is designed so multi-user append-merge works later without a schema break.
+- **Single-user local-first.** The data model is designed so multi-user append-merge works
+  without a schema break.
 - **Honest degradation.** When intent is missing, say so; never fabricate a plausible rationale.
 - **Interoperate, don't reinvent.** Adopt the Agent Trace record shape and OpenTelemetry-GenAI span
   shape rather than inventing competing wire formats.
@@ -81,14 +68,13 @@ exists in isolation; the loop does not. That gap is the product.
 
 - **Not a new VCS.** No patch algebra (Pijul/Darcs), no snapshot-model replacement. Git is the
   substrate.
-- **Not a hosted service.** No SaaS backend, no telemetry, no account. (A future team/hosted mode is
-  explicitly out of scope for MVP and v1.1.)
+- **Not a hosted service.** No SaaS backend, no telemetry, no account.
 - **Not automatic push.** Session data can be sensitive; it is never silently piggybacked onto
   `git push`. Sync is an explicit command.
 - **Not a general observability platform.** We emit OTel-GenAI-*shaped* records for portability, but
   we are not building span collection, sampling, or a trace UI.
-- **Not multi-agent in MVP.** Claude Code is the only capture adapter for MVP. Aider/Cursor/Copilot
-  Workspace are named future adapters.
+- **Not multi-agent.** Claude Code is the only capture adapter; the transcript adapter is
+  versioned so others can be added.
 - **Not an auto-gate.** Drift detection (v2) surfaces prompts for a human to look, never a CI fail.
 - **Not retroactive magic.** History created before `git-for-ai` was installed has no captured
   intent; queries over it honestly fall back to diff + commit message.
@@ -97,9 +83,8 @@ exists in isolation; the loop does not. That gap is the product.
 
 ## 3. Positioning versus prior art
 
-The [landscape doc](./history/research/landscape.md) names the field. Three projects are close enough that
-a reviewer will immediately ask "isn't this already done?" — those get a paragraph each. The rest
-get a line.
+Three projects are close enough that a reviewer will immediately ask "isn't this already
+done?" — those get a paragraph each. The rest get a line.
 
 ### 3.1 versus Agent Trace (the closest *format*)
 
@@ -121,9 +106,11 @@ nearest thing to our storage mechanism and it validates the core bet (notes are 
 attribution can survive rewrites). The difference is scope of payload: git-ai answers **who/what
 wrote a line**; we answer **why the change was made** — the reasoning, the plan, the rejected
 alternatives, and a pointer to the full session that produced it. Attribution is a field in our
-model, not the model. We also add the semantic index git-ai has no equivalent of. Positioning:
-**git-ai is provenance-of-authorship; we are provenance-of-intent, and a strict superset of what
-git-ai captures per line.**
+model, not the model. We also add the semantic index git-ai has no equivalent of. The hook
+placement differs too: git-ai hooks the *agent* and depends on it reporting; we hook *git*, so
+the record exists whether or not the agent cooperated and is still correct after history is
+rewritten. Positioning: **git-ai is provenance-of-authorship; we are provenance-of-intent, and
+a strict superset of what git-ai captures per line.**
 
 ### 3.3 versus the "Lore" paper (the closest *intent schema*)
 
@@ -231,36 +218,26 @@ alike (see §4.1). There is no in-process git library.
 
 ### 4.1 Git access strategy: always shell out, never reimplement
 
-Node's options for in-process git access are all worse than the equivalent in a systems language:
-`nodegit` (native libgit2 bindings) is effectively unmaintained and drags in native-module build
-pain (`node-gyp`, prebuilt-binary mismatches per platform/Node version) for a solo maintainer to
-own; `isomorphic-git` is a pure-JS *reimplementation* of git's object model and plumbing — capable,
-but it means our own commit/notes/rebase semantics could subtly diverge from the user's actual
-installed git, which directly contradicts a core goal (§2.1: "100% behavioral parity with the
-user's git"). So the rule is simpler than the original Rust plan's two-tier split:
+Node's options for in-process git access are all worse than shelling out: `nodegit` (native
+libgit2 bindings) is effectively unmaintained and drags in native-module build pain
+(`node-gyp`, prebuilt-binary mismatches per platform/Node version); `isomorphic-git` is a
+pure-JS *reimplementation* of git's object model and plumbing — capable, but it means our own
+commit/notes/rebase semantics could subtly diverge from the user's actual installed git, which
+directly contradicts a core goal (§2.1: behavioral parity with the user's git). So:
 
 **Every git operation — reads and writes — shells out to the user's installed `git` binary**, via
 [`execa`](https://github.com/sindresorhus/execa) (a well-maintained subprocess wrapper with sane
 argument-array escaping, so there's no shell-quoting hazard). This is slower per-call than an
-in-process library, but `git-for-ai` is an interactive CLI, not a hot loop — the overhead of
-spawning `git log`/`git cat-file` a few dozen times per command is not perceptible to a human
-typing `git for-ai blame --why`, and it buys total behavioral parity with whatever git version,
-config, and credential helpers the user already has installed, plus one less thing (a native
-binding) to explain to a maintainer new to the ecosystem. If a specific hot path later proves
-genuinely slow (e.g. `reindex --full` on a huge repo walking every commit), the fix is to batch
-that one call (`git log --format=... -z` in one shell-out rather than N), not to introduce a
-second git implementation.
+in-process library, but it buys total behavioral parity with whatever git version, config, and
+credential helpers the user already has installed, and one less native binding to own.
 
-**That prediction came true, and the fix was exactly the predicted one (2026-07-25).** The
-"few dozen shell-outs per command" estimate held for single-commit commands and broke badly
-for whole-history ones: `report`/`/api/overview` resolved identity per commit, and each
-lookup re-read the entire change-map with one `cat-file` per change. On this repo — 41
-commits, ~40 changes — that was thousands of spawns and **123 seconds**. No git operation
-was slow; the process count was. The batched readers (`catFileBatch` over `git cat-file
---batch`, plus `readChangeMapSnapshot` / `readLedgerNotesForCommits` / `readSessionRecords`
-built on it) brought the same work to ~1.2s with byte-identical results. The rule to carry
-forward: **a read that touches N commits must cost O(1) git processes, not O(N)** — still no
-second git implementation, just fewer conversations with the one we have.
+The cost that matters is process count, not any single git operation: a spawn is 25–30 ms on
+Windows, so a command that touches N commits with one process each hangs on a repo of any size.
+**A read that touches N commits must cost O(1) git processes, not O(N).** The batched readers
+(`catFileBatch` over `git cat-file --batch`, plus `readChangeMapSnapshot` /
+`readLedgerNotesForCommits` / `readSessionRecords` built on it) are how whole-history commands
+(`report`, `/api/overview`) meet that; each is equivalence-tested against the single-item reader
+it replaces.
 
 ---
 
@@ -295,7 +272,7 @@ append-only array of entries (append-only is what makes the notes merge conflict
   "change_id": "9f2c1a7b6e4d0f83c5a1b2d3e4f50617",  // stable identity, 32 hex
   "revision": "b7c3e2a1d9f8...",                     // commit SHA this entry was written against
   "created_at": "2026-07-17T09:22:41Z",
-  "author": { "type": "agent", "tool": "claude-code", "model": "claude-opus-4-8", "human": "andrewcampkin@gmail.com" },
+  "author": { "type": "agent", "tool": "claude-code", "model": "claude-opus-4-8", "human": "dev@example.com" },
   "scope": [                                          // Agent-Trace-shaped: what this change touched
     { "path": "src/auth/session.rs", "range": [40, 118], "blob": "af19c2..." }
   ],
@@ -458,7 +435,7 @@ stdin. We fold entries accordingly:
 
 ### 7.5 The known gap: cherry-pick and filter-branch/filter-repo
 
-`post-rewrite` is **not** fired by `cherry-pick`, `filter-branch`, `filter-repo`, `fast-import`, or `merge --squash` (the last is handled at hook time via SQUASH_MSG detection — see internal-hook.ts judgment call #4, added 2026-07-19).
+`post-rewrite` is **not** fired by `cherry-pick`, `filter-branch`, `filter-repo`, `fast-import`, or `merge --squash` (the last is handled at hook time via SQUASH_MSG detection — see internal-hook.ts judgment call #4).
 These are the blind spots. There is no old→new mapping emitted at all, so the change-map cannot be
 updated at rewrite time. This is a real limitation, not a bug we can hook our way out of.
 
@@ -547,14 +524,9 @@ is a cache; git is truth.** If `.git-for-ai/` is deleted, nothing of value is lo
 ## 9. CLI surface
 
 Full reference (every flag, exit code, example output) in [`CLI_REFERENCE.md`](./CLI_REFERENCE.md).
-Built with [Commander.js](https://github.com/tj/commander.js), distributed as an npm package
-(`npm install -g git-for-ai`) exposing a `git-for-ai` shim script on `PATH`; git finds it there and
-lets you invoke it as the subcommand `git for-ai <cmd>` (same convention as `git-bug`/`git-appraise`).
-npm distribution assumes Node.js is already installed, which is a safe assumption for the personal
-MVP; a dependency-free single-executable build (via Node's built-in
-[Single Executable Applications](https://nodejs.org/api/single-executable-applications.html)
-support) is a documented v1.1 nice-to-have for distributing to machines without Node, not required
-now — see [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md).
+Built with [Commander.js](https://github.com/tj/commander.js); the package exposes a `git-for-ai`
+executable on `PATH`, and git finds it there and lets you invoke it as the subcommand
+`git for-ai <cmd>` (same convention as `git-bug`/`git-appraise`).
 
 | Command | Purpose |
 |---|---|
@@ -608,7 +580,7 @@ More example outputs — including the degraded "no captured intent" case — ar
 
 ## 10. Claude Code hook integration (end to end)
 
-MVP capture is Claude-Code-only (decision #5). Two `PostToolUse` hooks are wired via
+Capture is Claude-Code-only (decision #5). Two `PostToolUse` hooks are wired via
 `.claude/settings.json` (project-scoped, so they travel with the repo for anyone who opts in):
 
 ```jsonc
@@ -730,7 +702,7 @@ interface Embedder {
   inside the Node process via `onnxruntime-node` — no Python, no separate server, no network call.
   This is what preserves offline-by-default in a Node.js world: the model runs *in* the CLI's own
   process. Chosen at `init`; recorded as a `modelFingerprint` in `state.json`.
-- **GPU (ROADMAP Tier 0, owner-chosen 2026-07-19):** on Windows the embedder auto-selects the
+- **GPU:** on Windows the embedder auto-selects the
   DirectML execution provider with fp16 weights (int8 quantization does not accelerate on GPU);
   elsewhere it stays CPU + int8. `GIT_FOR_AI_DEVICE=dml|cpu|auto` and `GIT_FOR_AI_DTYPE=fp16|fp32|q8`
   override. Device/precision resolution is deterministic and happens before any model load, because
@@ -746,15 +718,12 @@ interface Embedder {
   `reindex --full` re-embeds. We never mix vectors from two models (or two precisions of one
   model) in one index. int8/q8 keeps the bare legacy form so pre-GPU indexes stay valid.
 
-### 11.4 Storage: sqlite-vec (MVP), LanceDB (upgrade path)
+### 11.4 Storage: sqlite-vec, with LanceDB as the upgrade path
 
-sqlite-vec for MVP — embedded, zero-dependency C extension, single inspectable file, per the
-research doc's embedded-DB comparison. In Node, this means
-[`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) (synchronous, well-maintained, the
-de facto standard SQLite driver for Node) with the platform-appropriate precompiled `sqlite-vec`
-shared library loaded via `db.loadExtension(...)` at startup — no compilation step for the
-maintainer, just a prebuilt `.dll`/`.so`/`.dylib` shipped alongside the npm package per platform.
-The vector store is accessed only through a `VectorStore` interface so
+sqlite-vec — embedded, zero-dependency C extension, single inspectable file. In Node, this is
+`node:sqlite` (`DatabaseSync` with `allowExtension`) plus the prebuilt `sqlite-vec` npm package
+loaded via `loadExtension(...)` at startup — no native build step anywhere. The vector store is
+accessed only through a `VectorStore` interface so
 [LanceDB's Node SDK](https://github.com/lancedb/lancedb) (the flagged upgrade path, proven in this
 niche via Continue.dev, and already a first-class TypeScript package) can be swapped in if
 schema/query needs outgrow a single SQLite file, without touching the query engine. `index.db`
@@ -765,13 +734,12 @@ alone.
 
 ### 11.5 Answering: retrieval first, then the model reads for itself
 
-**Amendment (2026-07-25 — see [`ASK_TOOLS.md`](./ASK_TOOLS.md) for the full diagnosis).**
 Retrieval alone bounds what an answer can know, and the bound is lower than it looks: a ledger
 entry is indexed as its summary plus reasoning, so a question like *"what changed in the last
-commit"* reaches the model as one sentence about a commit and gets an honest refusal. Nothing
+commit"* would reach the model as one sentence about a commit and get an honest refusal. Nothing
 in the index is keyed by commit, so no amount of retrieval tuning fixes that class of question.
 
-So synthesis is an agentic loop. Ranked, numbered, citable sources still go in first — that is
+So synthesis is an agentic loop ([`ASK_TOOLS.md`](./ASK_TOOLS.md) has the full design). Ranked, numbered, citable sources still go in first — that is
 what makes answers verifiable, and it is unchanged. On top of them the model may call back into
 the repository: `commit_diff` (what a commit actually modified), `show_change` (a change's
 recorded reasoning), `log_intent` (recent history), `blame_why` (why one line looks that way).
@@ -793,9 +761,9 @@ Four properties hold this in place:
   read is *more* verifiable than one grounded in an embedding hit, and the confidence label
   says so — still derived from retrieval signals, never model-claimed.
 
-The default synthesis model moved from `claude-haiku-4-5` to `claude-sonnet-5` at the same time
-(owner decision): the task changed from summarizing retrieved text to deciding which repository
-read answers the question, and a wrong tool choice costs a wasted round trip plus a bad answer.
+The default synthesis model is `claude-sonnet-5` (`GIT_FOR_AI_SYNTHESIS_MODEL` overrides): the
+task is deciding which repository read answers the question, not summarizing retrieved text,
+and a wrong tool choice costs a wasted round trip plus a bad answer.
 
 ---
 
@@ -809,10 +777,9 @@ read answers the question, and a wrong tool choice costs a wasted round trip plu
 user must consciously choose to share them. `init` configures the refspecs but does not enable
 auto-follow. The vector index is **never** synced — it is derived and rebuilt locally.
 
-### 12.2 Notes-merge: append-only union (v1.1-ready now)
+### 12.2 Notes-merge: append-only union
 
-MVP is single-user, but the data model must support multi-user merge later (decision #6), so we
-design it now. The failure mode to avoid: two people amend the same logical change on different
+The data model supports multi-user merge (decision #6). The failure mode to avoid: two people amend the same logical change on different
 branches and the notes conflict.
 
 - **Ledger notes are append-only.** An entry is never mutated in place; a correction is a *new*
@@ -835,10 +802,11 @@ branches and the notes conflict.
   `doctor`/`reconcile` surface it). Fold/`folded_into` records union. This is git-bug-style custom
   ref merge logic and is the one place we own merge semantics ourselves.
 
-### 12.3 Multi-user UX is v1.1
+### 12.3 Multi-user UX
 
-The *data model* supports concurrent append now. The full conflict-resolution *UX* (surfacing
-divergent heads, interactive relink, per-author attribution views) is v1.1 — see [§14](#14-roadmap).
+The *data model* supports concurrent append now. `sync` integrates a divergent change-map by
+keeping the local version and exiting with code 2; the person resolves it with `relink` or
+`reconcile`. The custom 3-way driver above is not implemented (see [`ROADMAP.md`](./ROADMAP.md)).
 
 ---
 
@@ -900,55 +868,10 @@ commands.
 
 ---
 
-## 15. Roadmap
+## 15. Judgment calls
 
-### MVP (this spec) — ideas 01–04, single-user, local-first
-
-- Semantic Commit Ledger (notes) + hybrid change-id (change-map ref + trailer fallback) with the
-  full resolution/rewrite-survival algorithm (§7).
-- Agent Session Ledger: Claude-Code-only capture via `.claude/settings.json` hooks, OTel-GenAI
-  session traces, content-addressed under a sessions ref, redaction pass, opt-in per repo.
-- Vector index: sqlite-vec, tree-sitter chunking, pluggable embedder (Jina/Nomic default, Voyage
-  opt-in), hybrid keyword+vector retrieval, incremental blob-hash-keyed updates.
-- Conversational layer: `log --intent`, `blame --why`, `ask`, plus `init/sync/reindex/doctor` and
-  supporting `show/reconcile/relink/export`.
-
-### v1.1 — multi-user
-
-- Full multi-user append-merge *UX* (the data model already supports it): divergent-head surfacing,
-  interactive `reconcile`/`relink`, per-author attribution views, conflict-free sync workflows.
-- Additional agent adapters: **Aider** (parse `.aider.chat.history.md` + `Co-authored-by`), then
-  Cursor/Copilot Workspace *if/when* they expose session data to the filesystem (they don't today).
-- LanceDB as an optional vector backend behind the existing `VectorStore` trait.
-
-### v2 — ideas 05 and 06 (roadmap-level only, not designed here)
-
-- **Idea 05 — Intent Knowledge Graph.** A durable graph *derived from* the ledger: nodes are
-  concepts/decisions/components, edges link them to the commits/change-ids that created, modified, or
-  superseded them. A periodic agent-driven consolidation pass (modeled on the `consolidate-memory`
-  pattern) merges duplicate nodes, marks stale ones, and flags contradictions between an old node's
-  rationale and a new commit's stated intent. Solves the "ledger becomes an unread graveyard"
-  failure mode. Explicitly sequenced after the ledger has *months of real entries* — building
-  consolidation logic against a near-empty ledger means designing against imagined data. Gives
-  `ask` a higher-quality maintained node to retrieve from than raw scattered entries. **Not designed
-  now; needs real data first.**
-
-- **Idea 06 — Semantic Diff & Drift Detector.** Reusing the §11 embedding index, periodically (or
-  on-demand via `git for-ai check-drift <path>`) compare a component's *current-code* embedding
-  against its *declared-intent* embedding (from the ledger or a v2 knowledge-graph node). A growing
-  distance is a drift *prompt* to a human ("auth's embedding drifted 40% from its last recorded
-  intent over 12 commits — update the ledger, or did behavior quietly change?"), **never an
-  auto-fail gate.** Also enables a "conceptual diff" review UX (what capability changed, not what
-  lines). Threshold tuning is an open research question needing real usage data; CodeScene is the
-  closest shipped product and a build-vs-integrate evaluation should precede heavy investment.
-  **Not designed now; needs a mature index and real thresholds.**
-
----
-
-## 16. Assumptions and judgment calls
-
-These are decisions made beyond the eight given constraints, so a reviewer can revisit them. They
-are made, not left open (per the brief).
+Decisions the design takes that a reader might otherwise question, recorded so they can be
+revisited deliberately.
 
 1. **Change-id format = random 128-bit, rendered as 32 lowercase hex.** Chosen over content-derived
    (Gerrit's collision lesson, §7.7) and over UUIDs (hex is more git-idiomatic and trailer-compact).
@@ -998,15 +921,11 @@ are made, not left open (per the brief).
     `config.toml`; we treat "code leaves the machine" as a decision the user must actively make, not
     a default (§11.3).
 
-15. **Language pivoted from Rust to TypeScript/Node.js** after the original draft, on the project
-    owner's explicit instruction (no Rust experience; deep, current .NET/SQL Server/Postgres
-    expertise plus React/Node). All git access shells out to the user's real `git` via `execa`
-    rather than splitting reads to an in-process libgit2 binding (§4.1) — Node's libgit2 binding
-    (`nodegit`) is effectively unmaintained, and the pure-JS alternative (`isomorphic-git`)
-    reimplements git semantics, which risks the exact divergence-from-real-git this project set out
-    to avoid. The performance cost of always shelling out is judged acceptable for an interactive
-    CLI; see [`MONOREPO_PLAN.md`](./history/MONOREPO_PLAN.md) for the full stack and monorepo consequences
-    of this pivot.
+15. **TypeScript/Node.js, with all git access shelling out to the user's real `git`** via `execa`
+    rather than an in-process libgit2 binding (§4.1) — Node's libgit2 binding (`nodegit`) is
+    effectively unmaintained, and the pure-JS alternative (`isomorphic-git`) reimplements git
+    semantics, which risks the exact divergence-from-real-git this project set out to avoid.
+    The performance cost of shelling out is bounded by batching (§4.1).
 
 ---
 

@@ -1,157 +1,120 @@
 # REVIEW_UI.md — `git for-ai review`: the local review web app
 
-> Status: **shipped** (v1 2026-07-19, then the v2 human-first redesign the same day: ask
-> panel promoted to the page top, attention inbox, day-grouped timeline, internals demoted
-> into folds). §§1–3 and 5–6 below remain the binding contract (package shape, server rules,
-> API). §4's v1 scope notes ("ask panel disabled", "when M14 lands") are historical — both
-> landed. Owner direction recorded 2026-07-19: this page serves HUMANS only; agents use the
-> CLI's `--json` and the MCP tools.
-
-Spec for the agent-activity review surface approved in
-[`PLAN_2026-07-18.md`](./history/PLAN_2026-07-18.md) §2.2. This is the buildable definition the plan
-deliberately deferred. It inherits everything the plan already fixed: review-SPA-before-
-Electron, served by the CLI, reading through `core` in-process, and the four functions in
-priority order (timeline, change detail, session trace viewer, attention queue) plus a
-post-M12 ask panel.
+The agent-activity review surface. It is served by the CLI, reads through `core`
+in-process, and serves one reader: the human reviewing what agents did to their repository.
+Agents use the CLI's `--json` output and the MCP tools instead.
 
 ## 1. Shape
 
-- **New package `packages/review-ui`** — Vite + React SPA, TypeScript. It builds to static
+- **Package `packages/review-ui`** — Vite + React SPA, TypeScript. It builds to static
   assets; it contains NO node/git logic and never imports `core` (it talks only to the JSON
-  API below). This is the UI package MONOREPO_PLAN §3/§6 anticipated the desktop app and
-  website would share: `desktop/` later wraps this same build in Electron.
-- **New CLI command `git for-ai review [--port <n>] [--no-open]`** in `packages/cli` — starts
-  a local HTTP server (Node's built-in `node:http`; no new server framework in the CLI) that
-  serves the built SPA assets plus a read-only JSON API, then opens the browser. Fastify
-  stays reserved for the future *team* server package; a localhost single-user viewer does
-  not justify the dependency.
+  API below). `packages/desktop` wraps this same build in Electron.
+- **CLI command `git for-ai review [--port <n>] [--no-open]`** in `packages/cli` — starts a
+  local HTTP server (Node's built-in `node:http`; no server framework) that serves the built
+  SPA assets plus a JSON API, then opens the browser.
 
 ## 2. Server rules (privacy is the product here)
 
-1. Bind **127.0.0.1 only**, never 0.0.0.0. Random free port by default; `--port` to pin.
-2. **Read-only**: every endpoint is a GET; the server never writes to the repo, and all git
-   reads follow the established non-minting pattern (log.ts/show.ts) — viewing the UI must
-   leave every ref byte-identical (same guarantee `report` proved).
-   **Amended 2026-07-25 (DESKTOP.md §5 step 4b), narrowly:** a server launched WITH an
-   action token — only the desktop shell does this — also serves `POST
-   /api/actions/<verb>`. `git for-ai review` passes no token, so in browser mode those
-   routes do not exist (404) and rule 2 holds unchanged; every other non-GET is still 405
-   in both modes. The token is minted per launch, delivered to the desktop's own renderer
-   out of band, never served by any endpoint, and required in a header. Reads remain reads:
-   the actions are the only write path, and each wraps the identical pure `run*` function
-   its CLI command uses.
-3. **Fully self-contained**: the SPA makes zero external requests (no CDNs, fonts, telemetry);
-   enforced the same way report.test.ts asserts no external `src`/`href`.
-4. No auth (localhost-only, single user). The future hosted version adds auth *around* this
-   same SPA — per PLAN §2.4, the online service is this surface behind auth, not a rewrite.
+- **Localhost only.** Bind **127.0.0.1**, never 0.0.0.0. Random free port by default;
+  `--port` to pin.
+- **Read-only.** Every endpoint is a GET; the server never writes to the repo, and all git
+  reads follow the non-minting pattern (log.ts/show.ts) — viewing the UI must leave every
+  ref byte-identical (asserted in tests with `git for-each-ref`). The one narrow exception:
+  a server launched WITH an action token — only the desktop shell does this — also serves
+  `POST /api/actions/<verb>`. `git for-ai review` passes no token, so in browser mode those
+  routes do not exist (404); every other non-GET is 405 in both modes. The token is minted
+  per launch, delivered to the desktop's own renderer out of band, never served by any
+  endpoint, and required in a header. Each action wraps the identical pure `run*` function
+  its CLI command uses ([`DESKTOP.md`](./DESKTOP.md) §4).
+- **Self-contained.** The SPA makes zero external requests (no CDNs, fonts, telemetry),
+  enforced by a test over the built `index.html`.
+- **No auth.** Localhost-only, single user.
 
-## 3. JSON API (v1)
+## 3. JSON API
 
-Thin wrappers over ALREADY-TESTED command logic — the API returns the structured results
-those modules produce today; no new data assembly in the server:
+Thin wrappers over already-tested command logic — the API returns the structured results
+those modules produce; no new data assembly in the server:
 
 | Endpoint | Backed by | Returns |
 |---|---|---|
 | `GET /api/overview?since&until&n&rev` | `runReport`'s `ReportData` | header stats + timeline + per-change details |
 | `GET /api/change/:target` | `runShow`'s `ShowData` | one change: identity, full ledger (incl. superseded), session info |
 | `GET /api/session/:ref` | show's session read | full span list for the trace viewer |
-| `GET /api/meta` | git + config reads | repo name/root, HEAD, capture on/off, index state, capabilities |
+| `GET /api/meta` | git + config reads | repo name/root, HEAD, capture on/off, index state, `capabilities` (`mode`, `branches`, `diff`, `actions`) |
 | `GET /api/branches` | `listBranches` (plain git) | local branches (`refs/heads/` only), current one marked, upstream ahead/behind |
 | `GET /api/diff/:sha?context` | `readCommitDiff` (plain git) | one commit's per-file diff: hunks, line numbers, rename/binary/truncation labels |
+| `GET /api/ask?q=` | `askQuestion` + the CLI's toolbox | cited answer or ranked sources; `synthesis.consulted` lists the repository reads made |
+| `POST /api/actions/<verb>` | the CLI's pure `run*` functions | desktop only (token-gated): doctor, reindex, sync, annotate, relink, reconcile as jobs |
 
 Types for these live in the CLI package next to their commands and are imported as
 **types-only** by `review-ui` (erased at build; preserves the no-core-imports rule).
 
-**Amendment (2026-07-25, DESKTOP.md §5 step 2).** The last two rows were added for the
-desktop app and are documented here rather than bolted on silently. Both are **read-only
-GETs like everything else**, so browser mode serves them too — §2 rule 2 is untouched (the
-write path is still CLI/MCP only; token-gated POST actions remain unbuilt). Two consequences
-worth stating: `?rev=` scopes the timeline to a branch but NOT `/api/ask`, whose answers
-still reflect the revision the index was built at (DESKTOP.md §1 G2 — the page says so where
-a branch is selected); and `/api/branches` reads `refs/heads/` exclusively, so our own
-metadata refs cannot leak into a branch list. `/api/meta` grew a `capabilities` object
-(`mode`, `branches`, `diff`, `actions`) so one SPA build can serve both hosts by asking the
-server what it offers rather than sniffing the client.
+`?rev=` scopes the timeline to a branch but NOT `/api/ask`, whose answers reflect the
+revision the index was built at ([`DESKTOP.md`](./DESKTOP.md) §1 G2); the page says so where
+a branch is selected. `/api/branches` reads `refs/heads/` exclusively, so the tool's own
+metadata refs cannot appear in a branch list. `capabilities` lets one SPA build serve both
+the browser and the desktop by asking the server what it offers rather than sniffing the
+client.
 
-**Amendment (2026-07-25, [`ASK_TOOLS.md`](./ASK_TOOLS.md)).** `/api/ask`'s synthesis may now
-read the repository for itself (a commit's diff, a change's record, recent history, a line's
-blame) instead of answering only from retrieved text. Three consequences for this document:
-the endpoint stays a **read-only GET** — every tool wraps a command this server already serves
-on a non-minting read path, and the ref byte-identity test still passes unchanged; the response's
-`synthesis` object grew a `consulted` array (what was read, with what arguments, and whether it
-succeeded); and the panel renders it as one muted line — *"Also checked: the changes in
-ce23522"* — in the reader's words, never ours (§2's audience rule: no tool names, no internal
-vocabulary). A read that failed says so rather than disappearing.
+`/api/ask`'s synthesis may read the repository for itself ([`ASK_TOOLS.md`](./ASK_TOOLS.md)).
+It stays a read-only GET — every tool wraps a command this server already serves on a
+non-minting read path — and the panel renders what was consulted as one muted line (*"Also
+checked: the changes in ce23522"*) in the reader's words. A read that failed says so.
 
-## 4. v1 functional scope (maps to PLAN §2.2's priority order)
+## 4. Functional scope
 
 1. **Timeline** — the `ReportData` timeline, filterable client-side by author kind
-   (agent/human/mixed/no-intent), model, and date; each row: sha, when, summary (honest
-   degradation labels preserved), author badge, provenance pill, conf/risk/undo flags.
-2. **Change detail** — route per change: intent, constraints, rejected (option+why), tested
-   evidence, scope file list, superseded entries (collapsed, labeled), session summary line.
-   v1 renders the change's *scope + reasoning*; commit diff rendering was explicitly v2 (a
-   diff viewer is real surface area; ship the review of *recorded intent* first).
-   **Landed 2026-07-25** (DESKTOP.md §5 step 3): the diff now renders beneath the intent —
-   the evidence a ledger entry cannot fake — gated on `/api/meta`'s `diff` capability.
-   Syntax highlighting is deliberately still absent (every bundled highlighter is real
-   weight; add/delete coloring in mono reads fine), recorded as deferred, not dropped.
-   **Recording reasoning by hand — landed 2026-07-25** (DESKTOP.md §5 step 4). The change
-   route is also where a person *writes*: an annotate form, gated on the same two halves as
-   the maintenance panel (a server offering actions AND a window holding the launch token),
-   so it never appears in `git for-ai review`. It opens seeded from the current entry, so
-   correcting a record means editing a draft rather than retyping it, and it says plainly
-   that saving *adds* a corrected version while the current one stays readable — because a
-   form that looks like it edits, but appends, teaches the wrong model of the data. There
-   are no author fields: a form submission is recorded as a human's, which is what actually
-   happened. Field rules (a rejected alternative needs both halves; confidence is a 0–1
-   number) refuse the save with a sentence naming the fix, rather than letting a half-record
-   reach the ledger; they live in `lib/annotate.ts` and are unit-tested there.
+   (agent/human/mixed/no-intent), model, and date, grouped by day; each row: sha, when,
+   summary (honest degradation labels preserved), author badge, provenance pill when
+   noteworthy, conf/risk/undo flags.
+2. **Change detail** — route per change: summary as the title, an evidence block (tested +
+   session trace link), then intent, constraints, rejected (option + why), scope file list,
+   superseded entries (collapsed, labeled). The commit's diff renders beneath the intent,
+   gated on `/api/meta`'s `diff` capability: files foldable, big commits start folded,
+   binary/rename/truncation labeled, no syntax highlighting. Where the window may write
+   (desktop), the change route also carries the annotate form: it opens seeded from the
+   current entry, states that saving *adds* a corrected version while the current one stays
+   readable, has no author fields (a form submission is recorded as a human's), and refuses
+   a half-record with a sentence naming the fix (rules in `lib/annotate.ts`, unit-tested).
 3. **Session trace viewer** — spans as a readable narrative list (tool, one-line rendering of
    the key attribute — command/file — timestamp), collapsible raw attributes per span.
-4. **Attention queue** — v1 minimal, computed from data already available: changes with
+4. **Attention inbox** — computed from data already available: changes with
    `origin: inferred`/`orphan-recovery`, no-intent commits, unreadable-note warnings,
-   low-confidence (< 0.5) entries. Grows real `doctor` integration when M14 lands.
-   **Doctor integration + guided repair landed 2026-07-25** (DESKTOP.md §5 step 4): where
-   the window may write, the inbox also offers a checkup, lists what it found in plain
-   language, and offers the repair for findings that have one — showing the exact command
-   before it runs. The offer is driven by structured `repairs` doctor now publishes on each
-   check, not by parsing its prose. Arguments doctor cannot know (which commit is right)
-   are asked for, never guessed; after a repair the checkup re-runs so the finding list is
-   the evidence. Browser mode shows none of it: the gate is the same capability-flag AND
-   launch-token pair the maintenance panel uses.
-5. **Ask panel** — visibly present but disabled with an honest "arrives with M12" note.
+   low-confidence (< 0.5) entries, grouped by why they need a person and severity-ordered.
+   Where the window may write, the inbox also offers a checkup (`doctor`), lists what it
+   found in plain language, and offers the repair for findings that have one — showing the
+   exact command before it runs. The offer is driven by the structured `repairs` doctor
+   publishes on each check, never by parsing its prose; arguments doctor cannot know (which
+   commit is right) are asked for, never guessed; after a repair the checkup re-runs.
+5. **Ask panel** — at the top of the page: suggestion chips, citation-linked answers, sources
+   folded when prose exists and open when they ARE the answer, honest no-key and
+   index-not-ready states.
 
 Visual language: same information design as `report` (it is that page made live); dark/light
-via `prefers-color-scheme`.
+via `prefers-color-scheme`. Internals (change-ids, change-map origin/revisions, provenance
+enum, full SHAs) live behind closed "Record details" folds.
 
-**Voice (owner direction, 2026-07-25 — a full copy pass was needed to correct this).** The
-page had accumulated the vocabulary of the people building it: storage terms (ledger,
-change-map, spans, "captured intent"), design rationale ("never inferred or fabricated"),
-deployment detail (that a read-only local server on 127.0.0.1 serves it), and what other
-audiences use instead (`--json`, MCP). None of that helps the person reading it. On-screen
-text is now product language only — plain empty states ("No reasoning recorded"), plain
-notices ("Merge commit — showing what it brought in"), no explanation of why the tool
-behaves as it does. Honesty about missing data is unchanged and non-negotiable; only the
-essay defending it is gone. See CLAUDE.md hard rule 10.
+**Voice.** On-screen text is product language only: plain empty states ("No reasoning
+recorded"), plain notices ("Merge commit — showing what it brought in"). It never contains
+storage vocabulary (ledger, change-map, spans, "captured intent"), design rationale ("never
+inferred or fabricated"), deployment detail (that a read-only local server serves the page),
+or what other audiences use instead (`--json`, MCP). Honesty about missing data is
+non-negotiable; the explanation of why belongs here and in code comments, not on screen.
 
-**Bounded by default.** `/api/overview` walks the most recent 300 commits unless `?n=`
-says otherwise — a page must open promptly on a repo with 50,000 commits. `git for-ai
-report`, which is generating a document rather than painting a screen, still defaults to
-all of history.
+**Bounded by default.** `/api/overview` walks the most recent 300 commits unless `?n=` says
+otherwise — a page must open promptly on a repo with 50,000 commits. `git for-ai report`,
+which is generating a document rather than painting a screen, defaults to all of history.
 
 ## 5. Build/packaging
 
 `review-ui` builds via turbo like every package; its `dist/` is resolved by the CLI at
 runtime through the workspace dependency (`require.resolve` of the package's exported
 manifest). A missing build produces an actionable error ("run pnpm build"), never a blank
-page. Tests: server endpoints against real fixture repos (supertest-style over node:http, or
-plain fetch against a listening server); UI logic (filtering, degradation rendering) via
-vitest component tests; the no-external-requests assertion on the built index.html.
+page. Tests: server endpoints against real fixture repos over a listening `node:http`
+server; UI logic (filtering, labels, annotate rules, citations) as pure-function vitest
+tests; the no-external-requests assertion on the built `index.html`.
 
-## 6. Explicitly out of scope for v1
+## 6. Out of scope
 
-Diff rendering *(shipped 2026-07-25 — see §4.2)*, annotate-from-UI (write path stays
-CLI/MCP for now), multi-repo switching *(shipped in the desktop shell, not the browser)*,
-any network exposure, Electron packaging *(the shell exists; installers still pending)*,
-live file watching (manual refresh is fine for v1).
+Syntax highlighting in the diff pane, any network exposure, live file watching (manual
+refresh), and multi-repo switching in the browser (the desktop shell has it).
