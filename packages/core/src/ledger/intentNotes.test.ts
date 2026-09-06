@@ -36,7 +36,7 @@ function makeEntry(revision: string, overrides: Partial<LedgerEntry> = {}): Ledg
       type: "agent",
       tool: "claude-code",
       model: "claude-opus-4-8",
-      human: "andrewcampkin@gmail.com",
+      human: "dev@example.com",
     },
     scope: [
       {
