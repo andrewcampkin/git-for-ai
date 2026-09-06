@@ -2,6 +2,7 @@
   "name": "@git-for-ai/review-ui",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "The local review web app SPA (architecture/REVIEW_UI.md): static Vite + React build served by `git for-ai review`. No node/git logic; talks only to the CLI's read-only JSON API.",
   "type": "module",
   "exports": {

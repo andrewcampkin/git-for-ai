@@ -2,6 +2,7 @@
   "name": "@git-for-ai/core",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "git-for-ai engine: git access, identity resolution, ledger + session read/write, redaction, embedding pipeline, vector store. No CLI parsing, no UI, no HTTP. See architecture/ARCHITECTURE.md.",
   "type": "module",
   "main": "./dist/index.js",
