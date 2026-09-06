@@ -1,20 +1,19 @@
 # git-for-ai
 
 **Source control that remembers *why*.** git-for-ai layers an intent ledger, AI-agent session
-capture, and a local semantic index on top of the Git you already use — so six months from now,
+capture, and a local semantic index on top of the Git you already use, so six months from now
 you (or your AI agent) can ask *why* a line of code is the way it is and get the actual
 reasoning back, not just a commit SHA and a name.
 
 Everything is stored as ordinary git notes, refs, and objects: nothing forked, no sidecar
-database of record, no server required. Any git host (GitHub included — validated) stores and
-syncs it. Delete the tool and your repo is still a perfectly normal git repo.
+database of record, no server. Any git host stores and syncs it. Uninstall the tool and your
+repo is still a perfectly normal git repo.
 
 ## Why
 
-AI coding agents now write a large share of many codebases, and they work *fast* — plans,
-rejected alternatives, constraints discovered, tests run — then all of that context evaporates
-the moment the session ends, leaving behind a one-line commit message. git-for-ai is built on
-two convictions:
+AI coding agents write a large share of many codebases, and they work fast: plans, rejected
+alternatives, constraints discovered, tests run. All of that context evaporates the moment the
+session ends, leaving behind a one-line commit message. git-for-ai is built on two convictions:
 
 1. **Agents should record more than a diff.** The reasoning is cheap to capture at the moment
    it exists and impossible to reconstruct later.
@@ -22,84 +21,103 @@ two convictions:
    what was the intent, what was rejected and why, what was actually tested, and the captured
    session to back it up.
 
-## What works today
+## Project status
+
+This project was built privately, almost entirely by AI coding agents directed by one person,
+and is published as-is under the MIT licence. **It is not accepting contributions**: pull
+requests and feature requests will be closed. If you want to change something, fork it and
+point your own AI agent (Claude Code or whatever you use) at the fork. The repository carries
+what an agent needs to work on it in [`CLAUDE.md`](CLAUDE.md), and its own history is captured
+with git-for-ai, so `git for-ai ask "..."` on a clone can explain why things are the way they
+are.
+
+## What it does
 
 | Command | What it does |
 |---|---|
-| `git for-ai init` | Opt a repo in: installs git + Claude Code hooks, refs, local config |
-| `git for-ai log --intent` | History annotated with each change's intent, author (agent/human), confidence |
+| `git for-ai init` | Opt a repo in: installs git hooks and Claude Code hooks, configures refs and local config |
+| `git for-ai log --intent` | History annotated with each change's intent, author (agent/human), and confidence |
 | `git for-ai show <sha\|c/id>` | Everything about one change: identity, ledger, reasoning, captured session (`--session`, `--history`) |
-| `git for-ai annotate` | Deliberately record intent — the agent write path (JSON stdin) with rejected-alternatives, constraints, tested evidence |
-| `git for-ai report` | Self-contained HTML/Markdown digest of agent activity — the human review surface |
-| `git for-ai reindex` | Build the local semantic index (tree-sitter chunking + local embeddings; incremental, cached) |
-| `git for-ai ask "<question>"` | Semantic Q&A over code + intent + sessions; cited AI-synthesized answers (offline ranked-sources mode without a key) |
-| `git for-ai blame --why <file>:<line>` | The founding question: the recorded reasoning behind a line, not just a SHA and a name |
+| `git for-ai annotate` | Deliberately record intent: rejected alternatives, constraints, tested evidence (flags or JSON stdin) |
+| `git for-ai report` | Self-contained HTML or Markdown digest of agent activity |
 | `git for-ai review` | Local web app (127.0.0.1, read-only): ask box, agent-activity timeline, attention inbox, session traces, branch scoping, and each commit's diff beside its recorded intent |
-| `git for-ai sync [--push\|--fetch]` | Explicit ref sync through any ordinary git remote — no server needed (validated on GitHub) |
-| `git for-ai doctor` | 11 read-only health audits with remediation steps |
-| `git for-ai config` / `export` | Config with consent gating; Agent Trace + PR-comment export |
-| `git for-ai relink` / `reconcile` | Identity repair tools (misattribution, lost change-map recovery) |
-| `git for-ai capture-session` | Hook-invoked: captures agent sessions at commit time (redacted, content-addressed) |
+| `git for-ai reindex` | Build the local semantic index (tree-sitter chunking, local embeddings; incremental, cached, GPU on Windows) |
+| `git for-ai ask "<question>"` | Q&A over code, intent and sessions; cited answers that can read the repository for themselves (ranked sources only, without an API key) |
+| `git for-ai blame --why <file>:<line>` | The recorded reasoning behind a line, not just a SHA and a name |
+| `git for-ai sync [--push\|--fetch]` | Explicit ref sync through any ordinary git remote, never automatic |
+| `git for-ai doctor` | Read-only health audit with remediation steps |
+| `git for-ai config` / `export` | Config with consent gating; Agent Trace and PR-comment export |
+| `git for-ai relink` / `reconcile` | Identity repair (misattribution, lost change-map recovery) |
 | `git for-ai mcp` | Stdio MCP server: `ask`, `blame_why`, `show`, `log_intent`, `annotate`, `doctor` as native tools for MCP-capable agents |
 
-Under the hood: stable change identity that survives amend/rebase/squash (change-map ref +
-Gerrit-style trailer fallback with lazy healing), append-only intent ledger in git notes, and
-session traces in a content-addressed ref. This repo dogfoods all of it — run the commands
-here and you'll see its own real history, including the sessions that built each feature.
+Under the hood: a stable change identity that survives amend, rebase and squash (a change-map
+ref with a Gerrit-style trailer fallback and lazy healing), an append-only intent ledger in git
+notes, and session traces in a content-addressed ref.
 
-There is also a desktop app: `packages/desktop` wraps the same local review server + SPA in
-an Electron shell with a repo picker and one-click init
-(`pnpm --filter @git-for-ai/desktop start` — see [`architecture/DESKTOP.md`](architecture/DESKTOP.md)).
-It also has a maintenance panel (checkup, update search, fetch/send) — the app's only write
-path, gated behind a per-launch token so nothing else on the machine can drive it. The
-branch and diff surfaces it needed ship in the browser too.
+There is also a desktop app: `packages/desktop` wraps the same local review server and SPA in
+an Electron shell with a repo picker, one-click init, and a maintenance panel. See
+[`packages/desktop/README.md`](packages/desktop/README.md).
 
-**The CLI is feature-complete against its reference.** What comes next — hardening, external
-dogfooding, the rest of the desktop app, the shared-index server, and the v2 ideas (semantic
-drift detection, intent knowledge graph) — is mapped in
-[`architecture/ROADMAP.md`](architecture/ROADMAP.md).
+## Install
 
-### MCP
+There is no published package yet; install from source. You need Node.js 22.5 or later
+(`node:sqlite` is used), git, and pnpm 9 (via Node's corepack).
 
-Agents shouldn't have to shell out and parse console output — `git for-ai mcp` serves the
-intent layer over stdio as native MCP tools (reads plus the schema-validated `annotate` write).
-Register it in Claude Code from your repo:
+```sh
+git clone https://github.com/andrewcampkin/git-for-ai.git
+cd git-for-ai
+corepack enable
+pnpm install
+pnpm build
+cd packages/cli && pnpm link --global    # puts `git-for-ai` on PATH; git finds it as `git for-ai`
+git for-ai --version
+```
+
+The first `reindex` downloads the embedding model (about 160 MB) into a per-user cache
+(`%LOCALAPPDATA%\git-for-ai\models` on Windows; `GIT_FOR_AI_MODEL_CACHE` overrides).
+
+## Quick start
+
+```sh
+cd your-repo
+git for-ai init                 # opt in; nothing is captured anywhere else, ever
+# ...work normally; Claude Code sessions are captured at commit time...
+git for-ai log --intent         # history with the "why" attached
+git for-ai report               # browsable digest of what your agents did
+git for-ai review               # the same, live, in your browser
+git for-ai reindex              # build the local index, then:
+git for-ai ask "why is X done this way?"
+```
+
+Synthesised answers need an Anthropic API key in `GIT_FOR_AI_ANTHROPIC_KEY` (preferred over
+`ANTHROPIC_API_KEY`, which Claude Code itself would also pick up). Without a key, `ask` still
+returns ranked sources and everything else works offline.
+
+To give an MCP-capable agent the same tools natively, register the server from your repo:
 
 ```sh
 claude mcp add git-for-ai -- git-for-ai mcp
 ```
 
-## Quick start
+## Privacy defaults
 
-```sh
-# from packages/cli, once: npm link   (published package comes later)
-cd your-repo
-git for-ai init                 # opt in — nothing is captured anywhere else, ever
-# ...work normally (Claude Code sessions get captured at commit time)...
-git for-ai log --intent         # see history with the "why" attached
-git for-ai report               # browsable HTML digest of what your agents did
-```
+Everything stays local until you explicitly run `git for-ai sync --push`. Session capture is
+per-repo opt-in and passes through a fail-closed redaction pass (secret patterns, ignore
+globs, size caps) before anything is written. The index never leaves the machine. The
+API-based embedder is off unless you explicitly consent.
 
-Privacy defaults: everything stays local until you explicitly push the refs; session capture
-is per-repo opt-in with built-in redaction; the API-based embedder is disabled without an
-explicit consent flag.
+## Documentation
 
-## Documentation map
+- **Using git-for-ai in your repo:** [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md), then
+  [`architecture/CLI_REFERENCE.md`](architecture/CLI_REFERENCE.md) for every flag and exit code.
+- **Rolling it out to a team:** [`docs/TEAM_ADOPTION.md`](docs/TEAM_ADOPTION.md).
+- **Working on git-for-ai in your fork:** [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) and
+  [`CLAUDE.md`](CLAUDE.md) (the working context for AI agents), with the design in
+  [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md),
+  [`DATA_MODEL.md`](architecture/DATA_MODEL.md), [`REVIEW_UI.md`](architecture/REVIEW_UI.md),
+  [`DESKTOP.md`](architecture/DESKTOP.md), [`ASK_TOOLS.md`](architecture/ASK_TOOLS.md) and
+  known gaps in [`ROADMAP.md`](architecture/ROADMAP.md).
 
-- [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — the full spec (identity
-  model §7 is the heart of it), with [`DATA_MODEL.md`](architecture/DATA_MODEL.md) (every
-  record shape) and [`CLI_REFERENCE.md`](architecture/CLI_REFERENCE.md) (every command).
-- [`architecture/ROADMAP.md`](architecture/ROADMAP.md) — future features, tiered.
-- [`architecture/REVIEW_UI.md`](architecture/REVIEW_UI.md) — the review web app's spec.
-- [`CLAUDE.md`](CLAUDE.md) — working context and hard rules for AI agents developing this repo.
-- [`architecture/history/`](architecture/history/PROJECT_GENESIS.md) — how this project came to
-  be: the original six idea docs, prior-art research, all executed build plans, and session
-  handoffs. Useful for archaeology; not needed for new work. The richer version is live in the
-  repo itself: `git for-ai log --intent` and `git for-ai ask "..."`.
+## License
 
-## Status
-
-Personal tool under active development, built AI-first (nearly every commit here is
-agent-authored and self-captured — inspect that claim with `git for-ai show <any sha>`).
-Clean enough to open-source when it's ready. TypeScript/Node, Windows-first dev environment,
-tested against real git repos only — no mocks of git anywhere.
+[MIT](LICENSE).

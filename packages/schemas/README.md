@@ -1,11 +1,14 @@
 # @git-for-ai/schemas
 
 Zod schemas and inferred TypeScript types for every git-for-ai record shape: `LedgerEntry`,
-`SessionRecord`, `ChangeMapEntry`, `RepoConfig`. This package is the code form of
-[`architecture/DATA_MODEL.md`](../../architecture/DATA_MODEL.md) — that document is the spec,
-this package implements it.
+`SessionRecord`, `ChangeMapEntry`, `RepoConfig`, and the JSONL ledger-note line. This
+package is the code form of [`architecture/DATA_MODEL.md`](../../architecture/DATA_MODEL.md).
 
-No other internal dependencies. `core`, `cli`, `server`, and `desktop` all depend on this.
+Every schema pins its major version as a literal (an unknown version is rejected by
+construction) and uses `.passthrough()` so unknown fields survive a round trip.
 
-Status: scaffolded, not yet implemented. See
-[`architecture/CLI_PLAN.md`](../../architecture/CLI_PLAN.md), Milestone 1.
+No internal dependencies. `core`, `cli` and `desktop` depend on it.
+
+```sh
+pnpm vitest run
+```
