@@ -1,0 +1,11 @@
+{
+  "schema": "git-for-ai/change-map-entry@1",
+  "change_id": "b07b56c77c621729cce55f982023ba2a",
+  "head": "cc8f23cd9a77e01a5b75d573977036656de951c2",
+  "history": [
+    "cc8f23cd9a77e01a5b75d573977036656de951c2"
+  ],
+  "trailer_seen": false,
+  "origin": "orphan-recovery",
+  "updated_at": "2026-07-18T04:37:39.742Z"
+}

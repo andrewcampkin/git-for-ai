@@ -1,0 +1,11 @@
+{
+  "schema": "git-for-ai/change-map-entry@1",
+  "change_id": "a8b4a9f44392e868709e24bd52f9af2e",
+  "head": "8c65241a3f1c429fce5ab64872ceb661e51dd9c0",
+  "history": [
+    "8c65241a3f1c429fce5ab64872ceb661e51dd9c0"
+  ],
+  "trailer_seen": true,
+  "origin": "post-commit",
+  "updated_at": "2026-07-19T01:22:23.070Z"
+}
